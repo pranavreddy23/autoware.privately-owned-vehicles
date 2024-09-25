@@ -35,17 +35,21 @@ class Context(nn.Module):
         # Standard
         self.GeLU = nn.GELU()
         self.sigmoid = nn.Sigmoid()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2) 
 
         # Context - MLP Layers
         self.context_layer_0 = nn.Linear(1280, 800)
         self.context_layer_1 = nn.Linear(800, 800)
-        self.context_layer_2 = nn.Linear(800, 1280)
+        self.context_layer_2 = nn.Linear(800, 200)
+
+        # Context - Extraction Layers
+        self.context_layer_3 = nn.Conv2d(1, 128, 3, 1, 1)
+        self.context_layer_4 = nn.Conv2d(128, 256, 3, 1, 1)
+        self.context_layer_5 = nn.Conv2d(256, 512, 3, 1, 1)
+        self.context_layer_6 = nn.Conv2d(512, 1280, 3, 1, 1)
 
     def forward(self, features):
         # Pooling and averaging channel layers to get a single vector
-        reduced_features = self.pool(features)
-        feature_vector = torch.mean(reduced_features, dim = [2,3])
+        feature_vector = torch.mean(features, dim = [2,3])
 
         # MLP
         c0 = self.context_layer_0(feature_vector)
@@ -53,12 +57,25 @@ class Context(nn.Module):
         c1 = self.context_layer_1(c0)
         c1 = self.GeLU(c1)
         c2 = self.context_layer_2(c1)
-        attention = self.sigmoid(c2)
-        attention = attention.unsqueeze(-1)
-        attention = attention.unsqueeze(-1)
+        c2 = self.sigmoid(c2)
+        
+        # Reshape
+        c3 = c2.reshape([10, 20])
+        c3 = c3.unsqueeze(0)
+        c3 = c3.unsqueeze(0)
+        
+        # Context
+        c4 = self.context_layer_3(c3)
+        c4 = self.GeLU(c4)
+        c5 = self.context_layer_4(c4)
+        c5 = self.GeLU(c5)
+        c6 = self.context_layer_5(c5)
+        c6 = self.GeLU(c6)
+        c7 = self.context_layer_6(c6)
+        context = self.GeLU(c7)
 
-        # Multiplying attention from MLP with features and skip connection
-        context = reduced_features*attention  + reduced_features      
+        # Attention
+        context = context*features + features
         return context   
 
 class Neck(nn.Module):
@@ -70,11 +87,12 @@ class Neck(nn.Module):
 
         # Decoder - Neck Layers 
         self.upsample_layer_0 = nn.ConvTranspose2d(1280, 1280, 2, 2)
+        self.skip_link_layer_0 = nn.Conv2d(80, 1280, 3, 1, 1)
         self.decode_layer_0 = nn.Conv2d(1280, 1024, 3, 1, 1)
         self.decode_layer_1 = nn.Conv2d(1024, 1024, 3, 1, 1)
 
         self.upsample_layer_1 = nn.ConvTranspose2d(1024, 1024, 2, 2)
-        self.skip_link_layer_0 = nn.Conv2d(80, 1024, 3, 1, 1)
+        self.skip_link_layer_1 = nn.Conv2d(40, 1024, 3, 1, 1)
         self.decode_layer_2 = nn.Conv2d(1024, 512, 3, 1, 1)
         self.decode_layer_3 = nn.Conv2d(512, 512, 3, 1, 1)
 
@@ -84,7 +102,7 @@ class Neck(nn.Module):
         # Upsample
         d0 = self.upsample_layer_0(context)
         # Add layer from Encoder
-        d0 = d0 + features[4]
+        d0 = d0 + self.skip_link_layer_0(features[3])
         # Double Convolution
         d1 = self.decode_layer_0 (d0)
         d1 = self.GeLU(d1)
@@ -95,7 +113,7 @@ class Neck(nn.Module):
         # Upsample
         d3 = self.upsample_layer_1(d2)
         # Expand and add layer from Encoder
-        d3 = d3 + self.skip_link_layer_0(features[3])
+        d3 = d3 + self.skip_link_layer_1(features[2])
         # Double convolution
         d3 = self.decode_layer_2(d3)
         d3 = self.GeLU(d3)
@@ -113,23 +131,19 @@ class CoarseSegHead(nn.Module):
 
         # Coarse Segmentation Head - Output Layers
         self.upsample_layer_2 = nn.ConvTranspose2d(512, 512, 2, 2)
-        self.skip_link_layer_1 = nn.Conv2d(40, 512, 3, 1, 1)
+        self.skip_link_layer_2 = nn.Conv2d(24, 512, 3, 1, 1)
         self.decode_layer_4 = nn.Conv2d(512, 512, 3, 1, 1)
         self.decode_layer_5 = nn.Conv2d(512, 256, 3, 1, 1)
 
         self.upsample_layer_3 = nn.ConvTranspose2d(256, 256, 2, 2)
-        self.skip_link_layer_2 = nn.Conv2d(24, 256, 3, 1, 1)
+        self.skip_link_layer_3 = nn.Conv2d(32, 256, 3, 1, 1)
         self.decode_layer_6 = nn.Conv2d(256, 256, 3, 1, 1)
         self.decode_layer_7 = nn.Conv2d(256, 128, 3, 1, 1)
 
         self.upsample_layer_4 = nn.ConvTranspose2d(128, 128, 2, 2)
-        self.skip_link_layer_3 = nn.Conv2d(32, 128, 3, 1, 1)
         self.decode_layer_8 = nn.Conv2d(128, 128, 3, 1, 1)
         self.decode_layer_9 = nn.Conv2d(128, 64, 3, 1, 1)
-
-        self.upsample_layer_5 = nn.ConvTranspose2d(64, 64, 2, 2)
-        self.decode_layer_10 = nn.Conv2d(64, 64, 3, 1, 1)
-        self.decode_layer_11 = nn.Conv2d(64, 4, 3, 1, 1)
+        self.decode_layer_10 = nn.Conv2d(64, 4, 3, 1, 1)
 
     def forward(self, neck, features):
 
@@ -137,7 +151,7 @@ class CoarseSegHead(nn.Module):
         # Upsample
         d5 = self.upsample_layer_2(neck)
          # Expand and add layer from Encoder
-        d5 = d5 + self.skip_link_layer_1(features[2])
+        d5 = d5 + self.skip_link_layer_2(features[1])
         # Double convolution
         d5 = self.decode_layer_4(d5)
         d5 = self.GeLU(d5)
@@ -148,7 +162,7 @@ class CoarseSegHead(nn.Module):
         # Upsample
         d7 = self.upsample_layer_3(d6)
          # Expand and add layer from Encoder
-        d7 = d7 + self.skip_link_layer_2(features[1])
+        d7 = d7 + self.skip_link_layer_3(features[0])
         # Double convolution
         d7 = self.decode_layer_6(d7)
         d7 = self.GeLU(d7)
@@ -158,22 +172,14 @@ class CoarseSegHead(nn.Module):
         # Decoder upsample block 5
         # Upsample
         d8 = self.upsample_layer_4(d8)
-         # Expand and add layer from Encoder
-        d8 = d8 + self.skip_link_layer_3(features[0])
         # Double convolution
         d8 = self.decode_layer_8(d8)
         d8 = self.GeLU(d8)
         d9 = self.decode_layer_9(d8)
-        d10 = self.sigmoid(d9)
-
-        # Decoder upsample block 6
-        # Upsample
-        d10 = self.upsample_layer_5(d10)
-        # Double convolution
+        d10 = self.GeLU(d9)
+        # Output
         d10 = self.decode_layer_10(d10)
-        d10 = self.GeLU(d10)
-        d11 = self.decode_layer_11(d10)
-        output = self.sigmoid(d11)
+        output = self.sigmoid(d10)
 
         return output
 
@@ -234,7 +240,8 @@ image_tensor = load_image(image)
 
 # Inference
 prediction = model(image_tensor)
-print(model)
+print(prediction.size())
+#print(model)
 
 # Visualise
 prediction = prediction.squeeze(0).cpu().detach()
@@ -243,7 +250,7 @@ prediction_0 = prediction [:,:,0]
 prediction_1 = prediction [:,:,1]
 prediction_2 = prediction [:,:,2]
 prediction_3 = prediction [:,:,3]
-print(prediction.size())
+
 
 fig = plt.figure()
 plt.imshow(image)
