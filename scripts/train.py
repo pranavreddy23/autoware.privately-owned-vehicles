@@ -10,55 +10,13 @@ from torchvision import models, transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 
-class AutoSeg(nn.Module):
+class Encoder(nn.Module):
     def __init__(self):
-        super(AutoSeg, self).__init__()
-
-        # Standard
-        self.GeLU = nn.GELU()
-        self.sigmoid = nn.Sigmoid()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2) 
-        self.softmax = nn.Softmax(dim=1)
-        
-        # Encoder
+        super(Encoder, self).__init__()
+        # Encoder Backbone
         self.encoder = models.efficientnet_b0(weights = 'EfficientNet_B0_Weights.IMAGENET1K_V1').features
 
-        # Context - MLP Layers
-        self.context_layer_0 = nn.Linear(1280, 800)
-        self.context_layer_1 = nn.Linear(800, 800)
-        self.context_layer_2 = nn.Linear(800, 1280)
-
-        # Decoder - Neck Layers with Squeeze Excite
-        self.upsample_layer_0 = nn.ConvTranspose2d(1280, 1280, 2, 2)
-        self.decode_layer_0 = nn.Conv2d(1280, 512, 3, 1, 1)
-        self.decode_layer_1 = nn.Conv2d(512, 1024, 3, 1, 1)
-
-        self.upsample_layer_1 = nn.ConvTranspose2d(1024, 1024, 2, 2)
-        self.skip_link_layer_0 = nn.Conv2d(80, 1024, 3, 1, 1)
-        self.decode_layer_2 = nn.Conv2d(1024, 256, 3, 1, 1)
-        self.decode_layer_3 = nn.Conv2d(256, 512, 3, 1, 1)
-
-        # Head - Output Layers
-        self.upsample_layer_2 = nn.ConvTranspose2d(512, 512, 2, 2)
-        self.skip_link_layer_1 = nn.Conv2d(40, 512, 3, 1, 1)
-        self.decode_layer_4 = nn.Conv2d(512, 512, 3, 1, 1)
-        self.decode_layer_5 = nn.Conv2d(512, 256, 3, 1, 1)
-
-        self.upsample_layer_3 = nn.ConvTranspose2d(256, 256, 2, 2)
-        self.skip_link_layer_2 = nn.Conv2d(24, 256, 3, 1, 1)
-        self.decode_layer_6 = nn.Conv2d(256, 256, 3, 1, 1)
-        self.decode_layer_7 = nn.Conv2d(256, 128, 3, 1, 1)
-
-        self.upsample_layer_4 = nn.ConvTranspose2d(128, 128, 2, 2)
-        self.skip_link_layer_3 = nn.Conv2d(32, 128, 3, 1, 1)
-        self.decode_layer_8 = nn.Conv2d(128, 128, 3, 1, 1)
-        self.decode_layer_9 = nn.Conv2d(128, 64, 3, 1, 1)
-
-        self.upsample_layer_5 = nn.ConvTranspose2d(64, 64, 2, 2)
-        self.decode_layer_10 = nn.Conv2d(64, 64, 3, 1, 1)
-        self.decode_layer_11 = nn.Conv2d(64, 4, 3, 1, 1)
-
-    def Encoder(self, image):
+    def forward(self, image):
         # Sequential layers of efficient net encoder
         l0 = self.encoder[0](image)
         l1 = self.encoder[1](l0)
@@ -69,9 +27,22 @@ class AutoSeg(nn.Module):
         l6 = self.encoder[6](l5)
         l7 = self.encoder[7](l6)
         l8 = self.encoder[8](l7)
-        return [l0, l2, l3, l4, l8]
-    
-    def Context(self, features):
+        return [l0, l2, l3, l4, l8]         
+
+class Context(nn.Module):
+    def __init__(self):
+        super(Context, self).__init__()
+        # Standard
+        self.GeLU = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2) 
+
+        # Context - MLP Layers
+        self.context_layer_0 = nn.Linear(1280, 800)
+        self.context_layer_1 = nn.Linear(800, 800)
+        self.context_layer_2 = nn.Linear(800, 1280)
+
+    def forward(self, features):
         # Pooling and averaging channel layers to get a single vector
         reduced_features = self.pool(features)
         feature_vector = torch.mean(reduced_features, dim = [2,3])
@@ -88,9 +59,26 @@ class AutoSeg(nn.Module):
 
         # Multiplying attention from MLP with features and skip connection
         context = reduced_features*attention  + reduced_features      
-        return context
-    
-    def Neck(self, context, features):
+        return context   
+
+class Neck(nn.Module):
+    def __init__(self):
+        super(Neck, self).__init__()
+        # Standard
+        self.GeLU = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+        # Decoder - Neck Layers 
+        self.upsample_layer_0 = nn.ConvTranspose2d(1280, 1280, 2, 2)
+        self.decode_layer_0 = nn.Conv2d(1280, 1024, 3, 1, 1)
+        self.decode_layer_1 = nn.Conv2d(1024, 1024, 3, 1, 1)
+
+        self.upsample_layer_1 = nn.ConvTranspose2d(1024, 1024, 2, 2)
+        self.skip_link_layer_0 = nn.Conv2d(80, 1024, 3, 1, 1)
+        self.decode_layer_2 = nn.Conv2d(1024, 512, 3, 1, 1)
+        self.decode_layer_3 = nn.Conv2d(512, 512, 3, 1, 1)
+
+    def forward(self, context, features):
 
         # Decoder upsample block 1
         # Upsample
@@ -115,8 +103,35 @@ class AutoSeg(nn.Module):
         neck = self.sigmoid(d4)
 
         return neck
-    
-    def Head(self, neck, features):
+
+class CoarseSegHead(nn.Module):
+    def __init__(self):
+        super(CoarseSegHead, self).__init__()
+        # Standard
+        self.GeLU = nn.GELU()
+        self.sigmoid = nn.Sigmoid()
+
+        # Coarse Segmentation Head - Output Layers
+        self.upsample_layer_2 = nn.ConvTranspose2d(512, 512, 2, 2)
+        self.skip_link_layer_1 = nn.Conv2d(40, 512, 3, 1, 1)
+        self.decode_layer_4 = nn.Conv2d(512, 512, 3, 1, 1)
+        self.decode_layer_5 = nn.Conv2d(512, 256, 3, 1, 1)
+
+        self.upsample_layer_3 = nn.ConvTranspose2d(256, 256, 2, 2)
+        self.skip_link_layer_2 = nn.Conv2d(24, 256, 3, 1, 1)
+        self.decode_layer_6 = nn.Conv2d(256, 256, 3, 1, 1)
+        self.decode_layer_7 = nn.Conv2d(256, 128, 3, 1, 1)
+
+        self.upsample_layer_4 = nn.ConvTranspose2d(128, 128, 2, 2)
+        self.skip_link_layer_3 = nn.Conv2d(32, 128, 3, 1, 1)
+        self.decode_layer_8 = nn.Conv2d(128, 128, 3, 1, 1)
+        self.decode_layer_9 = nn.Conv2d(128, 64, 3, 1, 1)
+
+        self.upsample_layer_5 = nn.ConvTranspose2d(64, 64, 2, 2)
+        self.decode_layer_10 = nn.Conv2d(64, 64, 3, 1, 1)
+        self.decode_layer_11 = nn.Conv2d(64, 4, 3, 1, 1)
+
+    def forward(self, neck, features):
 
         # Decoder upsample block 3
         # Upsample
@@ -149,14 +164,11 @@ class AutoSeg(nn.Module):
         d8 = self.decode_layer_8(d8)
         d8 = self.GeLU(d8)
         d9 = self.decode_layer_9(d8)
-        head = self.sigmoid(d9)
+        d10 = self.sigmoid(d9)
 
-        return head
-
-    def Output(self, head):
         # Decoder upsample block 6
         # Upsample
-        d10 = self.upsample_layer_5(head)
+        d10 = self.upsample_layer_5(d10)
         # Double convolution
         d10 = self.decode_layer_10(d10)
         d10 = self.GeLU(d10)
@@ -165,13 +177,29 @@ class AutoSeg(nn.Module):
 
         return output
 
+class AutoSeg(nn.Module):
+    def __init__(self):
+        super(AutoSeg, self).__init__()
+        
+        # Encoder
+        self.Encoder = Encoder()
+
+        # Context
+        self.Context = Context()
+
+        # Neck
+        self.Neck = Neck()
+
+        # Head
+        self.CoarseSegHead = CoarseSegHead()
+    
+
     def forward(self,image):
         features = self.Encoder(image)
         deep_features = features[4]
         context = self.Context(deep_features)
         neck = self.Neck(context, features)
-        head = self.Head(neck, features)
-        output = self.Output(head)
+        output = self.CoarseSegHead(neck, features)
         return output
 
 # Checking devices (GPU vs CPU)
@@ -199,8 +227,6 @@ loader = transforms.Compose(
     ]
 )
 
-print('hello world')
-
 
 # Path to image
 image = Image.open('/home/zain/Autoware/semantic_segmentation/training_data/Coarse_Seg/ACDC/images/156.png')
@@ -208,7 +234,7 @@ image_tensor = load_image(image)
 
 # Inference
 prediction = model(image_tensor)
-
+print(model)
 
 # Visualise
 prediction = prediction.squeeze(0).cpu().detach()
