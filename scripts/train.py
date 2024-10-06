@@ -46,6 +46,7 @@ class Context(nn.Module):
         self.context_layer_4 = nn.Conv2d(128, 256, 3, 1, 1)
         self.context_layer_5 = nn.Conv2d(256, 512, 3, 1, 1)
         self.context_layer_6 = nn.Conv2d(512, 1280, 3, 1, 1)
+     
 
     def forward(self, features):
         # Pooling and averaging channel layers to get a single vector
@@ -239,9 +240,19 @@ image = Image.open('/home/zain/Autoware/semantic_segmentation/training_data/Coar
 image_tensor = load_image(image)
 
 # Inference
+torch.cuda.reset_peak_memory_stats(device=None)
 prediction = model(image_tensor)
-print(prediction.size())
-#print(model)
+print(f"gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+param_size = 0
+for param in model.parameters():
+    param_size += param.nelement() * param.element_size()
+buffer_size = 0
+for buffer in model.buffers():
+    buffer_size += buffer.nelement() * buffer.element_size()
+
+size_all_mb = (param_size + buffer_size) / 1024**2
+print('model size: {:.3f}MB'.format(size_all_mb))
+print('params', param_size)
 
 # Visualise
 prediction = prediction.squeeze(0).cpu().detach()
