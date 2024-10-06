@@ -9,4 +9,4 @@ By following an ensemble-of-experts approach, AutoSeg is able to learn generaliz
 
 The current AutoSeg release comprises 5 perceptual tasks performed by different sub-network experts, these include: CoarseSeg, ObjectSeg, RoadWorksSeg, LanesSeg, and PathSeg.
 
-![Autoseg Network Diagram](AutoSeg.jpg)
+![Autoseg Network Diagram](Diagrams/AutoSeg.jpg)
