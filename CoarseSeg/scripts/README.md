@@ -10,7 +10,7 @@ Colormap values for unified semantic classes created from training data are as f
 | Semantic Class             | RGB                                                                |
 | ----------------- | ------------------------------------------------------------------ |
 | Sky | ![#3DB8FF](https://via.placeholder.com/10/3DB8FF?text=+) rgb(61, 184, 255)|
-| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+)rgb(61, 93, 255)|
+| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
 | Foreground Objects | ![#FF1C91](https://via.placeholder.com/10/FF1C91?text=+) rgb(255, 28, 145) |
 | Vulnerable Living | ![#FF3D3D](https://via.placeholder.com/10/FF3D3D?text=+) rgb(255, 61, 61)|
 | Small Mobile Vehicle | ![#FFBE3D](https://via.placeholder.com/10/FFBE3D?text=+) rgb(255, 190, 61)|
