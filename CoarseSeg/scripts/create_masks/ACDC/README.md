@@ -1,6 +1,8 @@
 
 ## ACDC
 
+#### Academic paper: https://arxiv.org/abs/2104.13395
+
 The ACDC dataset is comprised of adverse-condition images with intense presence of a single adverse condition from the set of fog, night time, rain, and snow, alongside ground truth semantic image labels. Although the dataset contains normal-condition recordings of the same scenes at day time and with clear weather - these scenes were not included, to focus on challenging weather/lighting conditions.
 
 Specifications:
