@@ -24,7 +24,7 @@ Colormap values for unified semantic classes created from training data are as f
 - [IDDAW](https://iddaw.github.io/)
 - [BDD100K](https://www.vis.xyz/bdd100k/)
 - [Mapillary Vistas](https://www.mapillary.com/dataset/vistas)
-- [Comma10K](https://github.com/commaai/comma10k)
+- [comma10K](https://github.com/commaai/comma10k)
 
 #### Please note: 
 All of the open datasests besides Comma10K include semantic labels for specific foreground objects:
@@ -32,11 +32,11 @@ All of the open datasests besides Comma10K include semantic labels for specific 
 - `Small Mobile Vehicle`
 - `Large Mobile Vehicle`
 
-The Comma10K dataset however, only contains a single class label for `Foreground Objects` which includes all movable foreground elements such as pedestrians, vehicles, animals etc. 
+The comma10K dataset however, only contains a single class label for `Foreground Objects` which includes all movable foreground elements such as pedestrians, vehicles, animals etc. 
 
-Furthermore, the Comma10K dataset does not include labels for `Road Edge Delimeter`. 
+Furthermore, the comma10K dataset does not include labels for `Road Edge Delimeter`. 
 
-Lastly, the Comma10K dataset does not natively provide `sky` class semantic pixel labels and a separate pre-trained neural network was used to create pixel level sky masks for the Comma10K images.
+Lastly, the comma10K dataset does not natively provide `sky` class semantic pixel labels and a separate pre-trained neural network was used to create pixel level sky masks for the Comma10K images.
 
 ## pytorch
 
