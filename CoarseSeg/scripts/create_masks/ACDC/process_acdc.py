@@ -156,7 +156,7 @@ def main():
     else:
         is_data_valid = True
     
-        # If all data checks have been passed
+    # If all data checks have been passed
     if(is_label_path_valid and is_image_path_valid and is_data_valid):
 
         logging.info('Beginning processing of data')
