@@ -7,7 +7,7 @@ Open semantic segmentation datasets contain various labelling methodologies and 
 
 Colormap values for unified semantic classes created from training data are as follows:
 
-| Semantic Class             | RGB                                                                |
+| CoarseSeg Semantic Class             | CoarseSeg RGB Label                             |
 | ----------------- | ------------------------------------------------------------------ |
 | Sky | ![#3DB8FF](https://via.placeholder.com/10/3DB8FF?text=+) rgb(61, 184, 255)|
 | Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
@@ -36,7 +36,7 @@ The comma10K dataset however, only contains a single class label for `Foreground
 
 Furthermore, the comma10K dataset does not include labels for `Road Edge Delimeter`. 
 
-Lastly, the comma10K dataset does not natively provide `Sky` class semantic pixel labels and a separate pre-trained neural network was used to create pixel level sky masks for the Comma10K images.
+Lastly, the comma10K dataset does not natively provide `Sky` class semantic pixel labels and a separate pre-trained neural network was used to create pixel level sky masks for the comma10K images.
 
 ## pytorch
 
