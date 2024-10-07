@@ -1,7 +1,16 @@
 #! /usr/bin/env python3
 import pathlib
+import logging
+import sys
+sys.tracebacklimit = 0
+from argparse import ArgumentParser
 import json
 from PIL import Image, ImageDraw
+
+logging.basicConfig(
+    level = logging.DEBUG,
+    format = '%(levelname)s - %(message)s'
+)
 
 # Create coarse semantic segmentation mask
 # of combined classes
@@ -74,31 +83,85 @@ def createMask(json_filepath, row, col):
 
     return coarseSegColorMap
 
-# Reading dataset labels and images and sorting returned list in alphabetical order
-labels = sorted([f for f in pathlib.Path('/home/zain/Autoware/semantic_segmentation/training_data/IDDAW/ground_truth/').glob(("*/*"))])
-images = sorted([f for f in pathlib.Path('/home/zain/Autoware/semantic_segmentation/training_data/IDDAW/images/').glob("*/*")])
+def main():
 
-# Paths to save training data with new coarse segmentation masks
-labels_save_path = '/home/zain/Autoware/semantic_segmentation/training_data/Coarse_Seg/IDDAW/gt_masks/'
-images_save_path = '/home/zain/Autoware/semantic_segmentation/training_data/Coarse_Seg/IDDAW/images/'
+    parser = ArgumentParser()
+    parser.add_argument("-l", "--labels", dest="labels_filepath", help="path to folder with input ground truth labels")
+    parser.add_argument("-i", "--images", dest="images_filepath", help="path to folder with input images")
+    parser.add_argument("-ls", "--labels-save", dest="labels_save_path", help="path to folder where processed labels will be saved")
+    parser.add_argument("-is", "--images-save", dest="images_save_path", help="path to folder where corresponding images will be saved")
+    args = parser.parse_args()
 
-# Looping through data
-for index in range(0, len(labels)):
+    # Paths to read input images and ground truth label masks from training data
+    labels_filepath = str(args.labels_filepath)
+    images_filepath = str(args.images_filepath)
 
-    # Open images and json files
-    image = Image.open(str(images[index]))
-    json_filepath = str(labels[index])
+    # Paths to save training data with new coarse segmentation masks
+    labels_save_path = str(args.labels_save_path)
+    images_save_path = str(args.images_save_path)
 
-    # Get image size
-    row, col = image.size
+    # Reading dataset labels and images and sorting returned list in alphabetical order
+    labels = sorted([f for f in pathlib.Path(labels_filepath).glob(("*/*"))])
+    images = sorted([f for f in pathlib.Path(images_filepath).glob("*/*")])
 
-    # Create new Coarse Segmentation mask
-    coarseSegColorMap = createMask(json_filepath, row, col)
+    # Checking validity
+    is_label_path_valid = False
+    is_image_path_valid = False
+    is_data_valid = False
 
-    # Save images
-    image.save(images_save_path + str(index) + ".png","PNG")
-    coarseSegColorMap.save(labels_save_path + str(index) + ".png","PNG")
+    # Getting number of labels and images
+    num_labels = len(labels)
+    num_images = len(images)
 
-    print(index)
+    # Checking if ground truth labels were read and logging error if missing
+    if (num_labels > 0):
+        logging.info(f'Found {num_labels} ground truth masks')
+        is_label_path_valid = True
+    else:
+        logging.error(f'No ground truth png masks found - check your labels filepath: {labels_filepath}')
+        raise ValueError('Input data is incorrect')
 
-print('--- COMPLETE ---')                
+    # Checking if input images were read and logging error if missing
+    if (num_images > 0):
+        logging.info(f'Found {num_images} input images')
+        is_image_path_valid = True
+    else:
+        logging.error(f'No input png images found - check your images filepath: {images_filepath}')
+        raise ValueError('Input data is incorrect')
+
+    # Checking if number of ground truth labels matches number of input images
+    # and logging error if mismatched
+    if (num_labels != num_images):
+        logging.error(f'Number of ground truth masks: {num_labels} - does not match number of input images: {num_images}')
+        raise ValueError('Input data is incorrect')
+    else:
+        is_data_valid = True
+
+    # If all data checks have been passed
+    if(is_label_path_valid and is_image_path_valid and is_data_valid):
+
+        logging.info('Beginning processing of data')
+
+        # Looping through data
+        for index in range(0, num_images):
+
+            # Open images and json files
+            image = Image.open(str(images[index]))
+            json_filepath = str(labels[index])
+
+            # Get image size
+            row, col = image.size
+
+            # Create new Coarse Segmentation mask
+            coarseSegColorMap = createMask(json_filepath, row, col)
+
+            # Save images
+            image.save(images_save_path + str(index) + ".png","PNG")
+            coarseSegColorMap.save(labels_save_path + str(index) + ".png","PNG")
+
+            logging.info(f'Processing image {index} of {num_images-1}')
+    
+        logging.info('----- Processing complete -----')             
+
+if __name__ == '__main__':
+    main()
