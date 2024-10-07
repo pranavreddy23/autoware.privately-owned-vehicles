@@ -31,10 +31,11 @@ All of the open datasests besides comma10K include semantic labels for specific 
 - `Vulnerable Living`
 - `Small Mobile Vehicle`
 - `Large Mobile Vehicle`
+These classes were unified during training into a single class for `Foreground Objects`
 
-The comma10K dataset however, only contains a single class label for `Foreground Objects` which includes all movable foreground elements such as pedestrians, vehicles, animals etc. 
+The comma10K dataset already provides a single class label for `Foreground Objects` which includes all movable foreground elements such as pedestrians, vehicles, animals etc. 
 
-Furthermore, the comma10K dataset does not include labels for `Road Edge Delimeter`. 
+The comma10K dataset does not include labels for `Road Edge Delimeter`. During training, this class was unified across all datasets into the `Background Objects` class
 
 Lastly, the comma10K dataset does not natively provide `Sky` class semantic pixel labels and a separate pre-trained neural network was used to create pixel level sky masks for the comma10K images.
 
