@@ -298,7 +298,7 @@ def main():
     # Checking if number of ground truth labels matches number of input images
     # and logging error if mismatched
     if (num_labels != num_images):
-        logging.error(f'Number of ground truth masks: {num_labels} - do not match number of input images {num_images}')
+        logging.error(f'Number of ground truth masks: {num_labels} - does not match number of input images: {num_images}')
     else:
         is_data_valid = True
    
