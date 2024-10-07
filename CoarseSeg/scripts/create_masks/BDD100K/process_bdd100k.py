@@ -105,7 +105,7 @@ def createMask(colorMap):
 def main():
 
     parser = ArgumentParser()
-    parser.add_argument("-l", "--labels", dest="labels_filepath", help="path to folder with input ground truth grayscalelabel ids")
+    parser.add_argument("-l", "--labels", dest="labels_filepath", help="path to folder with input ground truth grayscale label ids")
     parser.add_argument("-i", "--images", dest="images_filepath", help="path to folder with input images")
     parser.add_argument("-ls", "--labels-save", dest="labels_save_path", help="path to folder where processed labels will be saved")
     parser.add_argument("-is", "--images-save", dest="images_save_path", help="path to folder where corresponding images will be saved")
