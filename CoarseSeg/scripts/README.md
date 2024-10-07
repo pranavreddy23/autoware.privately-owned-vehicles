@@ -31,6 +31,7 @@ All of the open datasests besides comma10K include semantic labels for specific 
 - `Vulnerable Living`
 - `Small Mobile Vehicle`
 - `Large Mobile Vehicle`
+
 These classes were unified during training into a single class for `Foreground Objects`
 
 The comma10K dataset already provides a single class label for `Foreground Objects` which includes all movable foreground elements such as pedestrians, vehicles, animals etc. 
