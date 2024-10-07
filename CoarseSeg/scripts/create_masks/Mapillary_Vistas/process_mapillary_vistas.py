@@ -279,6 +279,7 @@ def main():
     is_image_path_valid = False
     is_data_valid = False
 
+    # Getting number of labels and images
     num_labels = len(labels)
     num_images = len(images)
 
@@ -290,7 +291,7 @@ def main():
         logging.error(f'No ground truth png masks found - check your labels filepath: {labels_filepath}')
         raise ValueError('Input data is incorrect')
 
-    # Checking if input images were read and loggin error if missing
+    # Checking if input images were read and logging error if missing
     if (num_images > 0):
         logging.info(f'Found {num_images} input images')
         is_image_path_valid = True
