@@ -93,12 +93,12 @@ def main():
     args = parser.parse_args()
 
     # Paths to read input images and ground truth label masks from training data
-    labels_filepath = str(args.labels_filepath)
-    images_filepath = str(args.images_filepath)
+    labels_filepath = args.labels_filepath
+    images_filepath = args.images_filepath
 
     # Paths to save training data with new coarse segmentation masks
-    labels_save_path = str(args.labels_save_path)
-    images_save_path = str(args.images_save_path)
+    labels_save_path = args.labels_save_path
+    images_save_path = args.images_save_path
 
     # Reading dataset labels and images and sorting returned list in alphabetical order
     labels = sorted([f for f in pathlib.Path(labels_filepath).glob(("*/*"))])
