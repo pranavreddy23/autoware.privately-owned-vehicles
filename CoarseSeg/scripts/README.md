@@ -18,12 +18,12 @@ Colormap values for unified semantic classes created from training data are as f
 | Road | ![#00FFDC](https://via.placeholder.com/10/00FFDC?text=+) rgb(0, 255, 220) |
 
 #### The open datasets used in CoarseSeg include:
-- ACDC
-- MUSES
-- IDDAW
-- BDD100K
-- Mapillary Vistas
-- Comma10K
+- [ACDC](https://acdc.vision.ee.ethz.ch/)
+- [MUSES](https://muses.vision.ee.ethz.ch/)
+- [IDDAW](https://iddaw.github.io/)
+- [BDD100K](https://www.vis.xyz/bdd100k/)
+- [Mapillary Vistas](https://www.mapillary.com/dataset/vistas)
+- [Comma10K](https://github.com/commaai/comma10k)
 
 #### Please note: 
 All of the open datasests besides Comma10K include labels for specific foreground objects, such as `Vulnerable Living`, `Small Mobile Vehicle` etc. The Comma10K dataset however, only contains a single class label for `Foreground Objects` which includes all movable foreground elements such as pedestrians, vehicles, animals etc. 
