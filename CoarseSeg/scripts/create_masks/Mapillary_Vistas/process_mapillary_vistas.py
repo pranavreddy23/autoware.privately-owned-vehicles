@@ -292,7 +292,7 @@ def main():
         logging.info(f'Found {num_images} input images')
         is_image_path_valid = True
     else:
-        logging.error(f'No input jpg images found - check your labels filepath: {images_filepath}')
+        logging.error(f'No input jpg images found - check your images filepath: {images_filepath}')
 
     # Checking if number of ground truth labels matches number of input images
     # and logging error if mismatched
