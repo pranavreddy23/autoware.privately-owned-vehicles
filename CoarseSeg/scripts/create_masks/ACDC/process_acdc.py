@@ -132,7 +132,7 @@ def main():
     num_labels = len(labels)
     num_images = len(images)
 
-        # Checking if ground truth labels were read and logging error if missing
+    # Checking if ground truth labels were read and logging error if missing
     if (num_labels > 0):
         logging.info(f'Found {num_labels} ground truth masks')
         is_label_path_valid = True
@@ -156,7 +156,7 @@ def main():
     else:
         is_data_valid = True
     
-        # If all data checks have been passed
+    # If all data checks have been passed
     if(is_label_path_valid and is_image_path_valid and is_data_valid):
 
         logging.info('Beginning processing of data')
