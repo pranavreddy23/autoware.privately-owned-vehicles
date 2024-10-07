@@ -267,7 +267,7 @@ def main():
     # Paths to save training data with new coarse segmentation masks
     labels_save_path = args.labels_save_path
     images_save_path = args.images_save_path
-
+    
     # Reading dataset labels and images and sorting returned list in alphabetical order
     labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.png")])
     images = sorted([f for f in pathlib.Path(images_filepath).glob("*.jpg")])
