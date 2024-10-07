@@ -1,3 +1,4 @@
+
 ## create_masks
 
 Contains scripts to process open datasets and create semantic masks in a unified labelling scheme according to the CoarseSeg neural task specification. 
@@ -26,12 +27,21 @@ Colormap values for unified semantic classes created from training data are as f
 - [Comma10K](https://github.com/commaai/comma10k)
 
 #### Please note: 
-All of the open datasests besides Comma10K include labels for specific foreground objects, such as `Vulnerable Living`, `Small Mobile Vehicle` etc. The Comma10K dataset however, only contains a single class label for `Foreground Objects` which includes all movable foreground elements such as pedestrians, vehicles, animals etc. 
+All of the open datasests besides Comma10K include semantic labels for specific foreground objects:
+- `Vulnerable Living`
+- `Small Mobile Vehicle`
+- `Large Mobile Vehicle`
+
+The Comma10K dataset however, only contains a single class label for `Foreground Objects` which includes all movable foreground elements such as pedestrians, vehicles, animals etc. 
 
 Furthermore, the Comma10K dataset does not include labels for `Road Edge Delimeter`. 
 
-Lastly, the Comma10K dataset does not natively provide `sky` class labels and a separate pre-trained neural network was used to create pixel level sky masks for the Comma10K images.
+Lastly, the Comma10K dataset does not natively provide `sky` class semantic pixel labels and a separate pre-trained neural network was used to create pixel level sky masks for the Comma10K images.
 
 ## pytorch
 
 Contains scripts related to model training, inference and evaluation
+
+
+
+
