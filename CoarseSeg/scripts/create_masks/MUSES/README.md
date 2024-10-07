@@ -11,13 +11,13 @@ Colormap values for unified semantic classes created from the MUSES dataset to C
 | MUSES Semantic Class  | MUSES RGB Label | CoarseSeg Semantic Class | CoarseSeg RGB Label |
 | -------- | ------- | ------- | ------- |
 |Sky| ![#4682B4](https://via.placeholder.com/10/4682B4?text=+) rgb(70,130,180)| Sky | ![#3DB8FF](https://via.placeholder.com/10/3DB8FF?text=+) rgb(61, 184, 255)|
-|Building|![#464646](https://via.placeholder.com/10/464646?text=+) rgb(70, 70, 70)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+)rgb(61, 93, 255)|
-|Pole|![#999999](https://via.placeholder.com/10/999999?text=+) rgb(153, 153, 153)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+)rgb(61, 93, 255)|
-|Traffic Light|![#FAAA1E](https://via.placeholder.com/10/FAAA1E?text=+) rgb(250, 170, 30)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+)rgb(61, 93, 255)|
-|Traffic Sign|![#DCDC00](https://via.placeholder.com/10/DCDC00?text=+) rgb(220, 220, 0)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+)rgb(61, 93, 255)|
-|Vegetation|![#6B8E23](https://via.placeholder.com/10/6B8E23?text=+) rgb(107, 142, 35)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+)rgb(61, 93, 255)|
-|Terrain|![#98FB98](https://via.placeholder.com/10/98FB98?text=+) rgb(152, 251, 152)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+)rgb(61, 93, 255)|
-|Unlabelled|![#000000](https://via.placeholder.com/10/000000?text=+) rgb(0,0,0)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+)rgb(61, 93, 255)|
+|Building|![#464646](https://via.placeholder.com/10/464646?text=+) rgb(70, 70, 70)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
+|Pole|![#999999](https://via.placeholder.com/10/999999?text=+) rgb(153, 153, 153)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
+|Traffic Light|![#FAAA1E](https://via.placeholder.com/10/FAAA1E?text=+) rgb(250, 170, 30)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
+|Traffic Sign|![#DCDC00](https://via.placeholder.com/10/DCDC00?text=+) rgb(220, 220, 0)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
+|Vegetation|![#6B8E23](https://via.placeholder.com/10/6B8E23?text=+) rgb(107, 142, 35)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
+|Terrain|![#98FB98](https://via.placeholder.com/10/98FB98?text=+) rgb(152, 251, 152)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
+|Unlabelled|![#000000](https://via.placeholder.com/10/000000?text=+) rgb(0,0,0)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
 |Person|![#DC143C](https://via.placeholder.com/10/DC143C?text=+) rgb(220, 20, 60)| Vulnerable Living | ![#FF3D3D](https://via.placeholder.com/10/FF3D3D?text=+) rgb(255, 61, 61)|
 |Rider|![#FF0000](https://via.placeholder.com/10/FF0000?text=+) rgb(255, 0, 0)| Small Mobile Vehicle | ![#FFBE3D](https://via.placeholder.com/10/FFBE3D?text=+) rgb(255, 190, 61)|
 |Motorcylce|![#0000E6](https://via.placeholder.com/10/0000E6?text=+) rgb(0, 0, 230)| Small Mobile Vehicle | ![#FFBE3D](https://via.placeholder.com/10/FFBE3D?text=+) rgb(255, 190, 61)|
