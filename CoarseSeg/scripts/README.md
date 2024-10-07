@@ -27,7 +27,7 @@ Colormap values for unified semantic classes created from training data are as f
 - [comma10K](https://github.com/commaai/comma10k)
 
 #### Please note: 
-All of the open datasests besides Comma10K include semantic labels for specific foreground objects:
+All of the open datasests besides comma10K include semantic labels for specific foreground objects:
 - `Vulnerable Living`
 - `Small Mobile Vehicle`
 - `Large Mobile Vehicle`
