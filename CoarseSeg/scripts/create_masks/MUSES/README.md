@@ -6,7 +6,7 @@
 MUSES, the MUlti-SEnsor Semantic perception dataset, designed for driving under increased uncertainty and adverse conditions. MUSES comprises a diverse collection of images, evenly distributed across different combinations of weather conditions (clear, fog, rain, and snow) and illuminations (day time/night time). Each image in the dataset is accompanied by high-quality 2D semantic image labels.
 
 ### process_muses.py
-Colormap values for unified semantic classes created from the ACDC dataset to CoarseSeg format are as follows:
+Colormap values for unified semantic classes created from the MUSES dataset to CoarseSeg format are as follows:
 
 | MUSES Semantic Class  | MUSES RGB Label | CoarseSeg Semantic Class | CoarseSeg RGB Label |
 | -------- | ------- | ------- | ------- |
