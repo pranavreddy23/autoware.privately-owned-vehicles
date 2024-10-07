@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
 import pathlib
 import logging
+import sys
+sys.tracebacklimit = 0
 from argparse import ArgumentParser
 from PIL import Image
 
@@ -286,6 +288,7 @@ def main():
         is_label_path_valid = True
     else:
         logging.error(f'No ground truth png masks found - check your labels filepath: {labels_filepath}')
+        raise ValueError('Input data is incorrect')
 
     # Checking if input images were read and loggin error if missing
     if (num_images > 0):
@@ -293,11 +296,13 @@ def main():
         is_image_path_valid = True
     else:
         logging.error(f'No input jpg images found - check your images filepath: {images_filepath}')
+        raise ValueError('Input data is incorrect')
 
     # Checking if number of ground truth labels matches number of input images
     # and logging error if mismatched
     if (num_labels != num_images):
         logging.error(f'Number of ground truth masks: {num_labels} - does not match number of input images: {num_images}')
+        raise ValueError('Input data is incorrect')
     else:
         is_data_valid = True
    
