@@ -36,8 +36,7 @@ def createMask(colorMap):
     # Extracting classes and assigning to colourmap
     for x in range(row):
         for y in range(col):
-           
-            
+                       
             # SKY
             if px[x,y] == 27:
                 cx[x,y] = sky_colour
