@@ -11,7 +11,6 @@ logging.basicConfig(
     format = '%(levelname)s - %(message)s'
 )
 
-
 # Create coarse semantic segmentation mask
 # of combined classes
 def createMask(colorMap):
