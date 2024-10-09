@@ -7,6 +7,7 @@ from torchvision import transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 from coarse_seg import CoarseSeg
+from data_utils.load_acdc import ACDC_Dataset
 
 # Checking devices (GPU vs CPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,7 +36,11 @@ loader = transforms.Compose(
 
 
 # Path to image
-image = Image.open('/home/zain/Autoware/AutoSeg/training_data/Coarse_Seg/ACDC/images/156.png')
+acdc_labels_filepath= '/home/zain/Autoware/AutoSeg/training_data/Coarse_Seg/ACDC/gt_masks/'
+acdc_images_filepath = '/home/zain/Autoware/AutoSeg/training_data/Coarse_Seg/ACDC/images/'
+acdc_Dataset = ACDC_Dataset(acdc_labels_filepath, acdc_images_filepath)
+acdc_dataset_items = acdc_Dataset.getlen()
+image, label = acdc_Dataset.getitem(200)
 image_tensor = load_image(image)
 
 # Inference
