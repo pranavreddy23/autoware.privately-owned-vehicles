@@ -10,12 +10,12 @@ class SegHead(nn.Module):
 
         # Coarse Segmentation Head - Output Layers
         self.upsample_layer_2 = nn.ConvTranspose2d(512, 512, 2, 2)
-        self.skip_link_layer_2 = nn.Conv2d(24, 512, 3, 1, 1)
+        self.skip_link_layer_2 = nn.Conv2d(24, 512, 1)
         self.decode_layer_4 = nn.Conv2d(512, 512, 3, 1, 1)
         self.decode_layer_5 = nn.Conv2d(512, 256, 3, 1, 1)
 
         self.upsample_layer_3 = nn.ConvTranspose2d(256, 256, 2, 2)
-        self.skip_link_layer_3 = nn.Conv2d(32, 256, 3, 1, 1)
+        self.skip_link_layer_3 = nn.Conv2d(32, 256, 1)
         self.decode_layer_6 = nn.Conv2d(256, 256, 3, 1, 1)
         self.decode_layer_7 = nn.Conv2d(256, 128, 3, 1, 1)
 
