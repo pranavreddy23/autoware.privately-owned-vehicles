@@ -11,7 +11,9 @@ class ACDC_Dataset(Dataset):
 
     def getitem(self, index):
         self.image = Image.open(str(self.images[index]))
+        self.image = self.image.crop((0, 0, 1919, 990))
         self.label = Image.open(str(self.labels[index]))
+        self.label = self.label.crop((0, 0, 1919, 990))
         return self.image, self.label
 
     def getlen(self):
