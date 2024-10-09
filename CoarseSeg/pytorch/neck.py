@@ -10,12 +10,12 @@ class Neck(nn.Module):
 
         # Decoder - Neck Layers 
         self.upsample_layer_0 = nn.ConvTranspose2d(1280, 1280, 2, 2)
-        self.skip_link_layer_0 = nn.Conv2d(80, 1280, 3, 1, 1)
+        self.skip_link_layer_0 = nn.Conv2d(80, 1280, 1)
         self.decode_layer_0 = nn.Conv2d(1280, 1024, 3, 1, 1)
         self.decode_layer_1 = nn.Conv2d(1024, 1024, 3, 1, 1)
 
         self.upsample_layer_1 = nn.ConvTranspose2d(1024, 1024, 2, 2)
-        self.skip_link_layer_1 = nn.Conv2d(40, 1024, 3, 1, 1)
+        self.skip_link_layer_1 = nn.Conv2d(40, 1024, 1)
         self.decode_layer_2 = nn.Conv2d(1024, 512, 3, 1, 1)
         self.decode_layer_3 = nn.Conv2d(512, 512, 3, 1, 1)
 
