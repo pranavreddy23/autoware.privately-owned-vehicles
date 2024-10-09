@@ -35,7 +35,7 @@ class SegHead(nn.Module):
         d5 = self.decode_layer_4(d5)
         d5 = self.GeLU(d5)
         d6 = self.decode_layer_5(d5)
-        d6 = self.sigmoid(d6)
+        d6 = self.GeLU(d6)
 
         # Decoder upsample block 4
         # Upsample
@@ -46,7 +46,7 @@ class SegHead(nn.Module):
         d7 = self.decode_layer_6(d7)
         d7 = self.GeLU(d7)
         d8 = self.decode_layer_7(d7)
-        d8 = self.sigmoid(d8)
+        d8 = self.GeLU(d8)
 
         # Decoder upsample block 5
         # Upsample
