@@ -1,15 +1,22 @@
 import albumentations as A
 import numpy as np
+import random
 
 class Augmentations():
     def __init__(self, input_image, input_mask):
         self.image = np.array(input_image)
         self.mask = np.array(input_mask)
         
-        transform = A.Compose(
+        transform_shape = A.Compose(
             [
                 A.Resize(width = 640, height = 320), 
                 A.HorizontalFlip(p = 0.5),
+                               
+            ]
+        )
+
+        transform_noise = A.Compose(
+            [
                 A.MultiplicativeNoise(multiplier=(0.5, 1.5), per_channel=False, p=0.5),
                 A.PixelDropout(dropout_prob=0.025, per_channel=True, p=0.25),
                 A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1, p=0.75),
@@ -31,9 +38,15 @@ class Augmentations():
                 A.ToGray(num_output_channels=3, method='weighted_average', p=0.1)                
             ]
         )
-        self.augmentations = transform(image=self.image, mask=self.mask)
-        self.augmented_image = self.augmentations["image"]
-        self.augmented_mask = self.augmentations["mask"]
+
+        self.adjust_shape = transform_shape(image=self.image, mask=self.mask)
+        self.augmented_image = self.adjust_shape["image"]
+        self.augmented_mask = self.adjust_shape["mask"]
+
+        if (random.random() >= 0.25):
+            self.add_noise = transform_noise(image=self.augmented_image, mask=self.augmented_mask)
+            self.augmented_image = self.add_noise["image"]
+            self.augmented_mask = self.add_noise["mask"]
 
         self.getAugmentedData()
 
