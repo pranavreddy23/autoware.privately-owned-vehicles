@@ -10,8 +10,7 @@ class Augmentations():
         transform_shape = A.Compose(
             [
                 A.Resize(width = 640, height = 320), 
-                A.HorizontalFlip(p = 0.5),
-                               
+                A.HorizontalFlip(p = 0.5),           
             ]
         )
 
@@ -44,7 +43,10 @@ class Augmentations():
         self.augmented_mask = self.adjust_shape["mask"]
 
         if (random.random() >= 0.25):
-            self.add_noise = transform_noise(image=self.augmented_image, mask=self.augmented_mask)
+            
+            self.add_noise = transform_noise(image=self.augmented_image, \
+                                mask=self.augmented_mask)
+            
             self.augmented_image = self.add_noise["image"]
             self.augmented_mask = self.add_noise["mask"]
 
