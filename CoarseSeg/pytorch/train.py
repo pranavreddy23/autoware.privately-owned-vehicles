@@ -40,7 +40,7 @@ acdc_labels_filepath= '/home/zain/Autoware/AutoSeg/training_data/Coarse_Seg/ACDC
 acdc_images_filepath = '/home/zain/Autoware/AutoSeg/training_data/Coarse_Seg/ACDC/images/'
 acdc_Dataset = ACDC_Dataset(acdc_labels_filepath, acdc_images_filepath)
 acdc_dataset_items = acdc_Dataset.getlen()
-image, label = acdc_Dataset.getitem(200)
+image, label = acdc_Dataset.getitem(100)
 image_tensor = load_image(image)
 
 # Inference
@@ -69,6 +69,8 @@ prediction_3 = prediction [:,:,3]
 
 fig = plt.figure()
 plt.imshow(image)
+fig = plt.figure()
+plt.imshow(label)
 fig1, axs = plt.subplots(2,2)
 axs[0,0].imshow(prediction_0)
 axs[0,1].imshow(prediction_1)
