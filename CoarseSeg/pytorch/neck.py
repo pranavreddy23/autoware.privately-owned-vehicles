@@ -6,7 +6,6 @@ class Neck(nn.Module):
         super(Neck, self).__init__()
         # Standard
         self.GeLU = nn.GELU()
-        self.sigmoid = nn.Sigmoid()
 
         # Decoder - Neck Layers 
         self.upsample_layer_0 = nn.ConvTranspose2d(1280, 1280, 2, 2)
@@ -30,7 +29,7 @@ class Neck(nn.Module):
         d1 = self.decode_layer_0 (d0)
         d1 = self.GeLU(d1)
         d2 = self.decode_layer_1(d1)
-        d2 = self.sigmoid(d2)
+        d2 = self.GeLU(d2)
 
         # Decoder upsample block 2
         # Upsample
@@ -41,6 +40,6 @@ class Neck(nn.Module):
         d3 = self.decode_layer_2(d3)
         d3 = self.GeLU(d3)
         d4 = self.decode_layer_3(d3)
-        neck = self.sigmoid(d4)
+        neck = self.GeLU(d4)
 
         return neck
