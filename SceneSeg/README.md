@@ -51,7 +51,3 @@ The comma10K dataset already provides a single class label for `Foreground Objec
 The comma10K dataset does not include labels for `Road Edge Delimeter`. During training, this class was unified across all datasets into the `Background Objects` class
 
 Lastly, the comma10K dataset does not natively provide `Sky` class semantic pixel labels and a separate pre-trained neural network was used to create pixel level sky masks for the comma10K images.
-
-## pytorch
-
-Contains scripts related to model training, inference and evaluation
