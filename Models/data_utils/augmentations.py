@@ -25,9 +25,6 @@ class Augmentations():
                 A.RandomFog(fog_coef_lower=0.1, fog_coef_upper=0.3, alpha_coef=0.4, p=0.1),
                 A.RandomGridShuffle(grid=(1,3), p=0.75),
                 A.RandomRain(p=0.1),
-                A.RandomSunFlare(flare_roi=(0.1, 0, 0.9, 0.3), angle_range=(0.25, 0.75), \
-                    num_flare_circles_range=(5, 15), src_radius=200, \
-                    src_color=(255, 255, 100), method="physics_based", p=0.1),
                 A.Spatter(mean=(0.65, 0.65), std=(0.3, 0.3), gauss_sigma=(2, 2), \
                     cutout_threshold=(0.68, 0.68), intensity=(0.6, 0.6), mode='rain', \
                     p=0.1),
