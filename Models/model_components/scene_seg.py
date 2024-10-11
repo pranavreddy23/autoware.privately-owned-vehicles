@@ -4,9 +4,9 @@ from .neck import Neck
 from .seg_head import SegHead
 import torch.nn as nn
 
-class CoarseSeg(nn.Module):
+class SceneSeg(nn.Module):
     def __init__(self):
-        super(CoarseSeg, self).__init__()
+        super(SceneSeg, self).__init__()
         
         # Encoder
         self.Backbone = Backbone()

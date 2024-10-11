@@ -5,7 +5,7 @@
 import torch
 from torchvision import transforms
 import matplotlib.pyplot as plt
-from model_components.coarse_seg import CoarseSeg
+from model_components.scene_seg import SceneSeg
 from data_utils.load_acdc import ACDC_Dataset
 from data_utils.augmentations import Augmentations
 
@@ -14,7 +14,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using {device} for inference')
 
 # Instantiate model
-model = CoarseSeg().eval().to(device)
+model = SceneSeg().eval().to(device)
 
 # Load Image
 def load_image(image):
