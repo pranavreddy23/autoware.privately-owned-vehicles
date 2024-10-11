@@ -6,7 +6,7 @@ import torch
 from torchvision import transforms
 import matplotlib.pyplot as plt
 from model_components.scene_seg import SceneSeg
-from data_utils.load_acdc import ACDC_Dataset
+from data_utils.load_data import LoadData
 from data_utils.augmentations import Augmentations
 
 # Checking devices (GPU vs CPU)
@@ -32,13 +32,14 @@ loader = transforms.Compose(
 
 
 # Path to image
-acdc_labels_filepath= '/home/zain/Autoware/AutoSeg/training_data/Coarse_Seg/ACDC/gt_masks/'
-acdc_images_filepath = '/home/zain/Autoware/AutoSeg/training_data/Coarse_Seg/ACDC/images/'
+acdc_labels_filepath= '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/ACDC/gt_masks/'
+acdc_images_filepath = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/ACDC/images/'
 
 # Data loading helpers
-acdc_Dataset = ACDC_Dataset(acdc_labels_filepath, acdc_images_filepath)
-acdc_dataset_items = acdc_Dataset.getlen()
-image, label = acdc_Dataset.getitem(955)
+acdc_Dataset = LoadData(acdc_labels_filepath, acdc_images_filepath)
+acdc_num_train_samples, acdc_num_val_samples = acdc_Dataset.getItemCount()
+print(acdc_num_train_samples, acdc_num_val_samples)
+image, label = acdc_Dataset.getItemTrain(1500)
 
 # Image augmentation
 augmentations = Augmentations(image, label)
