@@ -8,7 +8,7 @@ Semantic Classes
 - Drivable Road Surface
 - Sky
 
-![SceneSeg Network Diagram](../Diagrams/CoarseSeg.jpg)
+![SceneSeg Network Diagram](../Diagrams/SceneSeg.jpg)
 
 
 ## create_masks
