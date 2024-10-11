@@ -6,9 +6,9 @@
 The IDDAW (Indian Driving Dataset Adverse Weather) provides images captured on Indian roads in a variety of weather and lighting conditions across highways, rural roads and complex urban scenes. The ground-truth semantic labels are stored in a JSON file which contains polygon object contours according to semantic class labels. There are a total of 30 different semantic classes provided in the dataset. 
 
 ### process_bdd100k.py
-Colormap values for unified semantic classes created from the IDDAW dataset to CoarseSeg format are as follows:
+Colormap values for unified semantic classes created from the IDDAW dataset to SceneSeg format are as follows:
 
-| IDDAW Semantic Class Label in JSON | CoarseSeg Semantic Class | CoarseSeg RGB Label |
+| IDDAW Semantic Class Label in JSON | SceneSeg Semantic Class | SceneSeg RGB Label |
 | -------- | ------- | ------- |
 |`sky`| Sky | ![#3DB8FF](https://via.placeholder.com/10/3DB8FF?text=+) rgb(61, 184, 255)|
 |`billboard`| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|

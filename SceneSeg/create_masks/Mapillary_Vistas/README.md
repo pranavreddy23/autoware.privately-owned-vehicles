@@ -6,9 +6,9 @@
 Mapillary Vistas is a diverse street-level imagery dataset with pixel‑accurate and instance‑specific human annotations for understanding street scenes around the world. The dataset contains images from all around the world, captured at various conditions regarding weather, season and daytime. Images come from different imaging devices (mobile phones, tablets, action cameras, professional capturing rigs) and differently experienced photographers. A total of 65 semantic classes are labelled in ground truth pixel masks via color pallete label Ids.
 
 ### process_mapillary_vistas.py
-Colormap values for unified semantic classes created from the Mapillary Vistas dataset to CoarseSeg format are as follows:
+Colormap values for unified semantic classes created from the Mapillary Vistas dataset to SceneSeg format are as follows:
 
-| Mapillary Vistas Semantic Class  | Mapillary Vistas Pallete Id Label | CoarseSeg Semantic Class | CoarseSeg RGB Label |
+| Mapillary Vistas Semantic Class  | Mapillary Vistas Pallete Id Label | SceneSeg Semantic Class | SceneSeg RGB Label |
 | -------- | ------- | ------- | ------- |
 |Sky|27| Sky | ![#3DB8FF](https://via.placeholder.com/10/3DB8FF?text=+) rgb(61, 184, 255)|
 |Building|17| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|

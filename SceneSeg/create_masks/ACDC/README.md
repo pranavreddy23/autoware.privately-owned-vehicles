@@ -11,9 +11,9 @@ Specifications:
 - Recordings performed in Switzerland, primarily in urban areas but also on highways and in rural regions
 
 ### process_acdc.py
-Colormap values for unified semantic classes created from the ACDC dataset to CoarseSeg format are as follows:
+Colormap values for unified semantic classes created from the ACDC dataset to SceneSeg format are as follows:
 
-| ACDC Semantic Class  | ACDC RGB Label | CoarseSeg Semantic Class | CoarseSeg RGB Label |
+| ACDC Semantic Class  | ACDC RGB Label | SceneSeg Semantic Class | SceneSeg RGB Label |
 | -------- | ------- | ------- | ------- |
 |Sky| ![#4682B4](https://via.placeholder.com/10/4682B4?text=+) rgb(70,130,180)| Sky | ![#3DB8FF](https://via.placeholder.com/10/3DB8FF?text=+) rgb(61, 184, 255)|
 |Building|![#464646](https://via.placeholder.com/10/464646?text=+) rgb(70, 70, 70)| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|

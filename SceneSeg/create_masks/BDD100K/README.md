@@ -6,9 +6,9 @@
 The BDD100K dataset provides images captured from webcams mounted behind car windshields across a variety of countries, covering various lighting and weather conditions. The ground-truth semantic label of each image is saved into an one-channel png (8 bits per pixel). The value of each pixel represents its semantic category.
 
 ### process_bdd100k.py
-Colormap values for unified semantic classes created from the BDD100K dataset to CoarseSeg format are as follows:
+Colormap values for unified semantic classes created from the BDD100K dataset to SceneSeg format are as follows:
 
-| BDD100K Semantic Class  | BDD100K Id Label | CoarseSeg Semantic Class | CoarseSeg RGB Label |
+| BDD100K Semantic Class  | BDD100K Id Label | SceneSeg Semantic Class | SceneSeg RGB Label |
 | -------- | ------- | ------- | ------- |
 |Sky|10| Sky | ![#3DB8FF](https://via.placeholder.com/10/3DB8FF?text=+) rgb(61, 184, 255)|
 |Building|2| Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
