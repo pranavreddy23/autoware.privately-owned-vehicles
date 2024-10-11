@@ -32,21 +32,51 @@ loader = transforms.Compose(
 
 
 # Path to image
-acdc_labels_filepath= '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/ACDC/gt_masks/'
-acdc_images_filepath = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/ACDC/images/'
-bdd100k_labels_fileapath = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/BDD100K/gt_masks/'
-bdd100k_images_fileapath = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/BDD100K/images/'
+root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
+acdc_labels_filepath= root + 'ACDC/gt_masks/'
+acdc_images_filepath = root + 'ACDC/images/'
+bdd100k_labels_fileapath = root + 'BDD100K/gt_masks/'
+bdd100k_images_fileapath = root + 'BDD100K/images/'
+iddaw_labels_fileapath = root + 'IDDAW/gt_masks/'
+iddaw_images_fileapath = root + 'IDDAW/images/'
+muses_labels_fileapath = root + 'MUSES/gt_masks/'
+muses_images_fileapath = root + 'MUSES/images/'
+mapillary_labels_fileapath = root + 'Mapillary_Vistas/gt_masks/'
+mapillary_images_fileapath = root + 'Mapillary_Vistas/images/'
+comma10k_labels_fileapath = root + 'comma10k/gt_masks/'
+comma10k_images_fileapath = root + 'comma10k/images/'
+
 
 # ACDC - Data Loading
 acdc_Dataset = LoadData(acdc_labels_filepath, acdc_images_filepath, 'ACDC')
 acdc_num_train_samples, acdc_num_val_samples = acdc_Dataset.getItemCount()
 print(acdc_num_train_samples, acdc_num_val_samples)
-#image, label = acdc_Dataset.getItemVal(0)
 
+# BDD100K - Data Loading
 bdd100k_Dataset = LoadData(bdd100k_labels_fileapath, bdd100k_images_fileapath, 'BDD100K')
 bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
 print(bdd100k_num_train_samples, bdd100k_num_val_samples)
-image, label = bdd100k_Dataset.getItemTrain(0)
+
+# IDDAW - Data Loading
+iddaw_Dataset = LoadData(iddaw_labels_fileapath, iddaw_images_fileapath, 'IDDAW')
+iddaw_num_train_samples, iddaw_num_val_samples = iddaw_Dataset.getItemCount()
+print(iddaw_num_train_samples, iddaw_num_val_samples)
+
+# MUSES - Data Loading
+muses_Dataset = LoadData(muses_labels_fileapath, muses_images_fileapath, 'MUSES')
+muses_num_train_samples, muses_num_val_samples = muses_Dataset.getItemCount()
+print(muses_num_train_samples, muses_num_val_samples)
+
+# Mapillary - Data Loading
+mapillary_Dataset = LoadData(mapillary_labels_fileapath, mapillary_images_fileapath, 'MAPILLARY')
+mapillary_num_train_samples, mapillary_num_val_samples = mapillary_Dataset.getItemCount()
+print(mapillary_num_train_samples, mapillary_num_val_samples)
+
+# comma10k - Data Loading
+comma10k_Dataset = LoadData(comma10k_labels_fileapath, comma10k_images_fileapath, 'COMMA10K')
+comma10k_num_train_samples, comma10k_num_val_samples = comma10k_Dataset.getItemCount()
+print(comma10k_num_train_samples, comma10k_num_val_samples)
+image, label = comma10k_Dataset.getItemVal(100)
 
 # Image augmentation
 augmentations = Augmentations(image, label)
