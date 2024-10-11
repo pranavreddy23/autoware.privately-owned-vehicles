@@ -5,7 +5,7 @@
 import torch
 from torchvision import transforms
 import matplotlib.pyplot as plt
-from coarse_seg import CoarseSeg
+from model_components.coarse_seg import CoarseSeg
 from data_utils.load_acdc import ACDC_Dataset
 from data_utils.augmentations import Augmentations
 
@@ -38,7 +38,7 @@ acdc_images_filepath = '/home/zain/Autoware/AutoSeg/training_data/Coarse_Seg/ACD
 # Data loading helpers
 acdc_Dataset = ACDC_Dataset(acdc_labels_filepath, acdc_images_filepath)
 acdc_dataset_items = acdc_Dataset.getlen()
-image, label = acdc_Dataset.getitem(100)
+image, label = acdc_Dataset.getitem(955)
 
 # Image augmentation
 augmentations = Augmentations(image, label)

@@ -1,7 +1,7 @@
-from backbone import Backbone
-from context import Context
-from neck import Neck
-from seg_head import SegHead
+from .backbone import Backbone
+from .context import Context
+from .neck import Neck
+from .seg_head import SegHead
 import torch.nn as nn
 
 class CoarseSeg(nn.Module):

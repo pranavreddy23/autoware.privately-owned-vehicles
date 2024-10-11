@@ -2,7 +2,6 @@
 import pathlib
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms
 
 class ACDC_Dataset(Dataset):
     def __init__(self, labels_filepath, images_filepath):
