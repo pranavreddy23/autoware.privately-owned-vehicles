@@ -9,7 +9,8 @@ class LoadData():
 
         self.dataset = dataset
 
-        if(self.dataset != 'ACDC' and self.dataset != 'BDD100K' and self.dataset != 'MUSES' \
+        if(self.dataset != 'ACDC' and self.dataset != 'BDD100K' and  \
+           self.dataset != 'IDDAW' and self.dataset != 'MUSES' \
            and self.dataset != 'MAPILLARY' and self.dataset != 'COMMA10K'):
             raise ValueError('Dataset type is not correctly specified')
         
@@ -37,8 +38,8 @@ class LoadData():
         self.num_val_samples = 0
 
         for count in range (0, self.num_images):
-
-            if(count% 9 == 0):
+    
+            if(count > 0 and count% 10 == 0):
                 self.val_images.append(str(self.images[count]))
                 self.val_labels.append(str(self.labels[count]))
                 self.num_val_samples += 1 
@@ -57,6 +58,22 @@ class LoadData():
         if(self.dataset == 'ACDC'):
             self.train_image = self.train_image.crop((0, 0, 1919, 990))
             self.train_label = self.train_label.crop((0, 0, 1919, 990))
+        elif(self.dataset == 'BDD100K'):
+            self.train_image = self.train_image.crop((0, 0, 1000, 500))
+            self.train_label = self.train_label.crop((0, 0, 1000, 500))
+        elif(self.dataset == 'IDDAW'):
+            self.train_image = self.train_image.crop((0, 476, 2047, 1500))
+            self.train_label = self.train_label.crop((0, 476, 2047, 1500))
+        elif(self.dataset == 'MUSES'):
+            self.train_image = self.train_image.crop((0, 0, 1919, 918))
+            self.train_label = self.train_label.crop((0, 0, 1919, 918))
+        elif(self.dataset == 'COMMA10K'):
+            self.image_height = self.train_image.height 
+            self.image_width = self.train_image.width 
+            self.train_image = self.train_image.crop((0, 0, \
+                self.image_width-1, int(self.image_height*(0.7))))
+            self.train_label = self.train_label.crop((0, 0, \
+                self.image_width-1, int(self.image_height*(0.7))))
 
         return self.train_image, self.train_label
     
@@ -67,5 +84,21 @@ class LoadData():
         if(self.dataset == 'ACDC'):
             self.val_image = self.val_image.crop((0, 0, 1919, 990))
             self.val_label = self.val_label.crop((0, 0, 1919, 990))
-            
+        elif(self.dataset == 'BDD100K'):
+            self.val_image = self.val_image.crop((0, 0, 1000, 500))
+            self.val_label = self.val_label.crop((0, 0, 1000, 500))
+        elif(self.dataset == 'IDDAW'):
+            self.val_image = self.val_image.crop((0, 476, 2047, 1500))
+            self.val_label = self.val_label.crop((0, 476, 2047, 1500))
+        elif(self.dataset == 'MUSES'):
+            self.val_image = self.val_image.crop((0, 0, 1919, 918))
+            self.val_label = self.val_label.crop((0, 0, 1919, 918))
+        elif(self.dataset == 'COMMA10K'):
+            self.image_height = self.val_image.height 
+            self.image_width = self.val_image.width 
+            self.val_image = self.val_image.crop((0, 0, \
+                self.image_width-1, int(self.image_height*(0.7))))
+            self.val_label = self.val_label.crop((0, 0, \
+                self.image_width-1, int(self.image_height*(0.7))))
+
         return self.val_image, self.val_label
