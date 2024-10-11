@@ -1,5 +1,5 @@
-## CoarseSeg
-The CoarseSeg Neural Expert performs Semantic Scene Segmentation of Stuff Categories. It is aims to learn scene level feature representations that generalize across object types. For example, rather than explicitly learning features to recognise cars from buses, CoarseSeg is able to recognise high level features that can distinguish any movable foreground object from the static background, road and sky. This provides an autonomous vehicle with a core safety layer since CoarseSeg can comprehend strange presentations of known objects and previously unseen object types, helping to address 'long-tail' edge cases which plauge object-level detectors.
+## SceneSeg
+The SceneSeg Neural Expert performs Semantic Scene Segmentation of Stuff Categories. It is aims to learn scene level feature representations that generalize across object types. For example, rather than explicitly learning features to recognise cars from buses, SceneSeg is able to recognise high level features that can distinguish any movable foreground object from the static background, road and sky. This provides an autonomous vehicle with a core safety layer since SceneSeg can comprehend strange presentations of known objects and previously unseen object types, helping to address 'long-tail' edge cases which plauge object-level detectors.
 
 Semantic Classes
 
@@ -8,18 +8,18 @@ Semantic Classes
 - Drivable Road Surface
 - Sky
 
-![CoarseSeg Network Diagram](../Diagrams/CoarseSeg.jpg)
+![SceneSeg Network Diagram](../Diagrams/CoarseSeg.jpg)
 
 
 ## create_masks
 
-Contains scripts to process open datasets and create semantic masks in a unified labelling scheme according to the CoarseSeg neural task specification. 
+Contains scripts to process open datasets and create semantic masks in a unified labelling scheme according to the SceneSeg neural task specification. 
 
 Open semantic segmentation datasets contain various labelling methodologies and semantic classes. The scripts in create_masks parse data and create semantic colormaps in a single unified semantic format.
 
 Colormap values for unified semantic classes created from training data are as follows:
 
-| CoarseSeg Semantic Class             | CoarseSeg RGB Label                             |
+| SceneSeg Semantic Class             | SceneSeg RGB Label                             |
 | ----------------- | ------------------------------------------------------------------ |
 | Sky | ![#3DB8FF](https://via.placeholder.com/10/3DB8FF?text=+) rgb(61, 184, 255)|
 | Background Objects | ![#3D5DFF](https://via.placeholder.com/10/3D5DFF?text=+) rgb(61, 93, 255)|
@@ -30,7 +30,7 @@ Colormap values for unified semantic classes created from training data are as f
 | Road Edge Delimiter | ![#D8FF3D](https://via.placeholder.com/10/D8FF3D?text=+) rgb(216, 255, 61)|
 | Road | ![#00FFDC](https://via.placeholder.com/10/00FFDC?text=+) rgb(0, 255, 220) |
 
-#### The open datasets used in CoarseSeg include:
+#### The open datasets used in SceneSeg include:
 - [ACDC](https://acdc.vision.ee.ethz.ch/)
 - [MUSES](https://muses.vision.ee.ethz.ch/)
 - [IDDAW](https://iddaw.github.io/)
