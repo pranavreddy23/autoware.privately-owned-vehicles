@@ -34,12 +34,19 @@ loader = transforms.Compose(
 # Path to image
 acdc_labels_filepath= '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/ACDC/gt_masks/'
 acdc_images_filepath = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/ACDC/images/'
+bdd100k_labels_fileapath = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/BDD100K/gt_masks/'
+bdd100k_images_fileapath = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/BDD100K/images/'
 
-# Data loading helpers
-acdc_Dataset = LoadData(acdc_labels_filepath, acdc_images_filepath)
+# ACDC - Data Loading
+acdc_Dataset = LoadData(acdc_labels_filepath, acdc_images_filepath, 'ACDC')
 acdc_num_train_samples, acdc_num_val_samples = acdc_Dataset.getItemCount()
 print(acdc_num_train_samples, acdc_num_val_samples)
-image, label = acdc_Dataset.getItemTrain(1500)
+#image, label = acdc_Dataset.getItemVal(0)
+
+bdd100k_Dataset = LoadData(bdd100k_labels_fileapath, bdd100k_images_fileapath, 'BDD100K')
+bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
+print(bdd100k_num_train_samples, bdd100k_num_val_samples)
+image, label = bdd100k_Dataset.getItemTrain(0)
 
 # Image augmentation
 augmentations = Augmentations(image, label)

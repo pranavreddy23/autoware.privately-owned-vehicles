@@ -18,7 +18,7 @@ class Augmentations():
             [
                 A.MultiplicativeNoise(multiplier=(0.5, 1.5), per_channel=False, p=0.5),
                 A.PixelDropout(dropout_prob=0.025, per_channel=True, p=0.25),
-                A.ColorJitter(brightness=0.6, contrast=0.6, saturation=0.6, hue=0.3, p=0.75),
+                A.ColorJitter(brightness=0.6, contrast=0.6, saturation=0.6, hue=0.2, p=0.5),
                 A.GaussNoise(var_limit=(50.0, 100.0), mean=0, noise_scale_factor=0.2, p=0.5),
                 A.GaussNoise(var_limit=(250.0, 250.0), mean=0, noise_scale_factor=1, p=0.5),
                 A.ISONoise(color_shift=(0.1, 0.5), intensity=(0.5, 0.5), p=0.5),

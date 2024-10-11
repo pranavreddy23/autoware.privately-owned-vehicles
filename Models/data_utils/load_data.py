@@ -1,9 +1,18 @@
 #! /usr/bin/env python3
 import pathlib
+from typing import Literal
 from PIL import Image
 
 class LoadData():
-    def __init__(self, labels_filepath, images_filepath):
+    def __init__(self, labels_filepath, images_filepath, \
+        dataset: Literal['ACDC', 'BDD100K', 'IDDAW', 'MUSES', 'MAPILLARY', 'COMMA10K']):
+
+        self.dataset = dataset
+
+        if(self.dataset != 'ACDC' and self.dataset != 'BDD100K' and self.dataset != 'MUSES' \
+           and self.dataset != 'MAPILLARY' and self.dataset != 'COMMA10K'):
+            raise ValueError('Dataset type is not correctly specified')
+        
         self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.png")])
         self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
 
@@ -43,14 +52,20 @@ class LoadData():
     
     def getItemTrain(self, index):
         self.train_image = Image.open(str(self.train_images[index]))
-        self.train_image = self.train_image.crop((0, 0, 1919, 990))
         self.train_label = Image.open(str(self.train_labels[index]))
-        self.train_label = self.train_label.crop((0, 0, 1919, 990))
+
+        if(self.dataset == 'ACDC'):
+            self.train_image = self.train_image.crop((0, 0, 1919, 990))
+            self.train_label = self.train_label.crop((0, 0, 1919, 990))
+
         return self.train_image, self.train_label
     
     def getItemVal(self, index):
         self.val_image = Image.open(str(self.val_images[index]))
-        self.val_image = self.val_image.crop((0, 0, 1919, 990))
         self.val_label = Image.open(str(self.val_labels[index]))
-        self.val_label = self.val_label.crop((0, 0, 1919, 990))
-        return self.train_image, self.train_label
+
+        if(self.dataset == 'ACDC'):
+            self.val_image = self.val_image.crop((0, 0, 1919, 990))
+            self.val_label = self.val_label.crop((0, 0, 1919, 990))
+            
+        return self.val_image, self.val_label
