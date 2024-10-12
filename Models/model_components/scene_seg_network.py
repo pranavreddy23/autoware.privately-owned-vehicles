@@ -4,9 +4,9 @@ from .scene_neck import SceneNeck
 from .scene_seg_head import SceneSegHead
 import torch.nn as nn
 
-class SceneSeg(nn.Module):
+class SceneSegNetwork(nn.Module):
     def __init__(self):
-        super(SceneSeg, self).__init__()
+        super(SceneSegNetwork, self).__init__()
         
         # Encoder
         self.Backbone = Backbone()

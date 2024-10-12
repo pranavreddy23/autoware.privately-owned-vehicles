@@ -7,7 +7,7 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 import sys
 sys.path.append('..')
-from model_components.scene_seg import SceneSeg
+from model_components.scene_seg_network import SceneSegNetwork
 from data_utils.load_data import LoadData
 from data_utils.augmentations import Augmentations
 
@@ -16,7 +16,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using {device} for inference')
 
 # Instantiate model
-model = SceneSeg().eval().to(device)
+model = SceneSegNetwork().eval().to(device)
 
 # Load Image
 def load_image(image):
