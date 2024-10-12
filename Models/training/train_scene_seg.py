@@ -93,9 +93,25 @@ bdd100k_count = 0
 iddaw_count = 0
 muses_count = 0
 comma10k_count = 0
+mapillary_count = 0
+
+data_list = []
+data_list.append('ACDC')
+data_list.append('BDD100K')
+data_list.append('IDDAW')
+data_list.append('MUSES')
+data_list.append('MAPILLARY')
+data_list.append('COMMA10K')
+data_list_count = 0
+
+total_train_samples = acdc_num_train_samples + bdd100k_num_train_samples \
++ iddaw_num_train_samples + muses_num_train_samples \
++ mapillary_num_train_samples + comma10k_num_train_samples
+
+print(total_train_samples, ': total training samples')
 
 # Read images and apply image augmentations
-for count in range(0, mapillary_num_train_samples):
+for count in range(0, total_train_samples):
     
     if(acdc_count == acdc_num_train_samples):
         acdc_count = 0
@@ -108,44 +124,57 @@ for count in range(0, mapillary_num_train_samples):
     
     if(muses_count == muses_num_train_samples):
         muses_count = 0
+    
+    if(mapillary_count == mapillary_num_train_samples):
+        muses_count = 0
 
     if(comma10k_count == comma10k_num_train_samples):
         comma10k_count = 0
 
-    image_acdc, label_acdc = acdc_Dataset.getItemTrain(acdc_count)
-    image_acdc, label_acdc = \
+    if(data_list_count == len(data_list)):
+        data_list_count = 0
+
+    if(data_list[data_list_count] == 'ACDC'):
+        image_acdc, label_acdc = acdc_Dataset.getItemTrain(acdc_count)
+        image_acdc, label_acdc = \
         Augmentations(image_acdc, label_acdc).getAugmentedData()
+        acdc_count += 1
     
-    image_bdd100k, label_bdd100k = bdd100k_Dataset.getItemTrain(bdd100k_count)
-    image_bdd100k, label_bdd100k = \
+    if(data_list[data_list_count] == 'BDD100K'):
+        image_bdd100k, label_bdd100k = bdd100k_Dataset.getItemTrain(bdd100k_count)
+        image_bdd100k, label_bdd100k = \
         Augmentations(image_bdd100k, label_bdd100k).getAugmentedData()
+        bdd100k_count += 1
 
-    image_iddaw, label_iddaw = iddaw_Dataset.getItemTrain(iddaw_count)
-    image_iddaw, label_iddaw = \
+    if(data_list[data_list_count] == 'IDDAW'):
+        image_iddaw, label_iddaw = iddaw_Dataset.getItemTrain(iddaw_count)
+        image_iddaw, label_iddaw = \
         Augmentations(image_iddaw, label_iddaw).getAugmentedData()
+        iddaw_count += 1
 
-    image_muses, label_muses = muses_Dataset.getItemTrain(muses_count)
-    image_muses, label_muses = \
+    if(data_list[data_list_count] == 'MUSES'):
+        image_muses, label_muses = muses_Dataset.getItemTrain(muses_count)
+        image_muses, label_muses = \
         Augmentations(image_muses, label_muses).getAugmentedData()
+        muses_count += 1
     
-    image_mapillary, label_mapillary = mapillary_Dataset.getItemTrain(count)
-    image_mapillary, label_mapillary = \
+    if(data_list[data_list_count] == 'MAPILLARY'):
+        image_mapillary, label_mapillary = mapillary_Dataset.getItemTrain(mapillary_count)
+        image_mapillary, label_mapillary = \
         Augmentations(image_mapillary, label_mapillary).getAugmentedData()
+        mapillary_count +=1
     
-    image_comma10k, label_comma10k = comma10k_Dataset.getItemTrain(comma10k_count)
-    image_comma10k, label_comma10k = \
+    if(data_list[data_list_count] == 'COMMA10K'):
+        image_comma10k, label_comma10k = comma10k_Dataset.getItemTrain(comma10k_count)
+        image_comma10k, label_comma10k = \
         Augmentations(image_comma10k, label_comma10k).getAugmentedData()
+        comma10k_count += 1
     
-    print('ACDC:', acdc_count, ' BDD100K:', bdd100k_count, \
+    print('ITERATION:', count, ' ACDC:', acdc_count, ' BDD100K:', bdd100k_count, \
           ' IDDAW:', iddaw_count, ' MUSES:', muses_count, \
-          'MAPILLARY:', count, ' COMMA10K:', comma10k_count)
-    
-    acdc_count += 1
-    bdd100k_count += 1
-    iddaw_count += 1
-    muses_count += 1
-    comma10k_count += 1
-
+          'MAPILLARY:', mapillary_count, ' COMMA10K:', comma10k_count)
+ 
+    data_list_count += 1
 
 # Image augmentation
 image, label = comma10k_Dataset.getItemTrain(10)
