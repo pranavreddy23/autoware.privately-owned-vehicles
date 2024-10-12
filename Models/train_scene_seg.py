@@ -31,18 +31,31 @@ loader = transforms.Compose(
 )
 
 
-# Path to image
+# Root path
 root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
+
+# Data paths
+# ACDC
 acdc_labels_filepath= root + 'ACDC/gt_masks/'
 acdc_images_filepath = root + 'ACDC/images/'
+
+# BDD100K
 bdd100k_labels_fileapath = root + 'BDD100K/gt_masks/'
 bdd100k_images_fileapath = root + 'BDD100K/images/'
+
+# IDDAW
 iddaw_labels_fileapath = root + 'IDDAW/gt_masks/'
 iddaw_images_fileapath = root + 'IDDAW/images/'
+
+# MUSES
 muses_labels_fileapath = root + 'MUSES/gt_masks/'
 muses_images_fileapath = root + 'MUSES/images/'
+
+# MAPILLARY
 mapillary_labels_fileapath = root + 'Mapillary_Vistas/gt_masks/'
 mapillary_images_fileapath = root + 'Mapillary_Vistas/images/'
+
+# COMMA10K
 comma10k_labels_fileapath = root + 'comma10k/gt_masks/'
 comma10k_images_fileapath = root + 'comma10k/images/'
 
@@ -76,7 +89,7 @@ print(mapillary_num_train_samples, mapillary_num_val_samples)
 comma10k_Dataset = LoadData(comma10k_labels_fileapath, comma10k_images_fileapath, 'COMMA10K')
 comma10k_num_train_samples, comma10k_num_val_samples = comma10k_Dataset.getItemCount()
 print(comma10k_num_train_samples, comma10k_num_val_samples)
-image, label = comma10k_Dataset.getItemVal(100)
+image, label = comma10k_Dataset.getItemVal(10)
 
 # Image augmentation
 augmentations = Augmentations(image, label)
