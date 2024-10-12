@@ -65,37 +65,91 @@ comma10k_images_fileapath = root + 'comma10k/images/'
 # ACDC - Data Loading
 acdc_Dataset = LoadData(acdc_labels_filepath, acdc_images_filepath, 'ACDC')
 acdc_num_train_samples, acdc_num_val_samples = acdc_Dataset.getItemCount()
-print(acdc_num_train_samples, acdc_num_val_samples)
 
 # BDD100K - Data Loading
 bdd100k_Dataset = LoadData(bdd100k_labels_fileapath, bdd100k_images_fileapath, 'BDD100K')
 bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
-print(bdd100k_num_train_samples, bdd100k_num_val_samples)
 
 # IDDAW - Data Loading
 iddaw_Dataset = LoadData(iddaw_labels_fileapath, iddaw_images_fileapath, 'IDDAW')
 iddaw_num_train_samples, iddaw_num_val_samples = iddaw_Dataset.getItemCount()
-print(iddaw_num_train_samples, iddaw_num_val_samples)
 
 # MUSES - Data Loading
 muses_Dataset = LoadData(muses_labels_fileapath, muses_images_fileapath, 'MUSES')
 muses_num_train_samples, muses_num_val_samples = muses_Dataset.getItemCount()
-print(muses_num_train_samples, muses_num_val_samples)
 
 # Mapillary - Data Loading
 mapillary_Dataset = LoadData(mapillary_labels_fileapath, mapillary_images_fileapath, 'MAPILLARY')
 mapillary_num_train_samples, mapillary_num_val_samples = mapillary_Dataset.getItemCount()
-print(mapillary_num_train_samples, mapillary_num_val_samples)
 
 # comma10k - Data Loading
 comma10k_Dataset = LoadData(comma10k_labels_fileapath, comma10k_images_fileapath, 'COMMA10K')
 comma10k_num_train_samples, comma10k_num_val_samples = comma10k_Dataset.getItemCount()
-print(comma10k_num_train_samples, comma10k_num_val_samples)
-image, label = comma10k_Dataset.getItemTrain(10)
+
+# Iterators for datasets with fewer number of samples than 
+# Mapillary Vistas, which has the greatest number of training samples
+acdc_count = 0
+bdd100k_count = 0
+iddaw_count = 0
+muses_count = 0
+comma10k_count = 0
+
+# Read images and apply image augmentations
+for count in range(0, mapillary_num_train_samples):
+    
+    if(acdc_count == acdc_num_train_samples):
+        acdc_count = 0
+        
+    if(bdd100k_count == bdd100k_num_train_samples):
+        bdd100k_count = 0
+    
+    if(iddaw_count == iddaw_num_train_samples):
+        iddaw_count = 0
+    
+    if(muses_count == muses_num_train_samples):
+        muses_count = 0
+
+    if(comma10k_count == comma10k_num_train_samples):
+        comma10k_count = 0
+
+    image_acdc, label_acdc = acdc_Dataset.getItemTrain(acdc_count)
+    image_acdc, label_acdc = \
+        Augmentations(image_acdc, label_acdc).getAugmentedData()
+    
+    image_bdd100k, label_bdd100k = bdd100k_Dataset.getItemTrain(bdd100k_count)
+    image_bdd100k, label_bdd100k = \
+        Augmentations(image_bdd100k, label_bdd100k).getAugmentedData()
+
+    image_iddaw, label_iddaw = iddaw_Dataset.getItemTrain(iddaw_count)
+    image_iddaw, label_iddaw = \
+        Augmentations(image_iddaw, label_iddaw).getAugmentedData()
+
+    image_muses, label_muses = muses_Dataset.getItemTrain(muses_count)
+    image_muses, label_muses = \
+        Augmentations(image_muses, label_muses).getAugmentedData()
+    
+    image_mapillary, label_mapillary = mapillary_Dataset.getItemTrain(count)
+    image_mapillary, label_mapillary = \
+        Augmentations(image_mapillary, label_mapillary).getAugmentedData()
+    
+    image_comma10k, label_comma10k = comma10k_Dataset.getItemTrain(comma10k_count)
+    image_comma10k, label_comma10k = \
+        Augmentations(image_comma10k, label_comma10k).getAugmentedData()
+    
+    print('ACDC:', acdc_count, ' BDD100K:', bdd100k_count, \
+          ' IDDAW:', iddaw_count, ' MUSES:', muses_count, \
+          'MAPILLARY:', count, ' COMMA10K:', comma10k_count)
+    
+    acdc_count += 1
+    bdd100k_count += 1
+    iddaw_count += 1
+    muses_count += 1
+    comma10k_count += 1
+
 
 # Image augmentation
-augmentations = Augmentations(image, label)
-image, label = augmentations.getAugmentedData()
+image, label = comma10k_Dataset.getItemTrain(10)
+image, label = Augmentations(image, label).getAugmentedData()
 
 # Loading to tensor format
 image_tensor = load_image(image)
