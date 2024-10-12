@@ -51,54 +51,43 @@ class LoadData():
     def getItemCount(self):
         return self.num_train_samples, self.num_val_samples
     
+    def extractROI(self, input_image, input_label):
+        if(self.dataset == 'ACDC'):
+            input_image = input_image.crop((0, 0, 1919, 990))
+            input_label = input_label.crop((0, 0, 1919, 990))
+        elif(self.dataset == 'BDD100K'):
+            input_image = input_image.crop((0, 0, 1000, 500))
+            input_label = input_label.crop((0, 0, 1000, 500))
+        elif(self.dataset == 'IDDAW'):
+            input_image = input_image.crop((0, 476, 2047, 1500))
+            input_label = input_label.crop((0, 476, 2047, 1500))
+        elif(self.dataset == 'MUSES'):
+            input_image = input_image.crop((0, 0, 1919, 918))
+            input_label = input_label.crop((0, 0, 1919, 918))
+        elif(self.dataset == 'COMMA10K'):
+            input_image_height = input_image.height 
+            input_image_width = input_image.width 
+            input_image = input_image.crop((0, 0, \
+                input_image_width-1, int(input_image_height*(0.7))))
+            input_label = input_label.crop((0, 0, \
+                input_image_width-1, int(input_image_height*(0.7))))
+
+        return input_image, input_label
+    
     def getItemTrain(self, index):
         self.train_image = Image.open(str(self.train_images[index]))
         self.train_label = Image.open(str(self.train_labels[index]))
-
-        if(self.dataset == 'ACDC'):
-            self.train_image = self.train_image.crop((0, 0, 1919, 990))
-            self.train_label = self.train_label.crop((0, 0, 1919, 990))
-        elif(self.dataset == 'BDD100K'):
-            self.train_image = self.train_image.crop((0, 0, 1000, 500))
-            self.train_label = self.train_label.crop((0, 0, 1000, 500))
-        elif(self.dataset == 'IDDAW'):
-            self.train_image = self.train_image.crop((0, 476, 2047, 1500))
-            self.train_label = self.train_label.crop((0, 476, 2047, 1500))
-        elif(self.dataset == 'MUSES'):
-            self.train_image = self.train_image.crop((0, 0, 1919, 918))
-            self.train_label = self.train_label.crop((0, 0, 1919, 918))
-        elif(self.dataset == 'COMMA10K'):
-            self.image_height = self.train_image.height 
-            self.image_width = self.train_image.width 
-            self.train_image = self.train_image.crop((0, 0, \
-                self.image_width-1, int(self.image_height*(0.7))))
-            self.train_label = self.train_label.crop((0, 0, \
-                self.image_width-1, int(self.image_height*(0.7))))
-
+        
+        self.train_image, self.train_label = \
+            self.extractROI(self.train_image, self.train_label)
+        
         return self.train_image, self.train_label
     
     def getItemVal(self, index):
         self.val_image = Image.open(str(self.val_images[index]))
         self.val_label = Image.open(str(self.val_labels[index]))
 
-        if(self.dataset == 'ACDC'):
-            self.val_image = self.val_image.crop((0, 0, 1919, 990))
-            self.val_label = self.val_label.crop((0, 0, 1919, 990))
-        elif(self.dataset == 'BDD100K'):
-            self.val_image = self.val_image.crop((0, 0, 1000, 500))
-            self.val_label = self.val_label.crop((0, 0, 1000, 500))
-        elif(self.dataset == 'IDDAW'):
-            self.val_image = self.val_image.crop((0, 476, 2047, 1500))
-            self.val_label = self.val_label.crop((0, 476, 2047, 1500))
-        elif(self.dataset == 'MUSES'):
-            self.val_image = self.val_image.crop((0, 0, 1919, 918))
-            self.val_label = self.val_label.crop((0, 0, 1919, 918))
-        elif(self.dataset == 'COMMA10K'):
-            self.image_height = self.val_image.height 
-            self.image_width = self.val_image.width 
-            self.val_image = self.val_image.crop((0, 0, \
-                self.image_width-1, int(self.image_height*(0.7))))
-            self.val_label = self.val_label.crop((0, 0, \
-                self.image_width-1, int(self.image_height*(0.7))))
+        self.val_image, self.val_label = \
+            self.extractROI(self.val_image, self.val_label)
 
         return self.val_image, self.val_label
