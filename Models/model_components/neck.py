@@ -18,6 +18,11 @@ class Neck(nn.Module):
         self.decode_layer_2 = nn.Conv2d(768, 512, 3, 1, 1)
         self.decode_layer_3 = nn.Conv2d(512, 512, 3, 1, 1)
 
+        self.upsample_layer_2 = nn.ConvTranspose2d(512, 512, 2, 2)
+        self.skip_link_layer_2 = nn.Conv2d(24, 512, 1)
+        self.decode_layer_4 = nn.Conv2d(512, 512, 3, 1, 1)
+        self.decode_layer_5 = nn.Conv2d(512, 256, 3, 1, 1)
+
     def forward(self, context, features):
 
         # Decoder upsample block 1
@@ -40,6 +45,17 @@ class Neck(nn.Module):
         d3 = self.decode_layer_2(d3)
         d3 = self.GeLU(d3)
         d4 = self.decode_layer_3(d3)
-        neck = self.GeLU(d4)
+        d5 = self.GeLU(d4)
+
+        # Decoder upsample block 3
+        # Upsample
+        d5 = self.upsample_layer_2(d5)
+         # Expand and add layer from Encoder
+        d5 = d5 + self.skip_link_layer_2(features[1])
+        # Double convolution
+        d5 = self.decode_layer_4(d5)
+        d5 = self.GeLU(d5)
+        d6 = self.decode_layer_5(d5)
+        neck = self.GeLU(d6)
 
         return neck

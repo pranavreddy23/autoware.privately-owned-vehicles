@@ -8,12 +8,7 @@ class SegHead(nn.Module):
         self.GeLU = nn.GELU()
         self.sigmoid = nn.Sigmoid()
 
-        # Coarse Segmentation Head - Output Layers
-        self.upsample_layer_2 = nn.ConvTranspose2d(512, 512, 2, 2)
-        self.skip_link_layer_2 = nn.Conv2d(24, 512, 1)
-        self.decode_layer_4 = nn.Conv2d(512, 512, 3, 1, 1)
-        self.decode_layer_5 = nn.Conv2d(512, 256, 3, 1, 1)
-
+        # Segmentation Head - Output Layers
         self.upsample_layer_3 = nn.ConvTranspose2d(256, 256, 2, 2)
         self.skip_link_layer_3 = nn.Conv2d(32, 256, 1)
         self.decode_layer_6 = nn.Conv2d(256, 256, 3, 1, 1)
@@ -26,20 +21,9 @@ class SegHead(nn.Module):
 
     def forward(self, neck, features):
 
-        # Decoder upsample block 3
-        # Upsample
-        d5 = self.upsample_layer_2(neck)
-         # Expand and add layer from Encoder
-        d5 = d5 + self.skip_link_layer_2(features[1])
-        # Double convolution
-        d5 = self.decode_layer_4(d5)
-        d5 = self.GeLU(d5)
-        d6 = self.decode_layer_5(d5)
-        d6 = self.GeLU(d6)
-
         # Decoder upsample block 4
         # Upsample
-        d7 = self.upsample_layer_3(d6)
+        d7 = self.upsample_layer_3(neck)
          # Expand and add layer from Encoder
         d7 = d7 + self.skip_link_layer_3(features[0])
         # Double convolution
