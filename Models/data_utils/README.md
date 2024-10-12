@@ -4,6 +4,6 @@ Image augmentation is an essential part of training visual neural networks. It h
 ![Augmentations Network Diagram](../../Diagrams/Augmentations.jpg)
 
 
-## load_acdc.py
+## load_data.py
 
-Helper class to load the ACDC data for training
+Helper class to load multiple datasets, separate data into training and validation splits and extract a Region of Interest (ROI) from images
