@@ -5,6 +5,8 @@
 import torch
 from torchvision import transforms
 import matplotlib.pyplot as plt
+import sys
+sys.path.append('..')
 from model_components.scene_seg import SceneSeg
 from data_utils.load_data import LoadData
 from data_utils.augmentations import Augmentations
@@ -89,7 +91,7 @@ print(mapillary_num_train_samples, mapillary_num_val_samples)
 comma10k_Dataset = LoadData(comma10k_labels_fileapath, comma10k_images_fileapath, 'COMMA10K')
 comma10k_num_train_samples, comma10k_num_val_samples = comma10k_Dataset.getItemCount()
 print(comma10k_num_train_samples, comma10k_num_val_samples)
-image, label = comma10k_Dataset.getItemVal(10)
+image, label = comma10k_Dataset.getItemTrain(10)
 
 # Image augmentation
 augmentations = Augmentations(image, label)
