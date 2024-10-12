@@ -6,7 +6,6 @@ class SceneSegHead(nn.Module):
         super(SceneSegHead, self).__init__()
         # Standard
         self.GeLU = nn.GELU()
-        self.sigmoid = nn.Sigmoid()
 
         # Segmentation Head - Output Layers
         self.upsample_layer_3 = nn.ConvTranspose2d(256, 256, 2, 2)
@@ -41,7 +40,6 @@ class SceneSegHead(nn.Module):
         d9 = self.decode_layer_9(d8)
         d10 = self.GeLU(d9)
         # Output
-        d10 = self.decode_layer_10(d10)
-        output = self.sigmoid(d10)
+        output = self.decode_layer_10(d10)
 
         return output
