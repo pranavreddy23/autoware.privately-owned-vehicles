@@ -1,7 +1,7 @@
 
 # AutoSeg
 
-AutoSeg is an AI Foundation Model which provides real-time visual scene perception for autonomous vehicles. It utilizes a single neural network backbone to extract diverse image features, a set of context blocks which focus the network's attention on key visual elements within input images, a set of feature necks which aggregate and fuse multi-scale image features, and multiple segmentation and detection heads which provide useful perceptual outputs for autonomous decision making.
+AutoSeg is an AI Foundation Model which provides real-time visual scene perception for autonomous vehicles. It utilizes a single neural network backbone to extract diverse image features, a set of context blocks which focus the network's attention on key visual elements within input images, a set of feature necks which aggregate and fuse multi-scale image features, and multiple segmentation and detection heads which provide useful perceptual outputs for autonomous decision making. Overall, the network is split into two branches, a Scene Branch which focuses on panoptic segmentation, and a Path Branch, which focuses on driving corridor detection through multiple means.
 
 AutoSeg has been hardened by training on a diverse set of real-world image data collected from various countries, across different road types and weather conditions.
 
