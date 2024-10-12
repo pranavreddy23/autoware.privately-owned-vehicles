@@ -16,7 +16,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using {device} for inference')
 
 # Instantiate model
-model = SceneSegNetwork().eval().to(device)
+model = SceneSegNetwork().to(device)
 
 # Load Image
 def load_image(image):
@@ -86,8 +86,7 @@ mapillary_num_train_samples, mapillary_num_val_samples = mapillary_Dataset.getIt
 comma10k_Dataset = LoadData(comma10k_labels_fileapath, comma10k_images_fileapath, 'COMMA10K')
 comma10k_num_train_samples, comma10k_num_val_samples = comma10k_Dataset.getItemCount()
 
-# Iterators for datasets with fewer number of samples than 
-# Mapillary Vistas, which has the greatest number of training samples
+# Iterators for datasets
 acdc_count = 0
 bdd100k_count = 0
 iddaw_count = 0
@@ -104,15 +103,19 @@ data_list.append('MAPILLARY')
 data_list.append('COMMA10K')
 data_list_count = 0
 
+# Total number of training samples
 total_train_samples = acdc_num_train_samples + bdd100k_num_train_samples \
 + iddaw_num_train_samples + muses_num_train_samples \
 + mapillary_num_train_samples + comma10k_num_train_samples
 
 print(total_train_samples, ': total training samples')
 
-# Read images and apply image augmentations
+loss = 0
+
+# Loop through data
 for count in range(0, total_train_samples):
     
+    # Reset iterators
     if(acdc_count == acdc_num_train_samples):
         acdc_count = 0
         
@@ -134,46 +137,80 @@ for count in range(0, total_train_samples):
     if(data_list_count == len(data_list)):
         data_list_count = 0
 
+    # Read images, apply augmentation, run prediction, calculate
+    # loss for iterated image from each dataset, and increment
+    # dataset iterators
+
     if(data_list[data_list_count] == 'ACDC'):
         image_acdc, label_acdc = acdc_Dataset.getItemTrain(acdc_count)
         image_acdc, label_acdc = \
         Augmentations(image_acdc, label_acdc).getAugmentedData()
+        image_tensor = load_image(image_acdc)
+        prediction = model(image_tensor)
+        calc_loss = 0
+        loss = loss + calc_loss
         acdc_count += 1
     
     if(data_list[data_list_count] == 'BDD100K'):
         image_bdd100k, label_bdd100k = bdd100k_Dataset.getItemTrain(bdd100k_count)
         image_bdd100k, label_bdd100k = \
         Augmentations(image_bdd100k, label_bdd100k).getAugmentedData()
+        image_tensor = load_image(image_bdd100k)
+        prediction = model(image_tensor)
+        calc_loss = 0
+        loss = loss + calc_loss
         bdd100k_count += 1
 
     if(data_list[data_list_count] == 'IDDAW'):
         image_iddaw, label_iddaw = iddaw_Dataset.getItemTrain(iddaw_count)
         image_iddaw, label_iddaw = \
         Augmentations(image_iddaw, label_iddaw).getAugmentedData()
+        image_tensor = load_image(image_iddaw)
+        prediction = model(image_tensor)
+        calc_loss = 0
+        loss = loss + calc_loss
         iddaw_count += 1
 
     if(data_list[data_list_count] == 'MUSES'):
         image_muses, label_muses = muses_Dataset.getItemTrain(muses_count)
         image_muses, label_muses = \
         Augmentations(image_muses, label_muses).getAugmentedData()
+        image_tensor = load_image(image_muses)
+        prediction = model(image_tensor)
+        calc_loss = 0
+        loss = loss + calc_loss
         muses_count += 1
     
     if(data_list[data_list_count] == 'MAPILLARY'):
         image_mapillary, label_mapillary = mapillary_Dataset.getItemTrain(mapillary_count)
         image_mapillary, label_mapillary = \
         Augmentations(image_mapillary, label_mapillary).getAugmentedData()
+        image_tensor = load_image(image_mapillary)
+        prediction = model(image_tensor)
+        calc_loss = 0
+        loss = loss + calc_loss
         mapillary_count +=1
     
     if(data_list[data_list_count] == 'COMMA10K'):
         image_comma10k, label_comma10k = comma10k_Dataset.getItemTrain(comma10k_count)
         image_comma10k, label_comma10k = \
         Augmentations(image_comma10k, label_comma10k).getAugmentedData()
+        image_tensor = load_image(image_comma10k)
+        prediction = model(image_tensor)
+        calc_loss = 0
+        loss = loss + calc_loss
         comma10k_count += 1
     
     print('ITERATION:', count, ' ACDC:', acdc_count, ' BDD100K:', bdd100k_count, \
           ' IDDAW:', iddaw_count, ' MUSES:', muses_count, \
           'MAPILLARY:', mapillary_count, ' COMMA10K:', comma10k_count)
- 
+    
+    if((count + 1)% 18 == 0):
+        print('Run Optimizer Backward Pass After Acculumating Loss from 18 images')
+        #opt.zero_grad()
+        #loss.backward()
+        #opt.step()
+    
     data_list_count += 1
 
 # Image augmentation
