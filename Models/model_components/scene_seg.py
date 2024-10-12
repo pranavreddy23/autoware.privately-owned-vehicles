@@ -18,7 +18,7 @@ class SceneSeg(nn.Module):
         self.Neck = Neck()
 
         # Head
-        self.CoarseSegHead = SegHead()
+        self.SceneSegHead = SegHead()
     
 
     def forward(self,image):
@@ -26,5 +26,5 @@ class SceneSeg(nn.Module):
         deep_features = features[4]
         context = self.Context(deep_features)
         neck = self.Neck(context, features)
-        output = self.CoarseSegHead(neck, features)
+        output = self.SceneSegHead(neck, features)
         return output
