@@ -1,7 +1,7 @@
 from .backbone import Backbone
-from .context import Context
-from .neck import Neck
-from .seg_head import SegHead
+from .scene_context import SceneContext
+from .scene_neck import SceneNeck
+from .scene_seg_head import SceneSegHead
 import torch.nn as nn
 
 class SceneSeg(nn.Module):
@@ -12,19 +12,19 @@ class SceneSeg(nn.Module):
         self.Backbone = Backbone()
 
         # Context
-        self.Context = Context()
+        self.SceneContext = SceneContext()
 
         # Neck
-        self.Neck = Neck()
+        self.SceneNeck = SceneNeck()
 
         # Head
-        self.SceneSegHead = SegHead()
+        self.SceneSegHead = SceneSegHead()
     
 
     def forward(self,image):
         features = self.Backbone(image)
         deep_features = features[4]
-        context = self.Context(deep_features)
-        neck = self.Neck(context, features)
+        context = self.SceneContext(deep_features)
+        neck = self.SceneNeck(context, features)
         output = self.SceneSegHead(neck, features)
         return output
