@@ -124,16 +124,16 @@ class LoadData():
         # Calculate class weights for loss function
         class_weights = []
 
-        sky_class_weight = 1 - (sky_class_freq/num_pixels)
+        sky_class_weight = num_pixels/(sky_class_freq + 500)
         class_weights.append(sky_class_weight)
 
-        background_class_weight = 1 - (background_class_freq/num_pixels)
+        background_class_weight = num_pixels/(background_class_freq + 500)
         class_weights.append(background_class_weight)
 
-        foreground_class_weight = 1 - (foreground_class_freq/num_pixels)
+        foreground_class_weight = num_pixels/(foreground_class_freq + 500)
         class_weights.append(foreground_class_weight)
 
-        road_class_weight = 1 - (road_class_freq/num_pixels)
+        road_class_weight = num_pixels/(road_class_freq + 500)
         class_weights.append(road_class_weight)
 
         return ground_truth, vis, class_weights
@@ -170,7 +170,7 @@ class LoadData():
         self.train_ground_truth, self.tain_vis, self.train_class_weights = \
             self.createGroundTruth(self.train_label)
         # Return class weights and ground truth multi-channel label
-        return self.train_image, self.tain_vis
+        return self.train_image, self.tain_vis, self.train_class_weights
     
     def getItemVal(self, index):
         self.val_image = Image.open(str(self.val_images[index]))
@@ -181,4 +181,4 @@ class LoadData():
         self.val_ground_truth, self.val_vis, self.val_class_weights = \
             self.createGroundTruth(self.val_label)
 
-        return self.val_image, self.val_vis
+        return self.val_image, self.val_vis, self.val_class_weights
