@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 import pathlib
+import numpy as np
 from typing import Literal
 from PIL import Image
 
@@ -51,6 +52,92 @@ class LoadData():
     def getItemCount(self):
         return self.num_train_samples, self.num_val_samples
     
+    def createGroundTruth(self, input_label):
+        # Colourmaps for classes
+        sky_colour = (61, 184, 255)
+        background_objects_colour = (61, 93, 255)
+        road_edge_delimiter_colour = (216, 255, 61)
+        unlabelled_colour = (0,0,0)
+        vulnerable_living_colour = (255, 61, 61)
+        small_mobile_vehicle_colour = (255, 190, 61)
+        large_mobile_vehicle_colour = (255, 116, 61)
+        foreground_objects_colour = (255, 28, 145)
+        road_colour = (0, 255, 220)
+
+        # Image Size
+        row, col = input_label.size
+        num_pixels = row*col
+
+        # Ground Truth Visualization
+        vis = Image.new(mode="RGB", size=(row, col))
+
+        # Ground Truth Multi-Channel Label
+        ground_truth = np.zeros(shape=(row, col, 4))
+
+        # Loading images
+        px = input_label.load()
+        vx = vis.load()
+
+        # Counters for pixel level class frequency in image
+        sky_class_freq = 0
+        background_class_freq = 0
+        foreground_class_freq = 0
+        road_class_freq = 0
+
+        # Extracting classes and assigning to colourmap
+        for x in range(row):
+            for y in range(col):
+
+                # SKY
+                if px[x, y] == sky_colour:
+
+                    vx[x,y] = sky_colour
+                    ground_truth[x, y, 0] = 1
+                    sky_class_freq += 1
+
+                # BACKGROUND OBJECTS
+                elif px[x,y] == background_objects_colour or \
+                    px[x,y] == road_edge_delimiter_colour or \
+                    px[x,y] == unlabelled_colour:
+
+                    vx[x,y] = background_objects_colour
+                    ground_truth[x, y, 1] = 1
+                    background_class_freq += 1
+
+                # FOREGROUND OBJECTS
+                elif px[x,y] == vulnerable_living_colour or \
+                    px[x,y] == small_mobile_vehicle_colour or \
+                    px[x,y] == large_mobile_vehicle_colour or \
+                    px[x,y] == foreground_objects_colour:
+
+                    vx[x,y] = foreground_objects_colour
+                    ground_truth[x, y, 2] = 1
+                    foreground_class_freq += 1
+                
+                # ROAD
+                elif px[x,y] == road_colour:
+
+                    vx[x,y] = road_colour
+                    ground_truth[x, y, 3] = 1
+                    road_class_freq += 1
+
+        # Calculate class weights for loss function
+        class_weights = []
+
+        sky_class_weight = 1 - (sky_class_freq/num_pixels)
+        class_weights.append(sky_class_weight)
+
+        background_class_weight = 1 - (background_class_freq/num_pixels)
+        class_weights.append(background_class_weight)
+
+        foreground_class_weight = 1 - (foreground_class_freq/num_pixels)
+        class_weights.append(foreground_class_weight)
+
+        road_class_weight = 1 - (road_class_freq/num_pixels)
+        class_weights.append(road_class_weight)
+
+        return ground_truth, vis, class_weights
+
     def extractROI(self, input_image, input_label):
         if(self.dataset == 'ACDC'):
             input_image = input_image.crop((0, 0, 1919, 990))
