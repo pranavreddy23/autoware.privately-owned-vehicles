@@ -3,10 +3,15 @@ import numpy as np
 import random
 
 class Augmentations():
-    def __init__(self, input_image, input_mask):
+    def __init__(self, input_image, input_mask, ground_truth):
         self.image = np.array(input_image)
         self.mask = np.array(input_mask)
-        
+        self.ground_truth = ground_truth
+
+        self.mask_list = []
+        self.mask_list.append(self.mask)
+        self.mask_list.append(self.ground_truth)
+
         transform_shape = A.Compose(
             [
                 A.Resize(width = 640, height = 320), 
@@ -32,19 +37,19 @@ class Augmentations():
             ]
         )
 
-        self.adjust_shape = transform_shape(image=self.image, mask=self.mask)
+        self.adjust_shape = transform_shape(image=self.image, mask=self.mask_list)
         self.augmented_image = self.adjust_shape["image"]
-        self.augmented_mask = self.adjust_shape["mask"]
+        self.augmented_mask_list = self.adjust_shape["mask"]
 
         if (random.random() >= 0.25):
             
             self.add_noise = transform_noise(image=self.augmented_image, \
-                                mask=self.augmented_mask)
+                                mask=self.mask_list)
             
             self.augmented_image = self.add_noise["image"]
-            self.augmented_mask = self.add_noise["mask"]
+            self.augmented_mask_list = self.add_noise["mask"]
 
         self.getAugmentedData()
 
     def getAugmentedData(self):
-        return self.augmented_image, self.augmented_mask
+        return self.augmented_image, self.augmented_mask_list
