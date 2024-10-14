@@ -4,6 +4,7 @@
 #! /usr/bin/env python3
 import torch
 from torchvision import transforms
+from torch import nn
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -19,19 +20,53 @@ print(f'Using {device} for inference')
 # Instantiate model
 model = SceneSegNetwork().to(device)
 
-# Load Image
-def load_image(image):
-    image = loader(image)
+# Load Image as Tensor
+def load_image_tensor(image):
+    image = image_loader(image)
     image = image.unsqueeze(0)
     return image.to(device)
 
-
-loader = transforms.Compose(
+image_loader = transforms.Compose(
     [
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ]
 )
+
+# Load Ground Truth as Tensor
+def load_gt_tensor(gt):
+    gt = gt_loader(gt)
+    gt = gt.unsqueeze(0)
+    return gt.to(device)
+
+gt_loader = transforms.Compose(
+    [
+        transforms.ToTensor(),
+    ]
+)
+
+def run_model(image, gt, class_weights):
+        
+    image, augmented = \
+    Augmentations(image, gt).getAugmentedData()
+        
+    # Label for visualization
+    #label = augmented[0]
+
+    # Ground Truth with probabiliites for each class in separate channels
+    gt_fused = np.stack((augmented[1], augmented[2], \
+        augmented[3], augmented[4]), axis=2)
+        
+    # Converting to tensor and loading
+    image_tensor = load_image_tensor(image)
+    gt_tensor = load_gt_tensor(gt_fused)
+    class_weights_tensor = torch.tensor(class_weights).to(device)
+
+    loss = nn.CrossEntropyLoss(weight=class_weights_tensor)
+    prediction = model(image_tensor)
+    calc_loss = loss(prediction, gt_tensor)
+
+    return calc_loss
 
 
 # Root path
@@ -114,7 +149,7 @@ print(total_train_samples, ': total training samples')
 loss = 0
 
 # Loop through data
-for count in range(0, 1):
+for count in range(0, 12):
     
     # Reset iterators
     if(acdc_count == acdc_num_train_samples):
@@ -146,38 +181,7 @@ for count in range(0, 1):
         image_acdc, gt_acdc, class_weights_acdc = \
             acdc_Dataset.getItemTrain(acdc_count)
 
-        image_acdc, augmented_acdc = \
-        Augmentations(image_acdc, gt_acdc).getAugmentedData()
-        
-        # Label for visualization
-        label_acdc = augmented_acdc[0]
-
-        # Ground Truth with probabiliites for each class in separate channels
-        gt_loss = np.stack((augmented_acdc[1], augmented_acdc[2], \
-            augmented_acdc[3], augmented_acdc[4]), axis=2)
-   
-        # Visualise
-        fig0 = plt.figure(1)
-        plt.imshow(image_acdc)
-
-        fig1 = plt.figure(2)
-        plt.imshow(label_acdc)
-
-        fig2, axs = plt.subplots(2,2)
-        axs[0,0].imshow(gt_loss[:,:,0])
-        axs[0,1].imshow(gt_loss[:,:,1])
-        axs[1,0].imshow(gt_loss[:,:,2])
-        axs[1,1].imshow(gt_loss[:,:,3])
-        print('image size: ', image_acdc.shape)
-        print('vis size: ', label_acdc.shape)
-        print('sky size: ', augmented_acdc[1].shape)
-        print('bg size: ', augmented_acdc[2].shape)
-        print('fg size: ', augmented_acdc[3].shape)
-        print('rd size: ', augmented_acdc[4].shape)
-
-        image_tensor = load_image(image_acdc)
-        prediction = model(image_tensor)
-        calc_loss = 0
+        calc_loss = run_model(image_acdc, gt_acdc, class_weights_acdc)
         loss = loss + calc_loss
         acdc_count += 1
     
@@ -185,14 +189,7 @@ for count in range(0, 1):
         image_bdd100k, gt_bdd100k, class_weights_bdd100k = \
             bdd100k_Dataset.getItemTrain(bdd100k_count)
         
-        image_bdd100k, augmented_bdd100k = \
-        Augmentations(image_bdd100k, gt_bdd100k).getAugmentedData()
-        label_bdd100k = augmented_bdd100k[0]
-        gt_bdd100k = augmented_bdd100k[1]
-
-        image_tensor = load_image(image_bdd100k)
-        prediction = model(image_tensor)
-        calc_loss = 0
+        calc_loss = run_model(image_bdd100k, gt_bdd100k, class_weights_bdd100k)
         loss = loss + calc_loss
         bdd100k_count += 1
 
@@ -200,14 +197,7 @@ for count in range(0, 1):
         image_iddaw, gt_iddaw, class_weights_iddaw = \
             iddaw_Dataset.getItemTrain(iddaw_count)
         
-        image_iddaw, augmented_iddaw = \
-        Augmentations(image_iddaw, gt_iddaw).getAugmentedData()
-        label_iddaw = augmented_iddaw[0]
-        gt_iddaw = augmented_iddaw[1]
-
-        image_tensor = load_image(image_iddaw)
-        prediction = model(image_tensor)
-        calc_loss = 0
+        calc_loss = run_model(image_iddaw, gt_iddaw, class_weights_iddaw)
         loss = loss + calc_loss
         iddaw_count += 1
 
@@ -215,14 +205,7 @@ for count in range(0, 1):
         image_muses, gt_muses, class_weights_muses = \
             muses_Dataset.getItemTrain(muses_count)
         
-        image_muses, augmented_muses = \
-        Augmentations(image_muses, gt_muses).getAugmentedData()
-        label_muses = augmented_muses[0]
-        gt_muses = augmented_muses[1]
-
-        image_tensor = load_image(image_muses)
-        prediction = model(image_tensor)
-        calc_loss = 0
+        calc_loss = run_model(image_muses, gt_muses, class_weights_muses)
         loss = loss + calc_loss
         muses_count += 1
     
@@ -230,14 +213,7 @@ for count in range(0, 1):
         image_mapillary, gt_mapillary, class_weights_mapillary = \
             mapillary_Dataset.getItemTrain(mapillary_count)
         
-        image_mapillary, augmented_mapillary = \
-        Augmentations(image_mapillary, gt_mapillary).getAugmentedData()
-        label_mapillary = augmented_mapillary[0]
-        gt_mapillary = augmented_mapillary[1]
-
-        image_tensor = load_image(image_mapillary)
-        prediction = model(image_tensor)
-        calc_loss = 0
+        calc_loss = run_model(image_mapillary, gt_mapillary, class_weights_mapillary)
         loss = loss + calc_loss
         mapillary_count +=1
     
@@ -245,14 +221,7 @@ for count in range(0, 1):
         image_comma10k, gt_comma10k, class_weights_comma10k = \
             comma10k_Dataset.getItemTrain(comma10k_count)
         
-        image_comma10k, augmented_comma10k = \
-        Augmentations(image_comma10k, gt_comma10k).getAugmentedData()
-        label_comma10k = augmented_comma10k[0]
-        gt_comma10 = augmented_comma10k[1]
-
-        image_tensor = load_image(image_comma10k)
-        prediction = model(image_tensor)
-        calc_loss = 0
+        calc_loss = run_model(image_comma10k, gt_comma10k, class_weights_comma10k)
         loss = loss + calc_loss
         comma10k_count += 1
     
