@@ -124,16 +124,16 @@ class LoadData():
         # Calculate class weights for loss function
         class_weights = []
 
-        sky_class_weight = num_pixels/(sky_class_freq + 500)
+        sky_class_weight = num_pixels/(sky_class_freq + 5120)
         class_weights.append(sky_class_weight)
 
-        background_class_weight = num_pixels/(background_class_freq + 500)
+        background_class_weight = num_pixels/(background_class_freq + 5120)
         class_weights.append(background_class_weight)
 
-        foreground_class_weight = num_pixels/(foreground_class_freq + 500)
+        foreground_class_weight = num_pixels/(foreground_class_freq + 5120)
         class_weights.append(foreground_class_weight)
 
-        road_class_weight = num_pixels/(road_class_freq + 500)
+        road_class_weight = num_pixels/(road_class_freq + 5120)
         class_weights.append(road_class_weight)
 
         return ground_truth, vis, class_weights
