@@ -1,5 +1,4 @@
 import albumentations as A
-import numpy as np
 import random
 
 class Augmentations():
