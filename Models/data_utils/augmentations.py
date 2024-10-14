@@ -3,19 +3,15 @@ import numpy as np
 import random
 
 class Augmentations():
-    def __init__(self, input_image, input_mask, ground_truth):
+    def __init__(self, input_image, ground_truth):
         self.image = np.array(input_image)
-        self.mask = np.array(input_mask)
         self.ground_truth = ground_truth
-
-        self.mask_list = []
-        self.mask_list.append(self.mask)
-        self.mask_list.append(self.ground_truth)
 
         transform_shape = A.Compose(
             [
                 A.Resize(width = 640, height = 320), 
-                A.HorizontalFlip(p = 0.5),           
+                A.HorizontalFlip(p = 0.5),       
+                A.RandomGridShuffle(grid=(1,3), p=0.25),    
             ]
         )
 
@@ -28,7 +24,6 @@ class Augmentations():
                 A.GaussNoise(var_limit=(250.0, 250.0), mean=0, noise_scale_factor=1, p=0.5),
                 A.ISONoise(color_shift=(0.1, 0.5), intensity=(0.5, 0.5), p=0.5),
                 A.RandomFog(fog_coef_lower=0.1, fog_coef_upper=0.3, alpha_coef=0.4, p=0.25),
-                A.RandomGridShuffle(grid=(1,3), p=0.25),
                 A.RandomRain(p=0.1),
                 A.Spatter(mean=(0.65, 0.65), std=(0.3, 0.3), gauss_sigma=(2, 2), \
                     cutout_threshold=(0.68, 0.68), intensity=(0.3, 0.3), mode='rain', \
@@ -37,19 +32,23 @@ class Augmentations():
             ]
         )
 
-        self.adjust_shape = transform_shape(image=self.image, mask=self.mask_list)
+        self.adjust_shape = transform_shape(image=self.image, \
+            masks = [self.ground_truth[0], self.ground_truth[1], \
+            self.ground_truth[2], self.ground_truth[3], \
+           self.ground_truth[4]])
+        
         self.augmented_image = self.adjust_shape["image"]
-        self.augmented_mask_list = self.adjust_shape["mask"]
+        self.augmented_data = self.adjust_shape["masks"]
 
+        
         if (random.random() >= 0.25):
             
-            self.add_noise = transform_noise(image=self.augmented_image, \
-                                mask=self.mask_list)
+            self.add_noise = transform_noise(image=self.augmented_image)
             
             self.augmented_image = self.add_noise["image"]
-            self.augmented_mask_list = self.add_noise["mask"]
-
+            #self.augmented_mask_list = self.add_noise["masks"]
+        
         self.getAugmentedData()
 
     def getAugmentedData(self):
-        return self.augmented_image, self.augmented_mask_list
+        return self.augmented_image, self.augmented_data

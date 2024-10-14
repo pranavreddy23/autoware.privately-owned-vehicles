@@ -113,7 +113,7 @@ print(total_train_samples, ': total training samples')
 loss = 0
 
 # Loop through data
-for count in range(0, total_train_samples):
+for count in range(0, 1):
     
     # Reset iterators
     if(acdc_count == acdc_num_train_samples):
@@ -142,9 +142,32 @@ for count in range(0, total_train_samples):
     # dataset iterators
 
     if(data_list[data_list_count] == 'ACDC'):
-        image_acdc, label_acdc = acdc_Dataset.getItemTrain(acdc_count)
-        image_acdc, label_acdc = \
-        Augmentations(image_acdc, label_acdc).getAugmentedData()
+        image_acdc, gt_acdc, class_weights_acdc = \
+            acdc_Dataset.getItemTrain(acdc_count)
+
+        image_acdc, augmented_acdc = \
+        Augmentations(image_acdc, gt_acdc).getAugmentedData()
+        label_acdc = augmented_acdc[0]
+
+        # Visualise
+        fig0 = plt.figure(1)
+        plt.imshow(image_acdc)
+
+        fig1 = plt.figure(2)
+        plt.imshow(label_acdc)
+
+        fig2, axs = plt.subplots(2,2)
+        axs[0,0].imshow(augmented_acdc[1])
+        axs[0,1].imshow(augmented_acdc[2])
+        axs[1,0].imshow(augmented_acdc[3])
+        axs[1,1].imshow(augmented_acdc[4])
+        print('image size: ', image_acdc.shape)
+        print('vis size: ', label_acdc.shape)
+        print('sky size: ', augmented_acdc[1].shape)
+        print('bg size: ', augmented_acdc[2].shape)
+        print('fg size: ', augmented_acdc[3].shape)
+        print('rd size: ', augmented_acdc[4].shape)
+
         image_tensor = load_image(image_acdc)
         prediction = model(image_tensor)
         calc_loss = 0
@@ -152,9 +175,14 @@ for count in range(0, total_train_samples):
         acdc_count += 1
     
     if(data_list[data_list_count] == 'BDD100K'):
-        image_bdd100k, label_bdd100k = bdd100k_Dataset.getItemTrain(bdd100k_count)
-        image_bdd100k, label_bdd100k = \
-        Augmentations(image_bdd100k, label_bdd100k).getAugmentedData()
+        image_bdd100k, gt_bdd100k, class_weights_bdd100k = \
+            bdd100k_Dataset.getItemTrain(bdd100k_count)
+        
+        image_bdd100k, augmented_bdd100k = \
+        Augmentations(image_bdd100k, gt_bdd100k).getAugmentedData()
+        label_bdd100k = augmented_bdd100k[0]
+        gt_bdd100k = augmented_bdd100k[1]
+
         image_tensor = load_image(image_bdd100k)
         prediction = model(image_tensor)
         calc_loss = 0
@@ -162,9 +190,14 @@ for count in range(0, total_train_samples):
         bdd100k_count += 1
 
     if(data_list[data_list_count] == 'IDDAW'):
-        image_iddaw, label_iddaw = iddaw_Dataset.getItemTrain(iddaw_count)
-        image_iddaw, label_iddaw = \
-        Augmentations(image_iddaw, label_iddaw).getAugmentedData()
+        image_iddaw, gt_iddaw, class_weights_iddaw = \
+            iddaw_Dataset.getItemTrain(iddaw_count)
+        
+        image_iddaw, augmented_iddaw = \
+        Augmentations(image_iddaw, gt_iddaw).getAugmentedData()
+        label_iddaw = augmented_iddaw[0]
+        gt_iddaw = augmented_iddaw[1]
+
         image_tensor = load_image(image_iddaw)
         prediction = model(image_tensor)
         calc_loss = 0
@@ -172,9 +205,14 @@ for count in range(0, total_train_samples):
         iddaw_count += 1
 
     if(data_list[data_list_count] == 'MUSES'):
-        image_muses, label_muses = muses_Dataset.getItemTrain(muses_count)
-        image_muses, label_muses = \
-        Augmentations(image_muses, label_muses).getAugmentedData()
+        image_muses, gt_muses, class_weights_muses = \
+            muses_Dataset.getItemTrain(muses_count)
+        
+        image_muses, augmented_muses = \
+        Augmentations(image_muses, gt_muses).getAugmentedData()
+        label_muses = augmented_muses[0]
+        gt_muses = augmented_muses[1]
+
         image_tensor = load_image(image_muses)
         prediction = model(image_tensor)
         calc_loss = 0
@@ -182,9 +220,14 @@ for count in range(0, total_train_samples):
         muses_count += 1
     
     if(data_list[data_list_count] == 'MAPILLARY'):
-        image_mapillary, label_mapillary = mapillary_Dataset.getItemTrain(mapillary_count)
-        image_mapillary, label_mapillary = \
-        Augmentations(image_mapillary, label_mapillary).getAugmentedData()
+        image_mapillary, gt_mapillary, class_weights_mapillary = \
+            mapillary_Dataset.getItemTrain(mapillary_count)
+        
+        image_mapillary, augmented_mapillary = \
+        Augmentations(image_mapillary, gt_mapillary).getAugmentedData()
+        label_mapillary = augmented_mapillary[0]
+        gt_mapillary = augmented_mapillary[1]
+
         image_tensor = load_image(image_mapillary)
         prediction = model(image_tensor)
         calc_loss = 0
@@ -192,9 +235,14 @@ for count in range(0, total_train_samples):
         mapillary_count +=1
     
     if(data_list[data_list_count] == 'COMMA10K'):
-        image_comma10k, label_comma10k = comma10k_Dataset.getItemTrain(comma10k_count)
-        image_comma10k, label_comma10k = \
-        Augmentations(image_comma10k, label_comma10k).getAugmentedData()
+        image_comma10k, gt_comma10k, class_weights_comma10k = \
+            comma10k_Dataset.getItemTrain(comma10k_count)
+        
+        image_comma10k, augmented_comma10k = \
+        Augmentations(image_comma10k, gt_comma10k).getAugmentedData()
+        label_comma10k = augmented_comma10k[0]
+        gt_comma10 = augmented_comma10k[1]
+
         image_tensor = load_image(image_comma10k)
         prediction = model(image_tensor)
         calc_loss = 0
@@ -212,7 +260,7 @@ for count in range(0, total_train_samples):
         #opt.step()
     
     data_list_count += 1
-
+'''
 # Image augmentation
 image, label = comma10k_Dataset.getItemTrain(10)
 image, label = Augmentations(image, label).getAugmentedData()
@@ -255,6 +303,6 @@ axs[0,0].imshow(prediction_0)
 axs[0,1].imshow(prediction_1)
 axs[1,0].imshow(prediction_2)
 axs[1,1].imshow(prediction_3)
-
+'''
 
 # %%

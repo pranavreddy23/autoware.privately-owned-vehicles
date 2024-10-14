@@ -72,11 +72,18 @@ class LoadData():
         vis = Image.new(mode="RGB", size=(row, col))
 
         # Ground Truth Multi-Channel Label
-        ground_truth = np.zeros(shape=(row, col, 4))
-
+        ground_truth_sky = Image.new(mode="L", size=(row, col))
+        ground_truth_background = Image.new(mode="L", size=(row, col))
+        ground_truth_foreground = Image.new(mode="L", size=(row,col))
+        ground_truth_road = Image.new(mode="L", size=(row,col))
+   
         # Loading images
         px = input_label.load()
         vx = vis.load()
+        sx = ground_truth_sky.load()
+        bx = ground_truth_background.load()
+        fx = ground_truth_foreground.load()
+        rx = ground_truth_road.load()
 
         # Counters for pixel level class frequency in image
         sky_class_freq = 0
@@ -92,7 +99,7 @@ class LoadData():
                 if px[x, y] == sky_colour:
 
                     vx[x,y] = sky_colour
-                    ground_truth[x, y, 0] = 1
+                    sx[x, y] = 255
                     sky_class_freq += 1
 
                 # BACKGROUND OBJECTS
@@ -101,7 +108,7 @@ class LoadData():
                     px[x,y] == unlabelled_colour:
 
                     vx[x,y] = background_objects_colour
-                    ground_truth[x, y, 1] = 1
+                    bx[x, y] = 255
                     background_class_freq += 1
 
                 # FOREGROUND OBJECTS
@@ -111,14 +118,14 @@ class LoadData():
                     px[x,y] == foreground_objects_colour:
 
                     vx[x,y] = foreground_objects_colour
-                    ground_truth[x, y, 2] = 1
+                    fx[x, y] = 255
                     foreground_class_freq += 1
                 
                 # ROAD
                 elif px[x,y] == road_colour:
 
                     vx[x,y] = road_colour
-                    ground_truth[x, y, 3] = 1
+                    rx[x, y] = 255
                     road_class_freq += 1
 
         # Calculate class weights for loss function
@@ -136,7 +143,14 @@ class LoadData():
         road_class_weight = num_pixels/(road_class_freq + 5120)
         class_weights.append(road_class_weight)
 
-        return ground_truth, vis, class_weights
+        ground_truth = []
+        ground_truth.append(np.array(vis))
+        ground_truth.append(np.array(ground_truth_sky))
+        ground_truth.append(np.array(ground_truth_background))
+        ground_truth.append(np.array(ground_truth_foreground))
+        ground_truth.append(np.array(ground_truth_road))
+
+        return ground_truth, class_weights
 
     def extractROI(self, input_image, input_label):
         if(self.dataset == 'ACDC'):
@@ -167,11 +181,11 @@ class LoadData():
         
         self.train_image, self.train_label = \
             self.extractROI(self.train_image, self.train_label)
-        self.train_ground_truth, self.tain_vis, self.train_class_weights = \
+        self.train_ground_truth, self.train_class_weights = \
             self.createGroundTruth(self.train_label)
  
-        return self.train_image, self.tain_vis, \
-            self.train_ground_truth, self.train_class_weights
+        return self.train_image, self.train_ground_truth, \
+            self.train_class_weights
     
     def getItemVal(self, index):
         self.val_image = Image.open(str(self.val_images[index]))
@@ -179,8 +193,8 @@ class LoadData():
 
         self.val_image, self.val_label = \
             self.extractROI(self.val_image, self.val_label)
-        self.val_ground_truth, self.val_vis, self.val_class_weights = \
+        self.val_ground_truth, self.val_class_weights = \
             self.createGroundTruth(self.val_label)
 
-        return self.val_image, self.val_vis, \
-            self.val_ground_truth, self.val_class_weights
+        return self.val_image, self.val_ground_truth, \
+            self.val_class_weights
