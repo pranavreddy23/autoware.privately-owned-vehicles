@@ -5,6 +5,7 @@
 import torch
 from torchvision import transforms
 import matplotlib.pyplot as plt
+import numpy as np
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
@@ -147,8 +148,14 @@ for count in range(0, 1):
 
         image_acdc, augmented_acdc = \
         Augmentations(image_acdc, gt_acdc).getAugmentedData()
+        
+        # Label for visualization
         label_acdc = augmented_acdc[0]
 
+        # Ground Truth with probabiliites for each class in separate channels
+        gt_loss = np.stack((augmented_acdc[1], augmented_acdc[2], \
+            augmented_acdc[3], augmented_acdc[4]), axis=2)
+   
         # Visualise
         fig0 = plt.figure(1)
         plt.imshow(image_acdc)
@@ -157,10 +164,10 @@ for count in range(0, 1):
         plt.imshow(label_acdc)
 
         fig2, axs = plt.subplots(2,2)
-        axs[0,0].imshow(augmented_acdc[1])
-        axs[0,1].imshow(augmented_acdc[2])
-        axs[1,0].imshow(augmented_acdc[3])
-        axs[1,1].imshow(augmented_acdc[4])
+        axs[0,0].imshow(gt_loss[:,:,0])
+        axs[0,1].imshow(gt_loss[:,:,1])
+        axs[1,0].imshow(gt_loss[:,:,2])
+        axs[1,1].imshow(gt_loss[:,:,3])
         print('image size: ', image_acdc.shape)
         print('vis size: ', label_acdc.shape)
         print('sky size: ', augmented_acdc[1].shape)
