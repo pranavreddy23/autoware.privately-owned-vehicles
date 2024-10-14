@@ -143,6 +143,7 @@ class LoadData():
         road_class_weight = num_pixels/(road_class_freq + 5120)
         class_weights.append(road_class_weight)
 
+        # Getting ground truth data
         ground_truth = []
         ground_truth.append(np.array(vis))
         ground_truth.append(np.array(ground_truth_sky))
@@ -184,7 +185,7 @@ class LoadData():
         self.train_ground_truth, self.train_class_weights = \
             self.createGroundTruth(self.train_label)
  
-        return self.train_image, self.train_ground_truth, \
+        return np.array(self.train_image), self.train_ground_truth, \
             self.train_class_weights
     
     def getItemVal(self, index):
@@ -196,5 +197,5 @@ class LoadData():
         self.val_ground_truth, self.val_class_weights = \
             self.createGroundTruth(self.val_label)
 
-        return self.val_image, self.val_ground_truth, \
+        return np.array(self.val_image), self.val_ground_truth, \
             self.val_class_weights
