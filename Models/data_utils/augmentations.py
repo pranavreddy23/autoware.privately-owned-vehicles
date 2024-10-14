@@ -4,7 +4,7 @@ import random
 
 class Augmentations():
     def __init__(self, input_image, ground_truth):
-        self.image = np.array(input_image)
+        self.image = input_image
         self.ground_truth = ground_truth
 
         transform_shape = A.Compose(
