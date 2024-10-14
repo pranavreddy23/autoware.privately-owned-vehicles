@@ -4,7 +4,7 @@
 #! /usr/bin/env python3
 import torch
 from torchvision import transforms
-from torch import nn
+from torch import nn, optim
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -12,6 +12,7 @@ sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
 from data_utils.load_data import LoadData
 from data_utils.augmentations import Augmentations
+import time
 
 # Checking devices (GPU vs CPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -66,7 +67,12 @@ def run_model(image, gt, class_weights):
     prediction = model(image_tensor)
     calc_loss = loss(prediction, gt_tensor)
 
-    return calc_loss
+    # Apply log softmax for visualized output since loss applies
+    # a log softmax to raw network outputs
+    lg_softmax = nn.LogSoftmax()
+    prediction = lg_softmax(prediction)
+
+    return calc_loss, prediction
 
 
 # Root path
@@ -146,10 +152,11 @@ total_train_samples = acdc_num_train_samples + bdd100k_num_train_samples \
 
 print(total_train_samples, ': total training samples')
 
-loss = 0
-
+# Loss, learning rate, optimizer
+learning_rate = 0.0001
+optimizer = optim.AdamW(model.parameters(), learning_rate)
 # Loop through data
-for count in range(0, 12):
+for count in range(0, 24):
     
     # Reset iterators
     if(acdc_count == acdc_num_train_samples):
@@ -177,63 +184,89 @@ for count in range(0, 12):
     # loss for iterated image from each dataset, and increment
     # dataset iterators
 
+    # Memory Profiling
+    torch.cuda.reset_peak_memory_stats(device=None)
+
     if(data_list[data_list_count] == 'ACDC'):
         image_acdc, gt_acdc, class_weights_acdc = \
             acdc_Dataset.getItemTrain(acdc_count)
 
-        calc_loss = run_model(image_acdc, gt_acdc, class_weights_acdc)
-        loss = loss + calc_loss
+        calc_loss, prediction = run_model(image_acdc, gt_acdc, class_weights_acdc)
+        prediction = prediction.squeeze(0).cpu().detach()
+        prediction = prediction.permute(1, 2, 0)
+        fig1, axs = plt.subplots(2,2)
+        axs[0,0].imshow(prediction [:,:,0])
+        axs[0,1].imshow(prediction [:,:,1])
+        axs[1,0].imshow(prediction [:,:,2])
+        axs[1,1].imshow(prediction [:,:,3])
+        time.sleep(0.01)
+        optimizer.zero_grad()
+        calc_loss.backward()
+        optimizer.step()
+        print(f"ACDC gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        print('Loss: ', calc_loss)
         acdc_count += 1
     
     if(data_list[data_list_count] == 'BDD100K'):
         image_bdd100k, gt_bdd100k, class_weights_bdd100k = \
             bdd100k_Dataset.getItemTrain(bdd100k_count)
         
-        calc_loss = run_model(image_bdd100k, gt_bdd100k, class_weights_bdd100k)
-        loss = loss + calc_loss
+        calc_loss, prediction = run_model(image_bdd100k, gt_bdd100k, class_weights_bdd100k)
+        optimizer.zero_grad()
+        calc_loss.backward()
+        optimizer.step()
+        print(f"BDD100K gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        print('Loss: ', calc_loss)
         bdd100k_count += 1
 
     if(data_list[data_list_count] == 'IDDAW'):
         image_iddaw, gt_iddaw, class_weights_iddaw = \
             iddaw_Dataset.getItemTrain(iddaw_count)
         
-        calc_loss = run_model(image_iddaw, gt_iddaw, class_weights_iddaw)
-        loss = loss + calc_loss
+        calc_loss, prediction = run_model(image_iddaw, gt_iddaw, class_weights_iddaw)
+        optimizer.zero_grad()
+        calc_loss.backward()
+        optimizer.step()
+        print(f"IDDAW gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        print('Loss: ', calc_loss)
         iddaw_count += 1
 
     if(data_list[data_list_count] == 'MUSES'):
         image_muses, gt_muses, class_weights_muses = \
             muses_Dataset.getItemTrain(muses_count)
         
-        calc_loss = run_model(image_muses, gt_muses, class_weights_muses)
-        loss = loss + calc_loss
+        calc_loss, prediction = run_model(image_muses, gt_muses, class_weights_muses)
+        optimizer.zero_grad()
+        calc_loss.backward()
+        optimizer.step()
+        print(f"MUSES gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        print('Loss: ', calc_loss)
         muses_count += 1
     
     if(data_list[data_list_count] == 'MAPILLARY'):
         image_mapillary, gt_mapillary, class_weights_mapillary = \
             mapillary_Dataset.getItemTrain(mapillary_count)
         
-        calc_loss = run_model(image_mapillary, gt_mapillary, class_weights_mapillary)
-        loss = loss + calc_loss
+        calc_loss, prediction = run_model(image_mapillary, gt_mapillary, class_weights_mapillary)
+        optimizer.zero_grad()
+        calc_loss.backward()
+        optimizer.step()
+        print(f"MAPILLARY gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        print('Loss: ', calc_loss)
         mapillary_count +=1
     
     if(data_list[data_list_count] == 'COMMA10K'):
         image_comma10k, gt_comma10k, class_weights_comma10k = \
             comma10k_Dataset.getItemTrain(comma10k_count)
         
-        calc_loss = run_model(image_comma10k, gt_comma10k, class_weights_comma10k)
-        loss = loss + calc_loss
+        calc_loss, prediction = run_model(image_comma10k, gt_comma10k, class_weights_comma10k)
+        optimizer.zero_grad()
+        calc_loss.backward()
+        optimizer.step()
+        print(f"COMMA10K gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        print('Loss: ', calc_loss)
+        
         comma10k_count += 1
-    
-    print('ITERATION:', count, ' ACDC:', acdc_count, ' BDD100K:', bdd100k_count, \
-          ' IDDAW:', iddaw_count, ' MUSES:', muses_count, \
-          'MAPILLARY:', mapillary_count, ' COMMA10K:', comma10k_count)
-    
-    if((count + 1)% 18 == 0):
-        print('Run Optimizer Backward Pass After Acculumating Loss from 18 images')
-        #opt.zero_grad()
-        #loss.backward()
-        #opt.step()
     
     data_list_count += 1
 '''
