@@ -186,50 +186,39 @@ for count in range(0, 31):
     # loss for iterated image from each dataset, and increment
     # dataset iterators
 
-    # Memory Profiling
-    torch.cuda.reset_peak_memory_stats(device=None)
-
     if(data_list[data_list_count] == 'ACDC'):
         image, gt, class_weights = \
                 acdc_Dataset.getItemTrain(acdc_count)
-        print(f"ACDC gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
         acdc_count += 1
     
     if(data_list[data_list_count] == 'BDD100K'):
         image, gt, class_weights = \
             bdd100k_Dataset.getItemTrain(bdd100k_count)
-        print(f"BDD100K gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
         bdd100k_count += 1
 
     if(data_list[data_list_count] == 'IDDAW'):
         image, gt, class_weights = \
             iddaw_Dataset.getItemTrain(iddaw_count)      
-        print(f"IDDAW gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
         iddaw_count += 1
 
     if(data_list[data_list_count] == 'MUSES'):
         image, gt, class_weights = \
             muses_Dataset.getItemTrain(muses_count)
-        print(f"MUSES gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
         muses_count += 1
     
     if(data_list[data_list_count] == 'MAPILLARY'):
         image, gt, class_weights = \
             mapillary_Dataset.getItemTrain(mapillary_count)
-        print(f"MAPILLARY gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
         mapillary_count +=1
     
     if(data_list[data_list_count] == 'COMMA10K'):
         image, gt, class_weights = \
             comma10k_Dataset.getItemTrain(comma10k_count)
-        print(f"COMMA10K gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
         comma10k_count += 1
     
+    # Augmenting Image
     image, augmented = \
         Augmentations(image, gt).getAugmentedData()
-        
-    # Label for visualization
-    label = augmented[0]
 
     # Ground Truth with probabiliites for each class in separate channels
     gt_fused = np.stack((augmented[1], augmented[2], \
@@ -240,6 +229,7 @@ for count in range(0, 31):
     gt_tensor = load_gt_tensor(gt_fused)
     class_weights_tensor = torch.tensor(class_weights).to(device)
 
+    # Run model and calculate loss
     loss = nn.CrossEntropyLoss(weight=class_weights_tensor)
     prediction = model(image_tensor)
     calc_loss = loss(prediction, gt_tensor)
@@ -248,9 +238,6 @@ for count in range(0, 31):
     calc_loss.backward()
     print('Loss: ', calc_loss)
 
-    prediction = prediction.squeeze(0).cpu().detach()
-    prediction = prediction.permute(1, 2, 0)
-    
     # Simulating batch size of 3
     # Batch size of 3 gives good results in testing
     if((count+1) % 3 == 0):
@@ -259,7 +246,10 @@ for count in range(0, 31):
         optimizer.zero_grad()
 
         # Visualize Results
+        prediction = prediction.squeeze(0).cpu().detach()
+        prediction = prediction.permute(1, 2, 0)
         vis_predict = visualize_result(prediction)
+        label = augmented[0]
         fig1, axs = plt.subplots(1,2)
         axs[0].imshow(label)
         axs[1].imshow(vis_predict)
