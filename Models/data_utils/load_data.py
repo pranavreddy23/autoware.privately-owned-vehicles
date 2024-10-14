@@ -169,8 +169,9 @@ class LoadData():
             self.extractROI(self.train_image, self.train_label)
         self.train_ground_truth, self.tain_vis, self.train_class_weights = \
             self.createGroundTruth(self.train_label)
-        # Return class weights and ground truth multi-channel label
-        return self.train_image, self.tain_vis, self.train_class_weights
+ 
+        return self.train_image, self.tain_vis, \
+            self.train_ground_truth, self.train_class_weights
     
     def getItemVal(self, index):
         self.val_image = Image.open(str(self.val_images[index]))
@@ -181,4 +182,5 @@ class LoadData():
         self.val_ground_truth, self.val_vis, self.val_class_weights = \
             self.createGroundTruth(self.val_label)
 
-        return self.val_image, self.val_vis, self.val_class_weights
+        return self.val_image, self.val_vis, \
+            self.val_ground_truth, self.val_class_weights
