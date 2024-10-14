@@ -33,20 +33,15 @@ class Augmentations():
         )
 
         self.adjust_shape = transform_shape(image=self.image, \
-            masks = [self.ground_truth[0], self.ground_truth[1], \
-            self.ground_truth[2], self.ground_truth[3], \
-           self.ground_truth[4]])
+            masks = self.ground_truth)
         
         self.augmented_image = self.adjust_shape["image"]
         self.augmented_data = self.adjust_shape["masks"]
 
-        
         if (random.random() >= 0.25):
             
             self.add_noise = transform_noise(image=self.augmented_image)
-            
             self.augmented_image = self.add_noise["image"]
-            #self.augmented_mask_list = self.add_noise["masks"]
         
         self.getAugmentedData()
 
