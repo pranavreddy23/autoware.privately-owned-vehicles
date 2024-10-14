@@ -46,29 +46,6 @@ gt_loader = transforms.Compose(
     ]
 )
 
-def run_model(image, gt, class_weights):
-        
-    image, augmented = \
-    Augmentations(image, gt).getAugmentedData()
-        
-    # Label for visualization
-    label = augmented[0]
-
-    # Ground Truth with probabiliites for each class in separate channels
-    gt_fused = np.stack((augmented[1], augmented[2], \
-        augmented[3], augmented[4]), axis=2)
-        
-    # Converting to tensor and loading
-    image_tensor = load_image_tensor(image)
-    gt_tensor = load_gt_tensor(gt_fused)
-    class_weights_tensor = torch.tensor(class_weights).to(device)
-
-    loss = nn.CrossEntropyLoss(weight=class_weights_tensor)
-    prediction = model(image_tensor)
-    calc_loss = loss(prediction, gt_tensor)
-
-    return calc_loss, prediction, label
-
 def visualize_result(prediction):
     shape = prediction.shape
     _, output = torch.max(prediction, dim=2)
@@ -178,8 +155,10 @@ print(total_train_samples, ': total training samples')
 # Loss, learning rate, optimizer
 learning_rate = 0.0001
 optimizer = optim.AdamW(model.parameters(), learning_rate)
+optimizer.zero_grad()
+
 # Loop through data
-for count in range(0, 24):
+for count in range(0, 31):
     
     # Reset iterators
     if(acdc_count == acdc_num_train_samples):
@@ -211,18 +190,73 @@ for count in range(0, 24):
     torch.cuda.reset_peak_memory_stats(device=None)
 
     if(data_list[data_list_count] == 'ACDC'):
-        image_acdc, gt_acdc, class_weights_acdc = \
-            acdc_Dataset.getItemTrain(acdc_count)
-
-        calc_loss, prediction, label = run_model(image_acdc, gt_acdc, class_weights_acdc)
-        prediction = prediction.squeeze(0).cpu().detach()
-        prediction = prediction.permute(1, 2, 0)
-
-        optimizer.zero_grad()
-        calc_loss.backward()
-        optimizer.step()
+        image, gt, class_weights = \
+                acdc_Dataset.getItemTrain(acdc_count)
         print(f"ACDC gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
-        print('Loss: ', calc_loss)
+        acdc_count += 1
+    
+    if(data_list[data_list_count] == 'BDD100K'):
+        image, gt, class_weights = \
+            bdd100k_Dataset.getItemTrain(bdd100k_count)
+        print(f"BDD100K gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        bdd100k_count += 1
+
+    if(data_list[data_list_count] == 'IDDAW'):
+        image, gt, class_weights = \
+            iddaw_Dataset.getItemTrain(iddaw_count)      
+        print(f"IDDAW gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        iddaw_count += 1
+
+    if(data_list[data_list_count] == 'MUSES'):
+        image, gt, class_weights = \
+            muses_Dataset.getItemTrain(muses_count)
+        print(f"MUSES gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        muses_count += 1
+    
+    if(data_list[data_list_count] == 'MAPILLARY'):
+        image, gt, class_weights = \
+            mapillary_Dataset.getItemTrain(mapillary_count)
+        print(f"MAPILLARY gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        mapillary_count +=1
+    
+    if(data_list[data_list_count] == 'COMMA10K'):
+        image, gt, class_weights = \
+            comma10k_Dataset.getItemTrain(comma10k_count)
+        print(f"COMMA10K gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
+        comma10k_count += 1
+    
+    image, augmented = \
+        Augmentations(image, gt).getAugmentedData()
+        
+    # Label for visualization
+    label = augmented[0]
+
+    # Ground Truth with probabiliites for each class in separate channels
+    gt_fused = np.stack((augmented[1], augmented[2], \
+            augmented[3], augmented[4]), axis=2)
+        
+    # Converting to tensor and loading
+    image_tensor = load_image_tensor(image)
+    gt_tensor = load_gt_tensor(gt_fused)
+    class_weights_tensor = torch.tensor(class_weights).to(device)
+
+    loss = nn.CrossEntropyLoss(weight=class_weights_tensor)
+    prediction = model(image_tensor)
+    calc_loss = loss(prediction, gt_tensor)
+    
+    # Gradient accumulation
+    calc_loss.backward()
+    print('Loss: ', calc_loss)
+
+    prediction = prediction.squeeze(0).cpu().detach()
+    prediction = prediction.permute(1, 2, 0)
+    
+    # Simulating batch size of 3
+    # Batch size of 3 gives good results in testing
+    if((count+1) % 3 == 0):
+        print('OPTIMIZING')
+        optimizer.step()
+        optimizer.zero_grad()
 
         # Visualize Results
         vis_predict = visualize_result(prediction)
@@ -230,69 +264,6 @@ for count in range(0, 24):
         axs[0].imshow(label)
         axs[1].imshow(vis_predict)
 
-        acdc_count += 1
-    
-    if(data_list[data_list_count] == 'BDD100K'):
-        image_bdd100k, gt_bdd100k, class_weights_bdd100k = \
-            bdd100k_Dataset.getItemTrain(bdd100k_count)
-        
-        calc_loss, prediction, label = run_model(image_bdd100k, gt_bdd100k, class_weights_bdd100k)
-        optimizer.zero_grad()
-        calc_loss.backward()
-        optimizer.step()
-        print(f"BDD100K gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
-        print('Loss: ', calc_loss)
-        bdd100k_count += 1
-
-    if(data_list[data_list_count] == 'IDDAW'):
-        image_iddaw, gt_iddaw, class_weights_iddaw = \
-            iddaw_Dataset.getItemTrain(iddaw_count)
-        
-        calc_loss, prediction, label = run_model(image_iddaw, gt_iddaw, class_weights_iddaw)
-        optimizer.zero_grad()
-        calc_loss.backward()
-        optimizer.step()
-        print(f"IDDAW gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
-        print('Loss: ', calc_loss)
-        iddaw_count += 1
-
-    if(data_list[data_list_count] == 'MUSES'):
-        image_muses, gt_muses, class_weights_muses = \
-            muses_Dataset.getItemTrain(muses_count)
-        
-        calc_loss, prediction, label = run_model(image_muses, gt_muses, class_weights_muses)
-        optimizer.zero_grad()
-        calc_loss.backward()
-        optimizer.step()
-        print(f"MUSES gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
-        print('Loss: ', calc_loss)
-        muses_count += 1
-    
-    if(data_list[data_list_count] == 'MAPILLARY'):
-        image_mapillary, gt_mapillary, class_weights_mapillary = \
-            mapillary_Dataset.getItemTrain(mapillary_count)
-        
-        calc_loss, prediction, label = run_model(image_mapillary, gt_mapillary, class_weights_mapillary)
-        optimizer.zero_grad()
-        calc_loss.backward()
-        optimizer.step()
-        print(f"MAPILLARY gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
-        print('Loss: ', calc_loss)
-        mapillary_count +=1
-    
-    if(data_list[data_list_count] == 'COMMA10K'):
-        image_comma10k, gt_comma10k, class_weights_comma10k = \
-            comma10k_Dataset.getItemTrain(comma10k_count)
-        
-        calc_loss, prediction, label = run_model(image_comma10k, gt_comma10k, class_weights_comma10k)
-        optimizer.zero_grad()
-        calc_loss.backward()
-        optimizer.step()
-        print(f"COMMA10K gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
-        print('Loss: ', calc_loss)
-        
-        comma10k_count += 1
-    
     data_list_count += 1
 
 # %%
