@@ -12,7 +12,7 @@ sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
 from data_utils.load_data import LoadData
 from data_utils.augmentations import Augmentations
-import time
+from PIL import Image
 
 # Checking devices (GPU vs CPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -52,7 +52,7 @@ def run_model(image, gt, class_weights):
     Augmentations(image, gt).getAugmentedData()
         
     # Label for visualization
-    #label = augmented[0]
+    label = augmented[0]
 
     # Ground Truth with probabiliites for each class in separate channels
     gt_fused = np.stack((augmented[1], augmented[2], \
@@ -67,13 +67,36 @@ def run_model(image, gt, class_weights):
     prediction = model(image_tensor)
     calc_loss = loss(prediction, gt_tensor)
 
-    # Apply log softmax for visualized output since loss applies
-    # a log softmax to raw network outputs
-    lg_softmax = nn.LogSoftmax()
-    prediction = lg_softmax(prediction)
+    return calc_loss, prediction, label
 
-    return calc_loss, prediction
+def visualize_result(prediction):
+    shape = prediction.shape
+    _, output = torch.max(prediction, dim=2)
 
+    row = shape[0]
+    col = shape[1]
+    vis_predict = Image.new(mode="RGB", size=(col, row))
+ 
+    vx = vis_predict.load()
+
+    sky_colour = (61, 184, 255)
+    background_objects_colour = (61, 93, 255)
+    foreground_objects_colour = (255, 28, 145)
+    road_colour = (0, 255, 220)
+
+    # Extracting predicted classes and assigning to colourmap
+    for x in range(row):
+        for y in range(col):
+            if(output[x,y].item() == 0):
+                vx[y,x] = sky_colour
+            elif(output[x,y].item() == 1):
+                 vx[y,x] = background_objects_colour
+            elif(output[x,y].item() == 2):
+                 vx[y,x] = foreground_objects_colour
+            elif(output[x,y].item() == 3):
+                 vx[y,x] = road_colour
+    
+    return vis_predict
 
 # Root path
 root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
@@ -191,27 +214,29 @@ for count in range(0, 24):
         image_acdc, gt_acdc, class_weights_acdc = \
             acdc_Dataset.getItemTrain(acdc_count)
 
-        calc_loss, prediction = run_model(image_acdc, gt_acdc, class_weights_acdc)
+        calc_loss, prediction, label = run_model(image_acdc, gt_acdc, class_weights_acdc)
         prediction = prediction.squeeze(0).cpu().detach()
         prediction = prediction.permute(1, 2, 0)
-        fig1, axs = plt.subplots(2,2)
-        axs[0,0].imshow(prediction [:,:,0])
-        axs[0,1].imshow(prediction [:,:,1])
-        axs[1,0].imshow(prediction [:,:,2])
-        axs[1,1].imshow(prediction [:,:,3])
-        time.sleep(0.01)
+
         optimizer.zero_grad()
         calc_loss.backward()
         optimizer.step()
         print(f"ACDC gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
         print('Loss: ', calc_loss)
+
+        # Visualize Results
+        vis_predict = visualize_result(prediction)
+        fig1, axs = plt.subplots(1,2)
+        axs[0].imshow(label)
+        axs[1].imshow(vis_predict)
+
         acdc_count += 1
     
     if(data_list[data_list_count] == 'BDD100K'):
         image_bdd100k, gt_bdd100k, class_weights_bdd100k = \
             bdd100k_Dataset.getItemTrain(bdd100k_count)
         
-        calc_loss, prediction = run_model(image_bdd100k, gt_bdd100k, class_weights_bdd100k)
+        calc_loss, prediction, label = run_model(image_bdd100k, gt_bdd100k, class_weights_bdd100k)
         optimizer.zero_grad()
         calc_loss.backward()
         optimizer.step()
@@ -223,7 +248,7 @@ for count in range(0, 24):
         image_iddaw, gt_iddaw, class_weights_iddaw = \
             iddaw_Dataset.getItemTrain(iddaw_count)
         
-        calc_loss, prediction = run_model(image_iddaw, gt_iddaw, class_weights_iddaw)
+        calc_loss, prediction, label = run_model(image_iddaw, gt_iddaw, class_weights_iddaw)
         optimizer.zero_grad()
         calc_loss.backward()
         optimizer.step()
@@ -235,7 +260,7 @@ for count in range(0, 24):
         image_muses, gt_muses, class_weights_muses = \
             muses_Dataset.getItemTrain(muses_count)
         
-        calc_loss, prediction = run_model(image_muses, gt_muses, class_weights_muses)
+        calc_loss, prediction, label = run_model(image_muses, gt_muses, class_weights_muses)
         optimizer.zero_grad()
         calc_loss.backward()
         optimizer.step()
@@ -247,7 +272,7 @@ for count in range(0, 24):
         image_mapillary, gt_mapillary, class_weights_mapillary = \
             mapillary_Dataset.getItemTrain(mapillary_count)
         
-        calc_loss, prediction = run_model(image_mapillary, gt_mapillary, class_weights_mapillary)
+        calc_loss, prediction, label = run_model(image_mapillary, gt_mapillary, class_weights_mapillary)
         optimizer.zero_grad()
         calc_loss.backward()
         optimizer.step()
@@ -259,7 +284,7 @@ for count in range(0, 24):
         image_comma10k, gt_comma10k, class_weights_comma10k = \
             comma10k_Dataset.getItemTrain(comma10k_count)
         
-        calc_loss, prediction = run_model(image_comma10k, gt_comma10k, class_weights_comma10k)
+        calc_loss, prediction, label = run_model(image_comma10k, gt_comma10k, class_weights_comma10k)
         optimizer.zero_grad()
         calc_loss.backward()
         optimizer.step()
@@ -269,49 +294,5 @@ for count in range(0, 24):
         comma10k_count += 1
     
     data_list_count += 1
-'''
-# Image augmentation
-image, label = comma10k_Dataset.getItemTrain(10)
-image, label = Augmentations(image, label).getAugmentedData()
-
-# Loading to tensor format
-image_tensor = load_image(image)
-
-# Inference
-torch.cuda.reset_peak_memory_stats(device=None)
-prediction = model(image_tensor)
-print(f"gpu used {torch.cuda.max_memory_allocated(device=None)} memory")
-param_size = 0
-for param in model.parameters():
-    param_size += param.nelement() * param.element_size()
-buffer_size = 0
-for buffer in model.buffers():
-    buffer_size += buffer.nelement() * buffer.element_size()
-
-size_all_mb = (param_size + buffer_size) / 1024**2
-print('model size: {:.3f}MB'.format(size_all_mb))
-print('params', param_size)
-
-# Get Predictions
-prediction = prediction.squeeze(0).cpu().detach()
-prediction = prediction.permute(1, 2, 0)
-prediction_0 = prediction [:,:,0]
-prediction_1 = prediction [:,:,1]
-prediction_2 = prediction [:,:,2]
-prediction_3 = prediction [:,:,3]
-
-# Visualise
-fig = plt.figure()
-plt.imshow(image)
-
-fig = plt.figure()
-plt.imshow(label)
-
-fig1, axs = plt.subplots(2,2)
-axs[0,0].imshow(prediction_0)
-axs[0,1].imshow(prediction_1)
-axs[1,0].imshow(prediction_2)
-axs[1,1].imshow(prediction_3)
-'''
 
 # %%
