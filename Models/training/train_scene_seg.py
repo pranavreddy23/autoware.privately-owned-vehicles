@@ -271,6 +271,7 @@ def main():
                     (count + total_train_samples*epoch))
 
             # Logging Image to Tensor Board every 1000 steps
+            
             if((count+1) % 1000 == 0):   
                 print('Saving Visualization')
                 prediction = prediction.squeeze(0).cpu().detach()
