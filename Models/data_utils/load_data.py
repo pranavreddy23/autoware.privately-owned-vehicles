@@ -40,7 +40,7 @@ class LoadData():
 
         for count in range (0, self.num_images):
     
-            if(count > 0 and count% 10 == 0):
+            if((count+1) % 10 == 0):
                 self.val_images.append(str(self.images[count]))
                 self.val_labels.append(str(self.labels[count]))
                 self.num_val_samples += 1 
@@ -187,6 +187,9 @@ class LoadData():
  
         return np.array(self.train_image), self.train_ground_truth, \
             self.train_class_weights
+
+    def getItemTrainPath(self, index):
+        return str(self.train_images[index]), str(self.train_labels[index])
     
     def getItemVal(self, index):
         self.val_image = Image.open(str(self.val_images[index]))
@@ -199,3 +202,6 @@ class LoadData():
 
         return np.array(self.val_image), self.val_ground_truth, \
             self.val_class_weights
+    
+    def getItemValPath(self, index):
+        return str(self.val_images[index]), str(self.val_labels[index])
