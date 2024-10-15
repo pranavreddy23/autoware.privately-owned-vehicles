@@ -2,20 +2,21 @@ import albumentations as A
 import random
 
 class Augmentations():
-    def __init__(self, input_image, ground_truth):
+    def __init__(self, input_image, ground_truth, is_train):
+        self.is_train = is_train
         self.image = input_image
         self.ground_truth = ground_truth
 
         transform_shape = A.Compose(
             [
-                A.Resize(width = 640, height = 320), 
-                A.HorizontalFlip(p = 0.5),       
-                A.RandomGridShuffle(grid=(1,3), p=0.25),    
+                A.Resize(width = 640, height = 320),     
             ]
         )
 
         transform_noise = A.Compose(
             [
+                A.HorizontalFlip(p = 0.5),       
+                A.RandomGridShuffle(grid=(1,3), p=0.25),
                 A.MultiplicativeNoise(multiplier=(0.5, 1.5), per_channel=False, p=0.5),
                 A.PixelDropout(dropout_prob=0.025, per_channel=True, p=0.25),
                 A.ColorJitter(brightness=0.6, contrast=0.6, saturation=0.6, hue=0.2, p=0.5),
@@ -30,14 +31,14 @@ class Augmentations():
                 A.ToGray(num_output_channels=3, method='weighted_average', p=0.1)                
             ]
         )
-
+        
         self.adjust_shape = transform_shape(image=self.image, \
             masks = self.ground_truth)
         
         self.augmented_image = self.adjust_shape["image"]
         self.augmented_data = self.adjust_shape["masks"]
 
-        if (random.random() >= 0.25):
+        if (random.random() >= 0.25 and self.is_train):
             
             self.add_noise = transform_noise(image=self.augmented_image)
             self.augmented_image = self.add_noise["image"]
