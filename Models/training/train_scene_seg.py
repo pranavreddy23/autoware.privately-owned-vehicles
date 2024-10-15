@@ -93,7 +93,7 @@ def main():
     model = SceneSegNetwork().to(device)
 
     # epochs, learning rate
-    num_epochs = 1
+    num_epochs = 50
     learning_rate = 0.0001
 
     # optimizer
@@ -105,6 +105,9 @@ def main():
 
     # Root path
     root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
+
+    # Model save path
+    model_save_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/'
 
     # Data paths
     # ACDC
@@ -189,8 +192,11 @@ def main():
     for epoch in range(0, num_epochs):
 
         # Loop through data
-        for count in range(0, 200):
-            
+        for count in range(0, total_train_samples):
+
+            # Print step
+            print('Step', count + total_train_samples*epoch)
+
             # Reset iterators
             if(acdc_count == acdc_num_train_samples):
                 acdc_count = 0
@@ -274,12 +280,15 @@ def main():
                 optimizer.step()
                 optimizer.zero_grad()
 
-            if((count+1) % 10 == 0):
-                print('Logging Sample', count + total_train_samples*epoch)
-                # Logging loss to TensorBoard
+            # Logging loss to Tensor Board every 100 steps
+            if((count+1) % 100 == 0):
+                print('Logging')
                 writer.add_scalar("Loss/train", calc_loss,\
                     (count + total_train_samples*epoch))
-                
+
+            # Logging Image to Tensor Board every 1000 steps
+            if((count+1) % 1000 == 0):   
+                print('Saving Visualization')
                 prediction = prediction.squeeze(0).cpu().detach()
                 prediction = prediction.permute(1, 2, 0)
                 vis_predict = visualize_result(prediction)
@@ -293,16 +302,19 @@ def main():
                 axs[2].set_title('Prediction',fontweight ="bold") 
                 writer.add_figure('predictions vs. actuals', \
                     fig, global_step=(count + total_train_samples*epoch))
-                    
-                print(acdc_Dataset.getItemTrainPath(acdc_count))
-                print(bdd100k_Dataset.getItemTrainPath(bdd100k_count))
-                print(iddaw_Dataset.getItemTrainPath(iddaw_count))
-                print(muses_Dataset.getItemTrainPath(muses_count))
-                print(mapillary_Dataset.getItemTrainPath(mapillary_count))
-                print(comma10k_Dataset.getItemTrainPath(comma10k_count))
 
-            # Run Validation
-            if((count+1) % 20 == 0):
+            # Save model and run validation on entire validation 
+            # dataset after 4000 steps
+            if((count+1) % 4000 == 0):
+                
+                print('Saving model')
+                save_path = model_save_path + 'iter_' + \
+                    str(count + total_train_samples*epoch) \
+                    + '_epoch_' +  str(epoch) + '_step_' + \
+                    str(count) + '.pth'
+                torch.save(model.state_dict(), save_path)
+
+                print('Validating')
 
                 # Setting model to evaluation mode
                 model = model.eval()
@@ -310,8 +322,9 @@ def main():
 
                 # No gradient calculation
                 with torch.no_grad():
-
-                    for val_count in range(0, 10):
+                    
+                    # ACDC
+                    for val_count in range(0, acdc_num_val_samples):
                         image_val, gt_val, _ = \
                             acdc_Dataset.getItemVal(val_count)
                         
@@ -329,7 +342,8 @@ def main():
                         val_loss = loss(prediction_val, gt_val_tensor)
                         running_val_loss += val_loss.item()
 
-                    for val_count in range(0, 10):
+                    # BDD100K
+                    for val_count in range(0, bdd100k_num_val_samples):
                         image_val, gt_val, _ = \
                             bdd100k_Dataset.getItemVal(val_count)
                         
@@ -346,9 +360,85 @@ def main():
                         prediction_val = model(image_val_tensor)
                         val_loss = loss(prediction_val, gt_val_tensor)
                         running_val_loss += val_loss.item()
+                    
+                    # MUSES
+                    for val_count in range(0, muses_num_val_samples):
+                        image_val, gt_val, _ = \
+                            muses_Dataset.getItemVal(val_count)
+                        
+                        aug_val = Augmentations(image_val, gt_val, False)
+                        image_val, augmented_val = aug_val.getAugmentedData()
+
+                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
+                        augmented_val[3], augmented_val[4]), axis=2)
+        
+                        image_val_tensor = load_image_tensor(image_val)
+                        gt_val_tensor = load_gt_tensor(gt_val_fused)
+
+                        loss_val = nn.CrossEntropyLoss()
+                        prediction_val = model(image_val_tensor)
+                        val_loss = loss(prediction_val, gt_val_tensor)
+                        running_val_loss += val_loss.item()
+                    
+                    # IDDAW
+                    for val_count in range(0, iddaw_num_val_samples):
+                        image_val, gt_val, _ = \
+                            iddaw_Dataset.getItemVal(val_count)
+                        
+                        aug_val = Augmentations(image_val, gt_val, False)
+                        image_val, augmented_val = aug_val.getAugmentedData()
+
+                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
+                        augmented_val[3], augmented_val[4]), axis=2)
+        
+                        image_val_tensor = load_image_tensor(image_val)
+                        gt_val_tensor = load_gt_tensor(gt_val_fused)
+
+                        loss_val = nn.CrossEntropyLoss()
+                        prediction_val = model(image_val_tensor)
+                        val_loss = loss(prediction_val, gt_val_tensor)
+                        running_val_loss += val_loss.item()
+
+                    # MAPILLARY
+                    for val_count in range(0, mapillary_num_val_samples):
+                        image_val, gt_val, _ = \
+                            mapillary_Dataset.getItemVal(val_count)
+                        
+                        aug_val = Augmentations(image_val, gt_val, False)
+                        image_val, augmented_val = aug_val.getAugmentedData()
+
+                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
+                        augmented_val[3], augmented_val[4]), axis=2)
+        
+                        image_val_tensor = load_image_tensor(image_val)
+                        gt_val_tensor = load_gt_tensor(gt_val_fused)
+
+                        loss_val = nn.CrossEntropyLoss()
+                        prediction_val = model(image_val_tensor)
+                        val_loss = loss(prediction_val, gt_val_tensor)
+                        running_val_loss += val_loss.item()
+
+                    # COMMA10K
+                    for val_count in range(0, comma10k_num_val_samples):
+                        image_val, gt_val, _ = \
+                            comma10k_Dataset.getItemVal(val_count)
+                        
+                        aug_val = Augmentations(image_val, gt_val, False)
+                        image_val, augmented_val = aug_val.getAugmentedData()
+
+                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
+                        augmented_val[3], augmented_val[4]), axis=2)
+        
+                        image_val_tensor = load_image_tensor(image_val)
+                        gt_val_tensor = load_gt_tensor(gt_val_fused)
+
+                        loss_val = nn.CrossEntropyLoss()
+                        prediction_val = model(image_val_tensor)
+                        val_loss = loss(prediction_val, gt_val_tensor)
+                        running_val_loss += val_loss.item()
 
                     # Calculating average loss of complete validation set
-                    avg_val_loss = running_val_loss/20
+                    avg_val_loss = running_val_loss/total_val_samples
                     print('Average Validation loss:', avg_val_loss)
                     
                     # Logging average validation loss to TensorBoard
