@@ -248,8 +248,8 @@ def main():
                 comma10k_count += 1
             
             # Augmenting Image
-            image, augmented = \
-                Augmentations(image, gt, True).getAugmentedData()
+            aug_train = Augmentations(image, gt, True)
+            image, augmented = aug_train.getAugmentedData()
 
             # Ground Truth with probabiliites for each class in separate channels
             gt_fused = np.stack((augmented[1], augmented[2], \
@@ -293,6 +293,13 @@ def main():
                 axs[2].set_title('Prediction',fontweight ="bold") 
                 writer.add_figure('predictions vs. actuals', \
                     fig, global_step=(count + total_train_samples*epoch))
+                    
+                print(acdc_Dataset.getItemTrainPath(acdc_count))
+                print(bdd100k_Dataset.getItemTrainPath(bdd100k_count))
+                print(iddaw_Dataset.getItemTrainPath(iddaw_count))
+                print(muses_Dataset.getItemTrainPath(muses_count))
+                print(mapillary_Dataset.getItemTrainPath(mapillary_count))
+                print(comma10k_Dataset.getItemTrainPath(comma10k_count))
 
             # Run Validation
             if((count+1) % 20 == 0):
@@ -307,9 +314,10 @@ def main():
                     for val_count in range(0, 10):
                         image_val, gt_val, _ = \
                             acdc_Dataset.getItemVal(val_count)
-                                    
-                        image_val, augmented_val = \
-                        Augmentations(image_val, gt_val, False).getAugmentedData()
+                        
+                        aug_val = Augmentations(image_val, gt_val, False)
+                        image_val, augmented_val = aug_val.getAugmentedData()
+
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
                         augmented_val[3], augmented_val[4]), axis=2)
         
@@ -325,8 +333,9 @@ def main():
                         image_val, gt_val, _ = \
                             bdd100k_Dataset.getItemVal(val_count)
                         
-                        image_val, augmented_val = \
-                        Augmentations(image_val, gt_val, False).getAugmentedData()
+                        aug_val = Augmentations(image_val, gt_val, False)
+                        image_val, augmented_val = aug_val.getAugmentedData()
+
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
                         augmented_val[3], augmented_val[4]), axis=2)
         
