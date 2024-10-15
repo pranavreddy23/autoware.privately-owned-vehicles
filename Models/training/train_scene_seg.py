@@ -55,7 +55,6 @@ def visualize_result(prediction):
  
     vx = vis_predict.load()
 
-    sky_colour = (61, 184, 255)
     background_objects_colour = (61, 93, 255)
     foreground_objects_colour = (255, 28, 145)
     road_colour = (0, 255, 220)
@@ -64,28 +63,13 @@ def visualize_result(prediction):
     for x in range(row):
         for y in range(col):
             if(output[x,y].item() == 0):
-                vx[y,x] = sky_colour
+                vx[y,x] = background_objects_colour
             elif(output[x,y].item() == 1):
-                 vx[y,x] = background_objects_colour
-            elif(output[x,y].item() == 2):
                  vx[y,x] = foreground_objects_colour
-            elif(output[x,y].item() == 3):
-                 vx[y,x] = road_colour
+            elif(output[x,y].item() == 2):
+                 vx[y,x] = road_colour               
     
     return vis_predict
-
-# Run model on validation sample
-def run_validation(image_val, gt_val):
-
-    gt_val_fused = np.stack((gt_val[1], gt_val[2], \
-        gt_val[3], gt_val[4]), axis=2)
-       
-    image_val_tensor = load_image_tensor(image_val)
-    gt_val_tensor = load_gt_tensor(gt_val_fused)
-    loss_val = nn.CrossEntropyLoss()
-    prediction_val = model(image_val_tensor)
-    val_loss = loss(prediction_val, gt_val_tensor)
-    return val_loss.item()
 
 def main():
 
@@ -259,7 +243,7 @@ def main():
 
             # Ground Truth with probabiliites for each class in separate channels
             gt_fused = np.stack((augmented[1], augmented[2], \
-                    augmented[3], augmented[4]), axis=2)
+                    augmented[3]), axis=2)
                 
             # Converting to tensor and loading
             image_tensor = load_image_tensor(image)
@@ -332,7 +316,7 @@ def main():
                         image_val, augmented_val = aug_val.getAugmentedData()
 
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3], augmented_val[4]), axis=2)
+                        augmented_val[3]), axis=2)
         
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
@@ -351,7 +335,7 @@ def main():
                         image_val, augmented_val = aug_val.getAugmentedData()
 
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3], augmented_val[4]), axis=2)
+                        augmented_val[3]), axis=2)
         
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
@@ -370,7 +354,7 @@ def main():
                         image_val, augmented_val = aug_val.getAugmentedData()
 
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3], augmented_val[4]), axis=2)
+                        augmented_val[3]), axis=2)
         
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
@@ -389,7 +373,7 @@ def main():
                         image_val, augmented_val = aug_val.getAugmentedData()
 
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3], augmented_val[4]), axis=2)
+                        augmented_val[3]), axis=2)
         
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
@@ -408,7 +392,7 @@ def main():
                         image_val, augmented_val = aug_val.getAugmentedData()
 
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3], augmented_val[4]), axis=2)
+                        augmented_val[3]), axis=2)
         
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
@@ -427,7 +411,7 @@ def main():
                         image_val, augmented_val = aug_val.getAugmentedData()
 
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3], augmented_val[4]), axis=2)
+                        augmented_val[3]), axis=2)
         
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
