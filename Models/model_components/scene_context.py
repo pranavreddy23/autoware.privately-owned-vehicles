@@ -8,6 +8,7 @@ class SceneContext(nn.Module):
         # Standard
         self.GeLU = nn.GELU()
         self.sigmoid = nn.Sigmoid()
+        self.dropout = nn.Dropout(p=0.25)
 
         # Context - MLP Layers
         self.context_layer_0 = nn.Linear(1280, 800)
@@ -27,10 +28,13 @@ class SceneContext(nn.Module):
 
         # MLP
         c0 = self.context_layer_0(feature_vector)
+        c0 = self.dropout(c0)
         c0 = self.GeLU(c0)
         c1 = self.context_layer_1(c0)
+        c1 = self.dropout(c1)
         c1 = self.GeLU(c1)
         c2 = self.context_layer_2(c1)
+        c2 = self.dropout(c2)
         c2 = self.sigmoid(c2)
         
         # Reshape
