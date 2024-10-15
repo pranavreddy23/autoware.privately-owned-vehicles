@@ -16,7 +16,6 @@ class Augmentations():
         transform_noise = A.Compose(
             [
                 A.HorizontalFlip(p = 0.5),       
-                A.RandomGridShuffle(grid=(1,3), p=0.25),
                 A.MultiplicativeNoise(multiplier=(0.5, 1.5), per_channel=False, p=0.5),
                 A.PixelDropout(dropout_prob=0.025, per_channel=True, p=0.25),
                 A.ColorJitter(brightness=0.6, contrast=0.6, saturation=0.6, hue=0.2, p=0.5),
