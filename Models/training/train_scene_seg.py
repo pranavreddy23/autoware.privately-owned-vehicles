@@ -15,15 +15,10 @@ from data_utils.augmentations import Augmentations
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 
-# TensorBoard
-writer = SummaryWriter()
-
 # Checking devices (GPU vs CPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using {device} for inference')
 
-# Instantiate model
-model = SceneSegNetwork().to(device)
 
 # Load Image as Tensor
 def load_image_tensor(image):
@@ -50,6 +45,7 @@ gt_loader = transforms.Compose(
     ]
 )
 
+# Visualize predicted result
 def visualize_result(prediction):
     shape = prediction.shape
     _, output = torch.max(prediction, dim=2)
@@ -79,7 +75,29 @@ def visualize_result(prediction):
     
     return vis_predict
 
+# Run model on validation sample
+def run_validation(image_val, gt_val, class_weights_val):
+
+    gt_val_fused = np.stack((gt_val[1], gt_val[2], \
+        gt_val[3], gt_val[4]), axis=2)
+       
+    image_val_tensor = load_image_tensor(image_val)
+    gt_val_tensor = load_gt_tensor(gt_val_fused)
+    class_weights_val_tensor = torch.tensor(class_weights_val).to(device)
+
+    loss_val = nn.CrossEntropyLoss(weight=class_weights_val_tensor)
+    prediction_val = model(image_val_tensor)
+    val_loss = loss(prediction_val, gt_val_tensor)
+    return val_loss.item()
+
+# Main 
 def main():
+
+    # Instantiate model
+    model = SceneSegNetwork().to(device)
+
+    # TensorBoard
+    writer = SummaryWriter()
 
     # Root path
     root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
@@ -155,8 +173,13 @@ def main():
     total_train_samples = acdc_num_train_samples + bdd100k_num_train_samples \
     + iddaw_num_train_samples + muses_num_train_samples \
     + mapillary_num_train_samples + comma10k_num_train_samples
-
     print(total_train_samples, ': total training samples')
+
+    # Total number of validation samples
+    total_val_samples = acdc_num_val_samples + bdd100k_num_val_samples \
+    + iddaw_num_val_samples + muses_num_val_samples \
+    + mapillary_num_val_samples + comma10k_num_val_samples
+    print(total_val_samples, ': total validation samples')
 
     # Loss, learning rate, optimizer
     num_epochs = 1
@@ -228,7 +251,7 @@ def main():
             
             # Augmenting Image
             image, augmented = \
-                Augmentations(image, gt).getAugmentedData()
+                Augmentations(image, gt, True).getAugmentedData()
 
             # Ground Truth with probabiliites for each class in separate channels
             gt_fused = np.stack((augmented[1], augmented[2], \
@@ -272,7 +295,66 @@ def main():
                 axs[2].set_title('Prediction',fontweight ="bold") 
                 writer.add_figure('predictions vs. actuals', \
                     fig, global_step=(count + total_train_samples*epoch))
-                
+
+            # Run Validation
+            if((count+1) % 20 == 0):
+
+                # Setting model to evaluation mode
+                model = model.eval()
+                running_val_loss = 0
+
+                # No gradient calculation
+                with torch.no_grad():
+
+                    for val_count in range(0, 10):
+                        image_val, gt_val, _ = \
+                            acdc_Dataset.getItemVal(val_count)
+                                   
+                        image_val, augmented_val = \
+                        Augmentations(image_val, gt_val, False).getAugmentedData()
+
+                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
+                        augmented_val[3], augmented_val[4]), axis=2)
+       
+                        image_val_tensor = load_image_tensor(image_val)
+                        gt_val_tensor = load_gt_tensor(gt_val_fused)
+
+                        loss_val = nn.CrossEntropyLoss()
+                        prediction_val = model(image_val_tensor)
+                        val_loss = loss(prediction_val, gt_val_tensor)
+                        print('Validation loss:' , val_loss.item())
+                        running_val_loss += val_loss.item()
+
+                    for val_count in range(0, 10):
+                        image_val, gt_val, _ = \
+                            bdd100k_Dataset.getItemVal(val_count)
+                        
+                        image_val, augmented_val = \
+                        Augmentations(image_val, gt_val, False).getAugmentedData()
+
+                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
+                        augmented_val[3], augmented_val[4]), axis=2)
+       
+                        image_val_tensor = load_image_tensor(image_val)
+                        gt_val_tensor = load_gt_tensor(gt_val_fused)
+
+                        loss_val = nn.CrossEntropyLoss()
+                        prediction_val = model(image_val_tensor)
+                        val_loss = loss(prediction_val, gt_val_tensor)
+                        print('Validation loss:' , val_loss.item())
+                        running_val_loss += val_loss.item()
+
+                    # Calculating average loss of complete validation set
+                    avg_val_loss = running_val_loss/20
+                    print('Average Validation loss:', avg_val_loss)
+                    
+                    # Logging average validation loss to TensorBoard
+                    writer.add_scalar("Loss/val", avg_val_loss,\
+                        (count + total_train_samples*epoch))
+
+                # Resetting model back to training
+                model = model.train()
+
             data_list_count += 1
 
     writer.flush()
