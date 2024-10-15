@@ -19,7 +19,6 @@ from torch.utils.tensorboard import SummaryWriter
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using {device} for inference')
 
-
 # Load Image as Tensor
 def load_image_tensor(image):
     image = image_loader(image)
@@ -76,25 +75,30 @@ def visualize_result(prediction):
     return vis_predict
 
 # Run model on validation sample
-def run_validation(image_val, gt_val, class_weights_val):
+def run_validation(image_val, gt_val):
 
     gt_val_fused = np.stack((gt_val[1], gt_val[2], \
         gt_val[3], gt_val[4]), axis=2)
        
     image_val_tensor = load_image_tensor(image_val)
     gt_val_tensor = load_gt_tensor(gt_val_fused)
-    class_weights_val_tensor = torch.tensor(class_weights_val).to(device)
-
-    loss_val = nn.CrossEntropyLoss(weight=class_weights_val_tensor)
+    loss_val = nn.CrossEntropyLoss()
     prediction_val = model(image_val_tensor)
     val_loss = loss(prediction_val, gt_val_tensor)
     return val_loss.item()
 
-# Main 
 def main():
 
-    # Instantiate model
+    # Instantiate model 
     model = SceneSegNetwork().to(device)
+
+    # epochs, learning rate
+    num_epochs = 1
+    learning_rate = 0.0001
+
+    # optimizer
+    optimizer = optim.AdamW(model.parameters(), learning_rate)
+    optimizer.zero_grad()
 
     # TensorBoard
     writer = SummaryWriter()
@@ -181,17 +185,11 @@ def main():
     + mapillary_num_val_samples + comma10k_num_val_samples
     print(total_val_samples, ': total validation samples')
 
-    # Loss, learning rate, optimizer
-    num_epochs = 1
-    learning_rate = 0.0001
-    optimizer = optim.AdamW(model.parameters(), learning_rate)
-    optimizer.zero_grad()
-
     # Epochs
     for epoch in range(0, num_epochs):
 
         # Loop through data
-        for count in range(0, 100):
+        for count in range(0, 200):
             
             # Reset iterators
             if(acdc_count == acdc_num_train_samples):
@@ -309,20 +307,18 @@ def main():
                     for val_count in range(0, 10):
                         image_val, gt_val, _ = \
                             acdc_Dataset.getItemVal(val_count)
-                                   
+                                    
                         image_val, augmented_val = \
                         Augmentations(image_val, gt_val, False).getAugmentedData()
-
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
                         augmented_val[3], augmented_val[4]), axis=2)
-       
+        
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
 
                         loss_val = nn.CrossEntropyLoss()
                         prediction_val = model(image_val_tensor)
                         val_loss = loss(prediction_val, gt_val_tensor)
-                        print('Validation loss:' , val_loss.item())
                         running_val_loss += val_loss.item()
 
                     for val_count in range(0, 10):
@@ -331,17 +327,15 @@ def main():
                         
                         image_val, augmented_val = \
                         Augmentations(image_val, gt_val, False).getAugmentedData()
-
                         gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
                         augmented_val[3], augmented_val[4]), axis=2)
-       
+        
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
 
                         loss_val = nn.CrossEntropyLoss()
                         prediction_val = model(image_val_tensor)
                         val_loss = loss(prediction_val, gt_val_tensor)
-                        print('Validation loss:' , val_loss.item())
                         running_val_loss += val_loss.item()
 
                     # Calculating average loss of complete validation set
