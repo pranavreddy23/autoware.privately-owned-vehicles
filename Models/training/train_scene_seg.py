@@ -77,7 +77,7 @@ def main():
     model = SceneSegNetwork().to(device)
 
     # epochs, learning rate
-    num_epochs = 50
+    num_epochs = 75
     learning_rate = 0.0001
 
     # optimizer
@@ -124,8 +124,8 @@ def main():
     acdc_num_train_samples, acdc_num_val_samples = acdc_Dataset.getItemCount()
 
     # BDD100K - Data Loading
-    #bdd100k_Dataset = LoadData(bdd100k_labels_fileapath, bdd100k_images_fileapath, 'BDD100K')
-    #bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
+    bdd100k_Dataset = LoadData(bdd100k_labels_fileapath, bdd100k_images_fileapath, 'BDD100K')
+    bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
 
     # IDDAW - Data Loading
     iddaw_Dataset = LoadData(iddaw_labels_fileapath, iddaw_images_fileapath, 'IDDAW')
@@ -143,47 +143,45 @@ def main():
     comma10k_Dataset = LoadData(comma10k_labels_fileapath, comma10k_images_fileapath, 'COMMA10K')
     comma10k_num_train_samples, comma10k_num_val_samples = comma10k_Dataset.getItemCount()
 
-    # Iterators for datasets
-    acdc_count = 0
-    #bdd100k_count = 0
-    iddaw_count = 0
-    muses_count = 0
-    comma10k_count = 0
-    mapillary_count = 0
-
-    data_list = []
-    data_list.append('ACDC')
-    #data_list.append('BDD100K')
-    data_list.append('IDDAW')
-    data_list.append('MUSES')
-    data_list.append('MAPILLARY')
-    data_list.append('COMMA10K')
-    data_list_count = 0
-
     # Total number of training samples
-    #total_train_samples = acdc_num_train_samples + bdd100k_num_train_samples \
-    #+ iddaw_num_train_samples + muses_num_train_samples \
-    #+ mapillary_num_train_samples + comma10k_num_train_samples
-    #print(total_train_samples, ': total training samples')
-
-    total_train_samples = acdc_num_train_samples\
+    total_train_samples = acdc_num_train_samples + bdd100k_num_train_samples \
     + iddaw_num_train_samples + muses_num_train_samples \
     + mapillary_num_train_samples + comma10k_num_train_samples
     print(total_train_samples, ': total training samples')
 
     # Total number of validation samples
-    #total_val_samples = acdc_num_val_samples + bdd100k_num_val_samples \
-    #+ iddaw_num_val_samples + muses_num_val_samples \
-    #+ mapillary_num_val_samples + comma10k_num_val_samples
-    #print(total_val_samples, ': total validation samples')
-
-    total_val_samples = acdc_num_val_samples \
+    total_val_samples = acdc_num_val_samples + bdd100k_num_val_samples \
     + iddaw_num_val_samples + muses_num_val_samples \
     + mapillary_num_val_samples + comma10k_num_val_samples
     print(total_val_samples, ': total validation samples')
 
+
     # Epochs
     for epoch in range(0, num_epochs):
+
+        # Iterators for datasets
+        acdc_count = 0
+        bdd100k_count = 0
+        iddaw_count = 0
+        muses_count = 0
+        comma10k_count = 0
+        mapillary_count = 0
+
+        is_acdc_complete = False
+        is_bdd100k_complete = False
+        is_iddaw_complete = False
+        is_muses_complate = False
+        is_mapillary_complete = False
+        is_comma10k_complete = False
+
+        data_list = []
+        data_list.append('ACDC')
+        data_list.append('BDD100K')
+        data_list.append('IDDAW')
+        data_list.append('MUSES')
+        data_list.append('MAPILLARY')
+        data_list.append('COMMA10K')
+        data_list_count = 0
 
         # Loop through data
         for count in range(0, total_train_samples):
@@ -193,22 +191,28 @@ def main():
 
             # Reset iterators
             if(acdc_count == acdc_num_train_samples):
-                acdc_count = 0
+                is_acdc_complete =  True
+                data_list.remove("ACDC")
                 
-            #if(bdd100k_count == bdd100k_num_train_samples):
-            #    bdd100k_count = 0
+            if(bdd100k_count == bdd100k_num_train_samples):
+                is_bdd100k_complete = True
+                data_list.remove("BDD100K")
             
             if(iddaw_count == iddaw_num_train_samples):
-                iddaw_count = 0
+                is_iddaw_complete = True
+                data_list.remove("IDDAW")
             
             if(muses_count == muses_num_train_samples):
-                muses_count = 0
+                is_muses_complate = True
+                data_list.remove('MUSES')
             
             if(mapillary_count == mapillary_num_train_samples):
-                muses_count = 0
+                is_mapillary_complete = True
+                data_list.remove('MAPILLARY')
 
             if(comma10k_count == comma10k_num_train_samples):
-                comma10k_count = 0
+                is_comma10k_complete = True
+                data_list.remove('COMMA10K')
 
             if(data_list_count == len(data_list)):
                 data_list_count = 0
@@ -217,32 +221,38 @@ def main():
             # loss for iterated image from each dataset, and increment
             # dataset iterators
 
-            if(data_list[data_list_count] == 'ACDC'):
+            if(data_list[data_list_count] == 'ACDC' and \
+                is_acdc_complete == False):
                 image, gt, class_weights = \
                         acdc_Dataset.getItemTrain(acdc_count)
                 acdc_count += 1
             
-            #if(data_list[data_list_count] == 'BDD100K'):
-            #    image, gt, class_weights = \
-            #        bdd100k_Dataset.getItemTrain(bdd100k_count)
-            #    bdd100k_count += 1
+            if(data_list[data_list_count] == 'BDD100K' and \
+               is_bdd100k_complete == False):
+                image, gt, class_weights = \
+                    bdd100k_Dataset.getItemTrain(bdd100k_count)
+                bdd100k_count += 1
 
-            if(data_list[data_list_count] == 'IDDAW'):
+            if(data_list[data_list_count] == 'IDDAW' and \
+               is_iddaw_complete == False):
                 image, gt, class_weights = \
                     iddaw_Dataset.getItemTrain(iddaw_count)      
                 iddaw_count += 1
 
-            if(data_list[data_list_count] == 'MUSES'):
+            if(data_list[data_list_count] == 'MUSES' and \
+               is_muses_complate == False):
                 image, gt, class_weights = \
                     muses_Dataset.getItemTrain(muses_count)
                 muses_count += 1
             
-            if(data_list[data_list_count] == 'MAPILLARY'):
+            if(data_list[data_list_count] == 'MAPILLARY' and \
+               is_mapillary_complete == False):
                 image, gt, class_weights = \
                     mapillary_Dataset.getItemTrain(mapillary_count)
                 mapillary_count +=1
             
-            if(data_list[data_list_count] == 'COMMA10K'):
+            if(data_list[data_list_count] == 'COMMA10K' and \
+                is_comma10k_complete == False):
                 image, gt, class_weights = \
                     comma10k_Dataset.getItemTrain(comma10k_count)
                 comma10k_count += 1
@@ -268,20 +278,19 @@ def main():
             # Gradient accumulation
             calc_loss.backward()
 
-            # Simulating batch size of 10
-            if((count+1) % 10 == 0):
+            # Simulating batch size of 12
+            if((count+1) % 6 == 0):
                 optimizer.step()
                 optimizer.zero_grad()
 
-            # Logging loss to Tensor Board every 100 steps
-            if((count+1) % 100 == 0):
+            # Logging loss to Tensor Board every 50 steps
+            if((count+1) % 50 == 0):
                 print('Logging')
                 writer.add_scalar("Loss/train", calc_loss,\
                     (count + total_train_samples*epoch))
 
-            # Logging Image to Tensor Board every 1000 steps
-            
-            if((count+1) % 1000 == 0):   
+            # Logging Image to Tensor Board every 250 steps
+            if((count+1) % 250 == 0):   
                 print('Saving Visualization')
                 prediction = prediction.squeeze(0).cpu().detach()
                 prediction = prediction.permute(1, 2, 0)
@@ -298,8 +307,8 @@ def main():
                     fig, global_step=(count + total_train_samples*epoch))
 
             # Save model and run validation on entire validation 
-            # dataset after 4000 steps
-            if((count+1) % 4000 == 0):
+            # dataset after 8000 steps
+            if((count+1) % 8000 == 0):
                 
                 print('Saving model')
                 save_path = model_save_path + 'iter_' + \
@@ -316,7 +325,9 @@ def main():
 
                 # No gradient calculation
                 with torch.no_grad():
-                    
+
+                    loss_val = nn.CrossEntropyLoss()
+
                     # ACDC
                     for val_count in range(0, acdc_num_val_samples):
                         image_val, gt_val, _ = \
@@ -330,14 +341,12 @@ def main():
         
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
-
-                        loss_val = nn.CrossEntropyLoss()
+                        
                         prediction_val = model(image_val_tensor)
                         val_loss = loss_val(prediction_val, gt_val_tensor)
                         running_val_loss += val_loss.item()
 
                     # BDD100K
-                    '''
                     for val_count in range(0, bdd100k_num_val_samples):
                         image_val, gt_val, _ = \
                             bdd100k_Dataset.getItemVal(val_count)
@@ -355,7 +364,7 @@ def main():
                         prediction_val = model(image_val_tensor)
                         val_loss = loss(prediction_val, gt_val_tensor)
                         running_val_loss += val_loss.item()
-                    '''
+                    
                     # MUSES
                     for val_count in range(0, muses_num_val_samples):
                         image_val, gt_val, _ = \
@@ -370,7 +379,6 @@ def main():
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
 
-                        loss_val = nn.CrossEntropyLoss()
                         prediction_val = model(image_val_tensor)
                         val_loss = loss_val(prediction_val, gt_val_tensor)
                         running_val_loss += val_loss.item()
@@ -389,7 +397,6 @@ def main():
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
 
-                        loss_val = nn.CrossEntropyLoss()
                         prediction_val = model(image_val_tensor)
                         val_loss = loss_val(prediction_val, gt_val_tensor)
                         running_val_loss += val_loss.item()
@@ -408,7 +415,6 @@ def main():
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
 
-                        loss_val = nn.CrossEntropyLoss()
                         prediction_val = model(image_val_tensor)
                         val_loss = loss_val(prediction_val, gt_val_tensor)
                         running_val_loss += val_loss.item()
@@ -427,7 +433,6 @@ def main():
                         image_val_tensor = load_image_tensor(image_val)
                         gt_val_tensor = load_gt_tensor(gt_val_fused)
 
-                        loss_val = nn.CrossEntropyLoss()
                         prediction_val = model(image_val_tensor)
                         val_loss = loss_val(prediction_val, gt_val_tensor)
                         running_val_loss += val_loss.item()
