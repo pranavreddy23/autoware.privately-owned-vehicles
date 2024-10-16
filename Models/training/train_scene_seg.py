@@ -7,6 +7,7 @@ from torchvision import transforms
 from torch import nn, optim
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
@@ -124,8 +125,8 @@ def main():
     acdc_num_train_samples, acdc_num_val_samples = acdc_Dataset.getItemCount()
 
     # BDD100K - Data Loading
-    bdd100k_Dataset = LoadData(bdd100k_labels_fileapath, bdd100k_images_fileapath, 'BDD100K')
-    bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
+    #bdd100k_Dataset = LoadData(bdd100k_labels_fileapath, bdd100k_images_fileapath, 'BDD100K')
+    #bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
 
     # IDDAW - Data Loading
     iddaw_Dataset = LoadData(iddaw_labels_fileapath, iddaw_images_fileapath, 'IDDAW')
@@ -144,13 +145,13 @@ def main():
     comma10k_num_train_samples, comma10k_num_val_samples = comma10k_Dataset.getItemCount()
 
     # Total number of training samples
-    total_train_samples = acdc_num_train_samples + bdd100k_num_train_samples \
+    total_train_samples = acdc_num_train_samples + \
     + iddaw_num_train_samples + muses_num_train_samples \
     + mapillary_num_train_samples + comma10k_num_train_samples
     print(total_train_samples, ': total training samples')
 
     # Total number of validation samples
-    total_val_samples = acdc_num_val_samples + bdd100k_num_val_samples \
+    total_val_samples = acdc_num_val_samples + \
     + iddaw_num_val_samples + muses_num_val_samples \
     + mapillary_num_val_samples + comma10k_num_val_samples
     print(total_val_samples, ': total validation samples')
@@ -176,11 +177,12 @@ def main():
 
         data_list = []
         data_list.append('ACDC')
-        data_list.append('BDD100K')
+        #data_list.append('BDD100K')
         data_list.append('IDDAW')
         data_list.append('MUSES')
         data_list.append('MAPILLARY')
         data_list.append('COMMA10K')
+        random.shuffle(data_list)
         data_list_count = 0
 
         # Loop through data
@@ -194,9 +196,9 @@ def main():
                 is_acdc_complete =  True
                 data_list.remove("ACDC")
                 
-            if(bdd100k_count == bdd100k_num_train_samples):
-                is_bdd100k_complete = True
-                data_list.remove("BDD100K")
+            #if(bdd100k_count == bdd100k_num_train_samples):
+            #    is_bdd100k_complete = True
+            #    data_list.remove("BDD100K")
             
             if(iddaw_count == iddaw_num_train_samples):
                 is_iddaw_complete = True
@@ -227,11 +229,11 @@ def main():
                         acdc_Dataset.getItemTrain(acdc_count)
                 acdc_count += 1
             
-            if(data_list[data_list_count] == 'BDD100K' and \
-               is_bdd100k_complete == False):
-                image, gt, class_weights = \
-                    bdd100k_Dataset.getItemTrain(bdd100k_count)
-                bdd100k_count += 1
+            #if(data_list[data_list_count] == 'BDD100K' and \
+            #   is_bdd100k_complete == False):
+            #    image, gt, class_weights = \
+            #        bdd100k_Dataset.getItemTrain(bdd100k_count)
+            #    bdd100k_count += 1
 
             if(data_list[data_list_count] == 'IDDAW' and \
                is_iddaw_complete == False):
@@ -278,8 +280,8 @@ def main():
             # Gradient accumulation
             calc_loss.backward()
 
-            # Simulating batch size of 12
-            if((count+1) % 6 == 0):
+            # Simulating batch size of 3
+            if((count+1) % 3 == 0):
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -347,6 +349,7 @@ def main():
                         running_val_loss += val_loss.item()
 
                     # BDD100K
+                    '''
                     for val_count in range(0, bdd100k_num_val_samples):
                         image_val, gt_val, _ = \
                             bdd100k_Dataset.getItemVal(val_count)
@@ -364,7 +367,7 @@ def main():
                         prediction_val = model(image_val_tensor)
                         val_loss = loss(prediction_val, gt_val_tensor)
                         running_val_loss += val_loss.item()
-                    
+                    '''
                     # MUSES
                     for val_count in range(0, muses_num_val_samples):
                         image_val, gt_val, _ = \
