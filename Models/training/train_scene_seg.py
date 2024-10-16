@@ -258,9 +258,8 @@ def main():
             # Gradient accumulation
             calc_loss.backward()
 
-            # Simulating batch size of 3
-            # Batch size of 3 gives good results in testing
-            if((count+1) % 3 == 0):
+            # Simulating batch size of 6
+            if((count+1) % 6 == 0):
                 optimizer.step()
                 optimizer.zero_grad()
 
