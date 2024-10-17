@@ -364,6 +364,7 @@ def main():
     
     # Total training epochs
     num_epochs = 75
+    batch_size = 128
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -392,6 +393,27 @@ def main():
         data_list.append('COMMA10K')
         random.shuffle(data_list)
         data_list_count = 0
+
+        if(epoch == 1):
+            batch_size = 64
+        
+        if(epoch == 2):
+            batch_size = 32
+        
+        if(epoch == 3):
+            batch_size = 16
+
+        if(epoch == 4):
+            batch_size = 8
+
+        if (epoch == 5):
+            batch_size = 4
+
+        if (epoch == 6):
+            batch_size = 2
+
+        if(epoch > 6):
+            batch_size = 1
 
         # Loop through data
         for count in range(0, total_train_samples):
@@ -487,8 +509,8 @@ def main():
             # Gradient accumulation
             trainer.loss_backward()
 
-            # Simulating batch size of 3 for optimizer
-            if((count+1) % 3 == 0):
+            # Simulating batch size through gradient accumulation
+            if((count+1) % batch_size == 0):
                 trainer.run_optimizer()
 
             # Logging loss to Tensor Board every 250 steps
