@@ -526,7 +526,7 @@ def main():
                 with torch.no_grad():
 
                     # ACDC
-                    for val_count in range(80, 90):
+                    for val_count in range(0, acdc_num_val_samples):
                         image_val, gt_val, _ = \
                             acdc_Dataset.getItemVal(val_count)
 
