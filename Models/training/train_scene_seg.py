@@ -364,7 +364,7 @@ def main():
     
     # Total training epochs
     num_epochs = 75
-    batch_size = 128
+    batch_size = 100
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -395,19 +395,19 @@ def main():
         data_list_count = 0
 
         if(epoch == 1):
-            batch_size = 64
+            batch_size = 50
         
         if(epoch == 2):
-            batch_size = 32
+            batch_size = 25
         
         if(epoch == 3):
-            batch_size = 16
+            batch_size = 12
 
         if(epoch == 4):
-            batch_size = 8
+            batch_size = 6
 
         if (epoch == 5):
-            batch_size = 4
+            batch_size = 3
 
         if (epoch == 6):
             batch_size = 2
