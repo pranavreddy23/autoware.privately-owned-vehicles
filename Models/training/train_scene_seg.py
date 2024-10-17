@@ -16,83 +16,285 @@ from data_utils.augmentations import Augmentations
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 
-# Checking devices (GPU vs CPU)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f'Using {device} for inference')
+class trainSceneSeg():
+    def __init__(self):
 
-# Load Image as Tensor
-def load_image_tensor(image):
-    image = image_loader(image)
-    image = image.unsqueeze(0)
-    return image.to(device)
+        self.image = 0
+        self.image_val = 0
+        self.gt = 0
+        self.gt_val = 0
+        self.class_weights = 0
+        self.gt_fused = 0
+        self.gt_val_fused = 0
+        self.augmented = 0
+        self.augmented_val = 0
+        self.image_tensor = 0
+        self.image_val_tensor = 0
+        self.gt_tensor = 0
+        self.gt_val_tensor = 0
+        self.class_weights_tensor = 0
+        self.loss = 0
+        self.prediction = 0
+        self.calc_loss = 0
+        self.prediction_vis = 0
 
-image_loader = transforms.Compose(
-    [
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ]
-)
+        # Checking devices (GPU vs CPU)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f'Using {self.device} for inference')
+        
+        # Instantiate model 
+        self.model = SceneSegNetwork().to(self.device)
 
-# Load Ground Truth as Tensor
-def load_gt_tensor(gt):
-    gt = gt_loader(gt)
-    gt = gt.unsqueeze(0)
-    return gt.to(device)
+        # TensorBoard
+        self.writer = SummaryWriter()
 
-gt_loader = transforms.Compose(
-    [
-        transforms.ToTensor(),
-    ]
-)
+        # Learning rate and optimizer
+        self.learning_rate = 0.0001
+        self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
-# Visualize predicted result
-def visualize_result(prediction):
-    shape = prediction.shape
-    _, output = torch.max(prediction, dim=2)
+        # Loaders
+        self.image_loader = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ]
+        )
 
-    row = shape[0]
-    col = shape[1]
-    vis_predict = Image.new(mode="RGB", size=(col, row))
- 
-    vx = vis_predict.load()
+        self.gt_loader = transforms.Compose(
+            [transforms.ToTensor()]
+        )
 
-    background_objects_colour = (61, 93, 255)
-    foreground_objects_colour = (255, 28, 145)
-    road_colour = (0, 255, 220)
+    # Logging Training Loss
+    def log_loss(self, log_count):
+        print('Logging Training Loss', log_count, self.get_loss())
+        self.writer.add_scalar("Loss/train",self.get_loss(), (log_count))
 
-    # Extracting predicted classes and assigning to colourmap
-    for x in range(row):
-        for y in range(col):
-            if(output[x,y].item() == 0):
-                vx[y,x] = background_objects_colour
-            elif(output[x,y].item() == 1):
-                 vx[y,x] = foreground_objects_colour
-            elif(output[x,y].item() == 2):
-                 vx[y,x] = road_colour               
+    # Logging Validation mIoU Score
+    def log_IoU(self, mIoU_full, mIoU_bg, mIoU_fg, mIoU_rd, log_count):
+        print('Logging Validation')
+        self.writer.add_scalars("Val/IoU_Classes",{
+            'mIoU_bg': mIoU_bg,
+            'mIoU_fg': mIoU_fg,
+            'mIoU_rd': mIoU_rd
+        }, (log_count))
+        
+        self.writer.add_scalar("Val/IoU", mIoU_full, (log_count))
+        
+    # Assign input variables
+    def set_data(self, image, gt, class_weights):
+        self.image = image
+        self.gt = gt
+        self.class_weights = class_weights
+
+    def set_val_data(self, image_val, gt_val):
+        self.image_val = image_val
+        self.gt_val = gt_val
+
+    # Image agumentations
+    def apply_augmentations(self, is_train):
+
+        if(is_train):
+            # Augmenting Image
+            aug_train = Augmentations(self.image, self.gt, True)
+            self.image, self.augmented = aug_train.getAugmentedData()
+            
+            # Ground Truth with probabiliites for each class in separate channels
+            self.gt_fused = np.stack((self.augmented[1], self.augmented[2], \
+                        self.augmented[3]), axis=2)
+        else:
+            # Augmenting Image
+            aug_val = Augmentations(self.image_val, self.gt_val, False)
+            self.image_val, self.augmented_val = aug_val.getAugmentedData()
+
+            # Ground Truth with probabiliites for each class in separate channels
+            self.gt_val_fused = np.stack((self.augmented_val[1], self.augmented_val[2], \
+                        self.augmented_val[3]), axis=2)
     
-    return vis_predict
+    # Load Data
+    def load_data(self, is_train):
+        self.load_image_tensor(is_train)
+        self.load_gt_tensor(is_train)
+        
+        if(is_train):
+            self.class_weights_tensor = \
+            torch.tensor(self.class_weights).to(self.device)
+
+    # Run Model
+    def run_model(self):     
+        self.loss = nn.CrossEntropyLoss(weight=self.class_weights_tensor)
+        self.prediction = self.model(self.image_tensor)
+        self.calc_loss = self.loss(self.prediction, self.gt_tensor)
+
+    # Loss Backward Pass
+    def loss_backward(self): 
+        self.calc_loss.backward()
+
+    # Get loss value
+    def get_loss(self):
+        return self.calc_loss.item()
+
+    # Run Optimizer
+    def run_optimizer(self):
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+
+    # Set train mode
+    def set_train_mode(self):
+        self.model = self.model.train()
+
+    # Set evaluation mode
+    def set_eval_mode(self):
+        self.model = self.model.eval()
+
+    # Save predicted visualization
+    def save_visualization(self, log_count):
+        print('Saving Visualization')
+        self.prediction_vis = self.prediction.squeeze(0).cpu().detach()
+        self.prediction_vis = self.prediction_vis.permute(1, 2, 0)
+                
+        vis_predict = self.make_visualization()
+        label = self.augmented[0]
+        fig, axs = plt.subplots(1,3)
+        axs[0].imshow(self.image)
+        axs[0].set_title('Image',fontweight ="bold") 
+        axs[1].imshow(label)
+        axs[1].set_title('Ground Truth',fontweight ="bold") 
+        axs[2].imshow(vis_predict)
+        axs[2].set_title('Prediction',fontweight ="bold") 
+        self.writer.add_figure('predictions vs. actuals', \
+        fig, global_step=(log_count))
+
+    # Load Image as Tensor
+    def load_image_tensor(self, is_train):
+
+        if(is_train):
+            image_tensor = self.image_loader(self.image)
+            image_tensor = image_tensor.unsqueeze(0)
+            self.image_tensor = image_tensor.to(self.device)
+        else:
+            image_val_tensor = self.image_loader(self.image_val)
+            image_val_tensor = image_val_tensor.unsqueeze(0)
+            self.image_val_tensor = image_val_tensor.to(self.device)
+
+    # Load Ground Truth as Tensor
+    def load_gt_tensor(self, is_train):
+
+        if(is_train):
+            gt_tensor = self.gt_loader(self.gt_fused)
+            gt_tensor = gt_tensor.unsqueeze(0)
+            self.gt_tensor = gt_tensor.to(self.device)
+        else:
+            gt_val_tensor = self.gt_loader(self.gt_val_fused)
+            gt_val_tensor = gt_val_tensor.unsqueeze(0)
+            self.gt_val_tensor = gt_val_tensor.to(self.device)
+    
+    # Zero Gradient
+    def zero_grad(self):
+        self.optimizer.zero_grad()
+
+    # Save Model
+    def save_model(self, model_save_path):
+        print('Saving model')
+        torch.save(self.model.state_dict(), model_save_path)
+    
+    # Calculate IoU score for validation
+    def calc_IoU_val(self):
+        output_val = self.model(self.image_val_tensor)
+        output_val = output_val.squeeze(0).cpu().detach()
+        output_val = output_val.permute(1, 2, 0)
+        output_val = output_val.numpy()
+
+        for x in range(0, output_val.shape[0]):
+            for y in range(0, output_val.shape[1]):
+                
+                bg_prob = output_val[x,y,0]
+                fg_prob = output_val[x,y,1]
+                rd_prob = output_val[x,y,2]
+
+                if(bg_prob >= fg_prob and bg_prob >= rd_prob):
+                    output_val[x,y,0] = 1
+                    output_val[x,y,1] = 0
+                    output_val[x,y,2] = 0
+                elif(fg_prob >= bg_prob and fg_prob >= rd_prob):
+                    output_val[x,y,0] = 0
+                    output_val[x,y,1] = 1
+                    output_val[x,y,2] = 0
+                elif(rd_prob >= bg_prob and rd_prob >= fg_prob):
+                    output_val[x,y,0] = 0
+                    output_val[x,y,1] = 0
+                    output_val[x,y,2] = 1
+       
+        iou_score_full = self.IoU(output_val, self.gt_val_fused)
+        iou_score_bg = self.IoU(output_val[:,:,0], self.gt_val_fused[:,:,0])
+        iou_score_fg = self.IoU(output_val[:,:,1], self.gt_val_fused[:,:,1])
+        iou_score_rd = self.IoU(output_val[:,:,2], self.gt_val_fused[:,:,2])
+
+        return iou_score_full, iou_score_bg, iou_score_fg, iou_score_rd
+
+    # IoU calculation
+    def IoU(self, output, label):
+        intersection = np.logical_and(label, output)
+        union = np.logical_or(label, output)
+        iou_score = np.sum(intersection) / (np.sum(union) + 1)
+        return iou_score
+    
+    def validate(self, image_val, gt_val):
+
+        # Set Data
+        self.set_val_data(image_val, gt_val)
+
+        # Augmenting Image
+        self.apply_augmentations(is_train=False)
+
+        # Converting to tensor and loading
+        self.load_data(is_train=False)
+
+        # Calculate IoU score
+        iou_score_full, iou_score_bg, iou_score_fg, iou_score_rd \
+            = self.calc_IoU_val()
+        
+        return iou_score_full, iou_score_bg, iou_score_fg, iou_score_rd
+
+
+    # Visualize predicted result
+    def make_visualization(self):
+        shape = self.prediction_vis.shape
+        _, output = torch.max(self.prediction_vis, dim=2)
+
+        row = shape[0]
+        col = shape[1]
+        vis_predict = Image.new(mode="RGB", size=(col, row))
+    
+        vx = vis_predict.load()
+
+        background_objects_colour = (61, 93, 255)
+        foreground_objects_colour = (255, 28, 145)
+        road_colour = (0, 255, 220)
+
+        # Extracting predicted classes and assigning to colourmap
+        for x in range(row):
+            for y in range(col):
+                if(output[x,y].item() == 0):
+                    vx[y,x] = background_objects_colour
+                elif(output[x,y].item() == 1):
+                    vx[y,x] = foreground_objects_colour
+                elif(output[x,y].item() == 2):
+                    vx[y,x] = road_colour               
+        
+        return vis_predict
+    
+    def cleanup(self):
+        self.writer.flush()
+        self.writer.close()
+        print('Finished Training')
 
 def main():
-
-    # Instantiate model 
-    model = SceneSegNetwork().to(device)
-
-    # epochs, learning rate
-    num_epochs = 75
-    learning_rate = 0.0001
-
-    # optimizer
-    optimizer = optim.AdamW(model.parameters(), learning_rate)
-    optimizer.zero_grad()
-
-    # TensorBoard
-    writer = SummaryWriter()
 
     # Root path
     root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
 
     # Model save path
-    model_save_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/'
+    model_save_root_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/'
 
     # Data paths
     # ACDC
@@ -156,6 +358,12 @@ def main():
     + mapillary_num_val_samples + comma10k_num_val_samples
     print(total_val_samples, ': total validation samples')
 
+    # Trainer Class
+    trainer = trainSceneSeg()
+    trainer.zero_grad()
+    
+    # Total training epochs
+    num_epochs = 75
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -188,7 +396,8 @@ def main():
         # Loop through data
         for count in range(0, total_train_samples):
 
-    
+            log_count = count + total_train_samples*epoch
+
             # Reset iterators
             if(acdc_count == acdc_num_train_samples and \
                is_acdc_complete == False):
@@ -263,203 +472,160 @@ def main():
                     comma10k_Dataset.getItemTrain(comma10k_count)
                 comma10k_count += 1
             
+            # Assign Data
+            trainer.set_data(image, gt, class_weights)
+            
             # Augmenting Image
-            aug_train = Augmentations(image, gt, True)
-            image, augmented = aug_train.getAugmentedData()
+            trainer.apply_augmentations(is_train=True)
 
-            # Ground Truth with probabiliites for each class in separate channels
-            gt_fused = np.stack((augmented[1], augmented[2], \
-                    augmented[3]), axis=2)
-                
             # Converting to tensor and loading
-            image_tensor = load_image_tensor(image)
-            gt_tensor = load_gt_tensor(gt_fused)
-            class_weights_tensor = torch.tensor(class_weights).to(device)
+            trainer.load_data(is_train=True)
 
             # Run model and calculate loss
-            loss = nn.CrossEntropyLoss(weight=class_weights_tensor)
-            prediction = model(image_tensor)
-            calc_loss = loss(prediction, gt_tensor)
+            trainer.run_model()
             
             # Gradient accumulation
-            calc_loss.backward()
+            trainer.loss_backward()
 
-            # Simulating batch size of 3
+            # Simulating batch size of 3 for optimizer
             if((count+1) % 3 == 0):
-                optimizer.step()
-                optimizer.zero_grad()
+                trainer.run_optimizer()
 
-            # Logging loss to Tensor Board every 50 steps
-            if((count+1) % 50 == 0):
-                print('Logging')
-                writer.add_scalar("Loss/train", calc_loss,\
-                    (count + total_train_samples*epoch))
-
-            # Logging Image to Tensor Board every 250 steps
-            if((count+1) % 250 == 0):   
-                print('Saving Visualization')
-                prediction = prediction.squeeze(0).cpu().detach()
-                prediction = prediction.permute(1, 2, 0)
-                vis_predict = visualize_result(prediction)
-                label = augmented[0]
-                fig, axs = plt.subplots(1,3)
-                axs[0].imshow(image)
-                axs[0].set_title('Image',fontweight ="bold") 
-                axs[1].imshow(label)
-                axs[1].set_title('Ground Truth',fontweight ="bold") 
-                axs[2].imshow(vis_predict)
-                axs[2].set_title('Prediction',fontweight ="bold") 
-                writer.add_figure('predictions vs. actuals', \
-                    fig, global_step=(count + total_train_samples*epoch))
-
+            # Logging loss to Tensor Board every 250 steps
+            if((count+1) % 250 == 0):
+                trainer.log_loss(log_count)
+            
+            # Logging Image to Tensor Board every 1000 steps
+            if((count+1) % 1000 == 0):  
+                trainer.save_visualization(log_count)
+            
             # Save model and run validation on entire validation 
             # dataset after 8000 steps
             if((count+1) % 8000 == 0):
                 
-                print('Saving model')
-                save_path = model_save_path + 'iter_' + \
+                # Save Model
+                model_save_path = model_save_root_path + 'iter_' + \
                     str(count + total_train_samples*epoch) \
                     + '_epoch_' +  str(epoch) + '_step_' + \
                     str(count) + '.pth'
-                torch.save(model.state_dict(), save_path)
-
+                
+                trainer.save_model(model_save_path)
+                
+                # Validate
                 print('Validating')
 
                 # Setting model to evaluation mode
-                model = model.eval()
-                running_val_loss = 0
+                trainer.set_eval_mode()
+
+                running_IoU_full = 0
+                running_IoU_bg = 0
+                running_IoU_fg = 0
+                running_IoU_rd = 0
 
                 # No gradient calculation
                 with torch.no_grad():
 
-                    loss_val = nn.CrossEntropyLoss()
-
                     # ACDC
-                    for val_count in range(0, acdc_num_val_samples):
+                    for val_count in range(80, 90):
                         image_val, gt_val, _ = \
                             acdc_Dataset.getItemVal(val_count)
-                        
-                        aug_val = Augmentations(image_val, gt_val, False)
-                        image_val, augmented_val = aug_val.getAugmentedData()
 
-                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3]), axis=2)
-        
-                        image_val_tensor = load_image_tensor(image_val)
-                        gt_val_tensor = load_gt_tensor(gt_val_fused)
-                        
-                        prediction_val = model(image_val_tensor)
-                        val_loss = loss_val(prediction_val, gt_val_tensor)
-                        running_val_loss += val_loss.item()
+                        # Run Validation and calculate IoU Score
+                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
+                            trainer.validate(image_val, gt_val)
 
-                    # BDD100K
+                        running_IoU_full += IoU_score_full
+                        running_IoU_bg += IoU_score_bg
+                        running_IoU_fg += IoU_score_fg
+                        running_IoU_rd += IoU_score_rd
                     '''
+                    # BDD100K
+                   
                     for val_count in range(0, bdd100k_num_val_samples):
                         image_val, gt_val, _ = \
                             bdd100k_Dataset.getItemVal(val_count)
                         
-                        aug_val = Augmentations(image_val, gt_val, False)
-                        image_val, augmented_val = aug_val.getAugmentedData()
+                        # Run Validation and calculate IoU Score
+                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
+                            trainer.validate(image_val, gt_val)
 
-                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3]), axis=2)
-        
-                        image_val_tensor = load_image_tensor(image_val)
-                        gt_val_tensor = load_gt_tensor(gt_val_fused)
-
-                        loss_val = nn.CrossEntropyLoss()
-                        prediction_val = model(image_val_tensor)
-                        val_loss = loss(prediction_val, gt_val_tensor)
-                        running_val_loss += val_loss.item()
+                        running_IoU_full += IoU_score_full
+                        running_IoU_bg += IoU_score_bg
+                        running_IoU_fg += IoU_score_fg
+                        running_IoU_rd += IoU_score_rd
                     '''
                     # MUSES
                     for val_count in range(0, muses_num_val_samples):
                         image_val, gt_val, _ = \
                             muses_Dataset.getItemVal(val_count)
                         
-                        aug_val = Augmentations(image_val, gt_val, False)
-                        image_val, augmented_val = aug_val.getAugmentedData()
+                        # Run Validation and calculate IoU Score
+                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
+                            trainer.validate(image_val, gt_val)
 
-                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3]), axis=2)
-        
-                        image_val_tensor = load_image_tensor(image_val)
-                        gt_val_tensor = load_gt_tensor(gt_val_fused)
-
-                        prediction_val = model(image_val_tensor)
-                        val_loss = loss_val(prediction_val, gt_val_tensor)
-                        running_val_loss += val_loss.item()
+                        running_IoU_full += IoU_score_full
+                        running_IoU_bg += IoU_score_bg
+                        running_IoU_fg += IoU_score_fg
+                        running_IoU_rd += IoU_score_rd
                     
                     # IDDAW
                     for val_count in range(0, iddaw_num_val_samples):
                         image_val, gt_val, _ = \
                             iddaw_Dataset.getItemVal(val_count)
                         
-                        aug_val = Augmentations(image_val, gt_val, False)
-                        image_val, augmented_val = aug_val.getAugmentedData()
+                        # Run Validation and calculate IoU Score
+                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
+                            trainer.validate(image_val, gt_val)
 
-                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3]), axis=2)
-        
-                        image_val_tensor = load_image_tensor(image_val)
-                        gt_val_tensor = load_gt_tensor(gt_val_fused)
-
-                        prediction_val = model(image_val_tensor)
-                        val_loss = loss_val(prediction_val, gt_val_tensor)
-                        running_val_loss += val_loss.item()
+                        running_IoU_full += IoU_score_full
+                        running_IoU_bg += IoU_score_bg
+                        running_IoU_fg += IoU_score_fg
+                        running_IoU_rd += IoU_score_rd
 
                     # MAPILLARY
                     for val_count in range(0, mapillary_num_val_samples):
                         image_val, gt_val, _ = \
                             mapillary_Dataset.getItemVal(val_count)
                         
-                        aug_val = Augmentations(image_val, gt_val, False)
-                        image_val, augmented_val = aug_val.getAugmentedData()
+                         # Run Validation and calculate IoU Score
+                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
+                            trainer.validate(image_val, gt_val)
 
-                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3]), axis=2)
-        
-                        image_val_tensor = load_image_tensor(image_val)
-                        gt_val_tensor = load_gt_tensor(gt_val_fused)
-
-                        prediction_val = model(image_val_tensor)
-                        val_loss = loss_val(prediction_val, gt_val_tensor)
-                        running_val_loss += val_loss.item()
+                        running_IoU_full += IoU_score_full
+                        running_IoU_bg += IoU_score_bg
+                        running_IoU_fg += IoU_score_fg
+                        running_IoU_rd += IoU_score_rd
 
                     # COMMA10K
                     for val_count in range(0, comma10k_num_val_samples):
                         image_val, gt_val, _ = \
                             comma10k_Dataset.getItemVal(val_count)
                         
-                        aug_val = Augmentations(image_val, gt_val, False)
-                        image_val, augmented_val = aug_val.getAugmentedData()
+                        # Run Validation and calculate IoU Score
+                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
+                            trainer.validate(image_val, gt_val)
 
-                        gt_val_fused = np.stack((augmented_val[1], augmented_val[2], \
-                        augmented_val[3]), axis=2)
-        
-                        image_val_tensor = load_image_tensor(image_val)
-                        gt_val_tensor = load_gt_tensor(gt_val_fused)
-
-                        prediction_val = model(image_val_tensor)
-                        val_loss = loss_val(prediction_val, gt_val_tensor)
-                        running_val_loss += val_loss.item()
-
+                        running_IoU_full += IoU_score_full
+                        running_IoU_bg += IoU_score_bg
+                        running_IoU_fg += IoU_score_fg
+                        running_IoU_rd += IoU_score_rd
+                    
                     # Calculating average loss of complete validation set
-                    avg_val_loss = running_val_loss/total_val_samples
-                    print('Average Validation loss:', avg_val_loss)
+                    mIoU_full = running_IoU_full/total_val_samples
+                    mIoU_bg = running_IoU_bg/total_val_samples
+                    mIoU_fg = running_IoU_fg/total_val_samples
+                    mIoU_rd = running_IoU_rd/total_val_samples
                     
                     # Logging average validation loss to TensorBoard
-                    writer.add_scalar("Loss/val", avg_val_loss,\
-                        (count + total_train_samples*epoch))
+                    trainer.log_IoU(mIoU_full, mIoU_bg, mIoU_fg, mIoU_rd, log_count)
 
                 # Resetting model back to training
-                model = model.train()
-
+                trainer.set_train_mode()
+                
             data_list_count += 1
 
-    writer.flush()
-    writer.close()
-    print('Finished Training')
+    trainer.cleanup()
+
 
 if __name__ == '__main__':
     main()
