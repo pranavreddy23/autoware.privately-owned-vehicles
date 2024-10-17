@@ -171,7 +171,7 @@ def main():
         is_acdc_complete = False
         is_bdd100k_complete = False
         is_iddaw_complete = False
-        is_muses_complate = False
+        is_muses_complete = False
         is_mapillary_complete = False
         is_comma10k_complete = False
 
@@ -188,35 +188,39 @@ def main():
         # Loop through data
         for count in range(0, total_train_samples):
 
-            # Print step
-            print('Step', count + total_train_samples*epoch)
-
+    
             # Reset iterators
-            if(acdc_count == acdc_num_train_samples):
+            if(acdc_count == acdc_num_train_samples and \
+               is_acdc_complete == False):
                 is_acdc_complete =  True
                 data_list.remove("ACDC")
-                
-            #if(bdd100k_count == bdd100k_num_train_samples):
+            
+            #if(bdd100k_count == bdd100k_num_train_samples and \
+            #  is_bddd100k_complete == True):
             #    is_bdd100k_complete = True
             #    data_list.remove("BDD100K")
             
-            if(iddaw_count == iddaw_num_train_samples):
+            if(iddaw_count == iddaw_num_train_samples and \
+               is_iddaw_complete == False):
                 is_iddaw_complete = True
                 data_list.remove("IDDAW")
             
-            if(muses_count == muses_num_train_samples):
-                is_muses_complate = True
+            if(muses_count == muses_num_train_samples and \
+                is_muses_complete == False):
+                is_muses_complete = True
                 data_list.remove('MUSES')
             
-            if(mapillary_count == mapillary_num_train_samples):
+            if(mapillary_count == mapillary_num_train_samples and \
+               is_mapillary_complete == False):
                 is_mapillary_complete = True
                 data_list.remove('MAPILLARY')
 
-            if(comma10k_count == comma10k_num_train_samples):
+            if(comma10k_count == comma10k_num_train_samples and \
+               is_comma10k_complete == False):
                 is_comma10k_complete = True
                 data_list.remove('COMMA10K')
 
-            if(data_list_count == len(data_list)):
+            if(data_list_count >= len(data_list)):
                 data_list_count = 0
 
             # Read images, apply augmentation, run prediction, calculate
@@ -242,7 +246,7 @@ def main():
                 iddaw_count += 1
 
             if(data_list[data_list_count] == 'MUSES' and \
-               is_muses_complate == False):
+               is_muses_complete == False):
                 image, gt, class_weights = \
                     muses_Dataset.getItemTrain(muses_count)
                 muses_count += 1
