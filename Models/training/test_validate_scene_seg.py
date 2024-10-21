@@ -90,7 +90,6 @@ def main():
     val_data_list.append('IDDAW')
     val_data_list.append('COMMA10K')
     val_data_list.append('MAPILLARY')
-    val_data_list.append('BDD100K')
 
     # Overall Val
     running_IoU_full = 0
@@ -123,8 +122,6 @@ def main():
                 val_samples = comma10k_num_val_samples
             elif(dataset == 'MAPILLARY'):
                 val_samples = mapillary_num_val_samples
-            elif(dataset == 'BDD100K'):
-                val_samples = total_test_samples
             
             print('Processing Dataset: ', dataset)
 
@@ -148,16 +145,11 @@ def main():
                 elif(dataset == 'MAPILLARY'):
                     image_val, gt_val, _ = \
                         mapillary_Dataset.getItemVal(val_count) 
-                elif(dataset == 'BDD100K'):
-                    image_val, gt_val, _ = \
-                        bdd100k_Dataset.getItemVal(val_count) 
 
                 # Run Validation and calculate IoU Score
                 IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
                     trainer.validate(image_val, gt_val)   
-                
-                print(val_count, IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd)
-
+         
                 dataset_IoU_full += IoU_score_full
                 dataset_IoU_bg += IoU_score_bg
                 dataset_IoU_fg += IoU_score_fg
@@ -175,11 +167,7 @@ def main():
             dataset_IoU_rd = dataset_IoU_rd/val_samples
 
             print('-----------------------------------')
-            if(dataset == 'BDD100K'):
-                print('Dataset:', dataset, ' Test Samples: ', val_samples)
-            else:
-                print('Dataset:', dataset, ' Validation Samples: ', val_samples)
-
+            print('Dataset:', dataset, ' Validation Samples: ', val_samples)
             print(dataset, ' IoU Overall ', dataset_IoU_full)
             print(dataset, ' IoU Background ', dataset_IoU_bg)
             print(dataset, ' IoU Foreground ', dataset_IoU_fg)
@@ -196,6 +184,53 @@ def main():
         print('Cross Dataset IoU Background ', mIoU_bg)
         print('Cross Dataset IoU Foreground ', mIoU_fg)
         print('Cross Dataset IoU Road ', mIoU_rd)
+
+        test_IoU_full = 0
+        test_IoU_bg = 0
+        test_IoU_fg = 0
+        test_IoU_rd = 0
+
+        # Test set on BDD100K dataset
+        for dataset_count in range (0, bdd100k_num_val_samples):
+            image_val, gt_val, _ = \
+                bdd100k_Dataset.getItemVal(dataset_count) 
+            
+            # Run Validation and calculate IoU Score
+            IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
+                    trainer.validate(image_val, gt_val)   
+            
+            test_IoU_full += IoU_score_full
+            test_IoU_bg += IoU_score_bg
+            test_IoU_fg += IoU_score_fg
+            test_IoU_rd += IoU_score_rd
+
+        for dataset_count in range (0, bdd100k_num_train_samples):
+            image_val, gt_val, _ = \
+                bdd100k_Dataset.getItemTrain(dataset_count) 
+            
+            # Run Validation and calculate IoU Score
+            IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
+                    trainer.validate(image_val, gt_val)   
+            
+            test_IoU_full += IoU_score_full
+            test_IoU_bg += IoU_score_bg
+            test_IoU_fg += IoU_score_fg
+            test_IoU_rd += IoU_score_rd
+
+        # Test Dataset Validation Metrics
+        mIoU_test_full = test_IoU_full/total_test_samples
+        mIoU_test_bg = test_IoU_bg/total_test_samples
+        mIoU_test_fg = test_IoU_fg/total_test_samples
+        mIoU_test_rd = test_IoU_rd/total_test_samples
+
+        print('Overall Test Set with Total Testing Samples: ', total_test_samples)
+        print('Test Dataset IoU Overall ', mIoU_test_full)
+        print('Test Dataset IoU Background ', mIoU_test_bg)
+        print('Test Dataset IoU Foreground ', mIoU_test_fg)
+        print('Test Dataset IoU Road ', mIoU_test_rd)
+
+
+    
 
 if __name__ == '__main__':
     main()
