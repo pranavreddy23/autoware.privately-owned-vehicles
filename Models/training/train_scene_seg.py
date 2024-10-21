@@ -294,16 +294,12 @@ def main():
     root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/'
+    model_save_root_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/run_2/'
 
     # Data paths
     # ACDC
     acdc_labels_filepath= root + 'ACDC/gt_masks/'
     acdc_images_filepath = root + 'ACDC/images/'
-
-    # BDD100K
-    bdd100k_labels_fileapath = root + 'BDD100K/gt_masks/'
-    bdd100k_images_fileapath = root + 'BDD100K/images/'
 
     # IDDAW
     iddaw_labels_fileapath = root + 'IDDAW/gt_masks/'
@@ -325,10 +321,6 @@ def main():
     # ACDC - Data Loading
     acdc_Dataset = LoadData(acdc_labels_filepath, acdc_images_filepath, 'ACDC')
     acdc_num_train_samples, acdc_num_val_samples = acdc_Dataset.getItemCount()
-
-    # BDD100K - Data Loading
-    #bdd100k_Dataset = LoadData(bdd100k_labels_fileapath, bdd100k_images_fileapath, 'BDD100K')
-    #bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
 
     # IDDAW - Data Loading
     iddaw_Dataset = LoadData(iddaw_labels_fileapath, iddaw_images_fileapath, 'IDDAW')
@@ -363,7 +355,7 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 75
+    num_epochs = 10
     batch_size = 32
 
     # Epochs
@@ -371,14 +363,12 @@ def main():
 
         # Iterators for datasets
         acdc_count = 0
-        bdd100k_count = 0
         iddaw_count = 0
         muses_count = 0
         comma10k_count = 0
         mapillary_count = 0
 
         is_acdc_complete = False
-        is_bdd100k_complete = False
         is_iddaw_complete = False
         is_muses_complete = False
         is_mapillary_complete = False
@@ -386,7 +376,6 @@ def main():
 
         data_list = []
         data_list.append('ACDC')
-        #data_list.append('BDD100K')
         data_list.append('IDDAW')
         data_list.append('MUSES')
         data_list.append('MAPILLARY')
@@ -424,11 +413,6 @@ def main():
                 is_acdc_complete =  True
                 data_list.remove("ACDC")
             
-            #if(bdd100k_count == bdd100k_num_train_samples and \
-            #  is_bddd100k_complete == True):
-            #    is_bdd100k_complete = True
-            #    data_list.remove("BDD100K")
-            
             if(iddaw_count == iddaw_num_train_samples and \
                is_iddaw_complete == False):
                 is_iddaw_complete = True
@@ -462,12 +446,6 @@ def main():
                         acdc_Dataset.getItemTrain(acdc_count)
                 acdc_count += 1
             
-            #if(data_list[data_list_count] == 'BDD100K' and \
-            #   is_bdd100k_complete == False):
-            #    image, gt, class_weights = \
-            #        bdd100k_Dataset.getItemTrain(bdd100k_count)
-            #    bdd100k_count += 1
-
             if(data_list[data_list_count] == 'IDDAW' and \
                is_iddaw_complete == False):
                 image, gt, class_weights = \
@@ -558,22 +536,7 @@ def main():
                         running_IoU_bg += IoU_score_bg
                         running_IoU_fg += IoU_score_fg
                         running_IoU_rd += IoU_score_rd
-                    '''
-                    # BDD100K
-                   
-                    for val_count in range(0, bdd100k_num_val_samples):
-                        image_val, gt_val, _ = \
-                            bdd100k_Dataset.getItemVal(val_count)
                         
-                        # Run Validation and calculate IoU Score
-                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
-                            trainer.validate(image_val, gt_val)
-
-                        running_IoU_full += IoU_score_full
-                        running_IoU_bg += IoU_score_bg
-                        running_IoU_fg += IoU_score_fg
-                        running_IoU_rd += IoU_score_rd
-                    '''
                     # MUSES
                     for val_count in range(0, muses_num_val_samples):
                         image_val, gt_val, _ = \
