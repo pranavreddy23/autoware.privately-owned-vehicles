@@ -1,12 +1,11 @@
 ## SceneSeg
-The SceneSeg Neural Expert performs Semantic Scene Segmentation of Stuff Categories. It is aims to learn scene level feature representations that generalize across object types. For example, rather than explicitly learning features to recognise cars from buses, SceneSeg is able to recognise high level features that can distinguish any movable foreground object from the static background, road and sky. This provides an autonomous vehicle with a core safety layer since SceneSeg can comprehend strange presentations of known objects and previously unseen object types, helping to address 'long-tail' edge cases which plauge object-level detectors.
+The SceneSeg Neural Expert performs Semantic Scene Segmentation of Stuff Categories. It is aims to learn scene level feature representations that generalize across object types. For example, rather than explicitly learning features to recognise cars from buses, SceneSeg is able to recognise high level features that can implicitly distinguish any movable foreground object from the static background, and drivable road surface. This provides an autonomous vehicle with a core safety layer since SceneSeg can comprehend strange presentations of known objects and previously unseen object types, helping to address 'long-tail' edge cases which plauge object-level detectors.
 
 Semantic Classes
 
 - All Movable Foreground Objects
 - All Static Background Elements
 - Drivable Road Surface
-- Sky
 
 ![SceneSeg Network Diagram](../Diagrams/SceneSeg.jpg)
 
@@ -50,4 +49,6 @@ The comma10K dataset already provides a single class label for `Foreground Objec
 
 The comma10K dataset does not include labels for `Road Edge Delimeter`. During training, this class was unified across all datasets into the `Background Objects` class
 
-Lastly, the comma10K dataset does not natively provide `Sky` class semantic pixel labels and a separate pre-trained neural network was used to create pixel level sky masks for the comma10K images.
+The comma10K dataset does not natively provide `Sky` class semantic pixel labels and a separate pre-trained neural network was used to create pixel level sky masks for the comma10K images.
+
+It was found that there was data inconsistency between `Background Objects` and `Sky` class labels across the data, particularly in night-time scenes, therefore during training, the `Sky` class was merged into the `Background Objects` class
