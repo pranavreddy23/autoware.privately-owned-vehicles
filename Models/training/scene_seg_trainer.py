@@ -235,7 +235,7 @@ class SceneSegTrainer():
     def IoU(self, output, label):
         intersection = np.logical_and(label, output)
         union = np.logical_or(label, output)
-        iou_score = np.sum(intersection) / (np.sum(union) + 1)
+        iou_score = (np.sum(intersection) + 1) / float(np.sum(union) + 1)
         return iou_score
     
     # Run Validation and calculate metrics
