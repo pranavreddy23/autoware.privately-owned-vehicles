@@ -12,7 +12,7 @@ from model_components.scene_seg_network import SceneSegNetwork
 from data_utils.augmentations import Augmentations
 
 class SceneSegTrainer():
-    def __init__(self):
+    def __init__(self, checkpoint_path = ''):
 
         self.image = 0
         self.image_val = 0
@@ -32,13 +32,18 @@ class SceneSegTrainer():
         self.prediction = 0
         self.calc_loss = 0
         self.prediction_vis = 0
+        self.checkpoint_path = checkpoint_path
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print(f'Using {self.device} for inference')
         
         # Instantiate model 
-        self.model = SceneSegNetwork().to(self.device)
+        self.model = SceneSegNetwork()
+        if(len(self.checkpoint_path) > 0):
+            self.model.load_state_dict(torch.load \
+                (self.checkpoint_path, weights_only=True))
+        self.model = self.model.to(self.device)
 
         # TensorBoard
         self.writer = SummaryWriter()
