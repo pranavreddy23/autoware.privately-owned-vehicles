@@ -9,6 +9,10 @@ from data_utils.load_data import LoadData
 
 def main():
 
+    # Saved model checkpoint path
+    model_checkpoint_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/' \
+        + 'run_1_batch_decay_Oct18_02-46-35/iter_78107_epoch_2_step_15999.pth'
+    
     # Root path
     root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
 
@@ -44,7 +48,7 @@ def main():
 
     # BDD100K - Data Loading
     bdd100k_Dataset = LoadData(bdd100k_labels_filepath, bdd100k_images_filepath, 'BDD100K')
-    bdd100k_num_train_samples, bdd100k_num_val_samples = acdc_Dataset.getItemCount()
+    bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
 
     # IDDAW - Data Loading
     iddaw_Dataset = LoadData(iddaw_labels_fileapath, iddaw_images_fileapath, 'IDDAW')
@@ -74,7 +78,7 @@ def main():
     print(total_val_samples, ': total validation samples')
 
     # Trainer Class
-    trainer = SceneSegTrainer()
+    trainer = SceneSegTrainer(checkpoint_path=model_checkpoint_path)
     trainer.zero_grad()
     
     # Setting model to evaluation mode
@@ -122,6 +126,7 @@ def main():
             elif(dataset == 'BDD100K'):
                 val_samples = total_test_samples
             
+            print('Processing Dataset: ', dataset)
 
             for val_count in range(0, val_samples):
 
@@ -151,6 +156,8 @@ def main():
                 IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
                     trainer.validate(image_val, gt_val)   
                 
+                print(val_count, IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd)
+
                 dataset_IoU_full += IoU_score_full
                 dataset_IoU_bg += IoU_score_bg
                 dataset_IoU_fg += IoU_score_fg
