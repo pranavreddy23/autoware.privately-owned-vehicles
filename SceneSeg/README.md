@@ -12,6 +12,8 @@ Semantic Classes
 ## Performance Results
 SceneSeg was trained on a diverse dataset comprised of multiple open-source datasets, including ACDC, MUSES, IDDAW, Mapillary Vistas and the Comma10K datset. These datasets provide challenging training data covering a wide range of countries, road types, lighting conditions and weather conditions. The BDD100K dataset was not used during training and served as a broad and diverse test set.
 
+Mean Intersection Over Union (mIoU) scores are provided for both validation and test data. Validation results are provided for each of the datasets which comprise the complete validation set, alongside the results for the entire validation set, which are presented in the Cross Dataset column. Per-class mIoU scores are provided, alongside mIoU averaged across classes, as well as an Overall mIoU score which calculates the mIoU between the full multi-class prediction and multi-class ground truth.
+
 ### Validation Set Performance - mIoU Scores
 || Cross Dataset | Mapillary| MUSES | ACDC | IDDAW | Comma10K |
 |--------|---------------|------------------|-------|------|-------|----------|
