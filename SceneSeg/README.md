@@ -28,7 +28,7 @@ Mean Intersection Over Union (mIoU) scores are provided for both validation and 
 |-|---------|
 | Overall | **91.5** |
 | Static Background Elements | **94.3** |
-| Movable Foreground Elements | **69.8** |
+| Movable Foreground Objects | **69.8** |
 | Drivable Road Surface | **71.3** |
 | Class Average | **78.5** |
 
