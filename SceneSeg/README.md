@@ -9,6 +9,26 @@ Semantic Classes
 
 ![SceneSeg Network Diagram](../Diagrams/SceneSeg.jpg)
 
+## Performance Results
+SceneSeg was trained on a diverse dataset comprised of multiple open-source datasets, including ACDC, MUSES, IDDAW, Mapillary Vistas and the Comma10K datset. These datasets provide challenging training data covering a wide range of countries, road types, lighting conditions and weather conditions. The BDD100K dataset was not used during training and served as a broad and diverse test set.
+
+### Validation Set Performance - mIoU Scores
+|| Cross Dataset | Mapillary| MUSES | ACDC | IDDAW | Comma10K |
+|--------|---------------|------------------|-------|------|-------|----------|
+| Overall | **90.7** | 91.1 | 83.7 | 89.3 | 87.2 | **92.5** |
+| Static Background Elements | **93.5** | 93.7 | 89.1 | 93.2 | 90.0 | **95.1** |
+| Movable Foreground Objects | **58.2** | **60.9** | 35.7 | 46.9 | 58.6 | 58.9 |
+| Drivable Road Surface | **84.2** | 85.7 | 70.8 | 74.4 | 81.8 | **86.3** |
+| Class Average | **78.6** | **80.1** | 65.2 | 71.5 | 76.8 | **80.1** |
+
+### Test Set Performance - mIoU
+|| BDD100K |
+|-|---------|
+| Overall | **91.5** |
+| Static Background Elements | **94.3** |
+| Movable Foreground Elements | **69.8** |
+| Drivable Road Surface | **71.3** |
+| Class Average | **78.5** |
 
 ## create_masks
 
