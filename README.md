@@ -10,3 +10,20 @@ By following an ensemble-of-experts approach, AutoSeg is able to learn generaliz
 The current AutoSeg release comprises 6 perceptual tasks performed by different sub-network experts, these include: SceneSeg, ObjectSeg, RoadworkSeg, LaneDet, PathDet, and DiversionDet.
 
 ![Autoseg Network Diagram](Diagrams/AutoSeg.jpg)
+
+## Backbone
+We utilise EfficientNetB0 as a real-time capable, high performance backbone to act as a general purpose feature extractor. EfficientNetB0 provides a very good compromise between performance and accuracy amongst state-of-the art neural network backbones. The feature backbone has 4.07M Trainable Parameters
+
+## Context Block
+Convolutional neural networks are very good feature extractors, however, they have limited ability to capture the inter-relationships and shared context of image features. Transformers on the other hand, have limited capacity at capturing fine grained image features, but excell at capture overall scene context through multi-head self attention mechanisms. The context block aims to bridge the CNN/Transformer gap by capturing channel-wise feature relationships and creating a pesudo-attention matrix which is element-wise multiplied with the input features, accompanied by a residual skip connection. The context block has 9.20M Trainable Parameters
+
+## Neck
+The purpose of the neck is to aggregate and fuse multi-scale neural network features into a rich representation. The neck is the most critical neural network block in AutoSeg since all downstream tasks are derived from a single neck block. The neck block therefore needs to be able to capture salient and generalisable feature relationships to serve downstream tasks. A Link-Net style architecture is used to upsample lower-level neural network features and skip connections are added to the neck through 1D convolutions. The neck block has 33.7M Trainable Parameters
+
+## Shared Features
+The Backbone, Context Block, and Neck are shared by the various output heads in AutoSeg and together comprise a total of 46.97M Trainable Parameters
+
+## Head
+The head is designed to process rich contextual and scene features from the neck block and process them to create a useful output based on a specific downstream task. The output heads in AutoSeg can be categorised broadly as serving two types of downstream tasks in parallel branches, a Scene Branch and a Path Branch. The Scene branch focuses on scene-level and object-level tasks, where as the path branch focuses on driving corridor related tasks. 
+
+By focusing the majority of the neural network feature extraction and expression in upstream layers, AutoSeg is able to support multiple specialised output heads without incurring performance penalities. The head comprises the fewest number of neural network parameters in AutoSeg, with a total of 1.44M Trainable Parameters for Semantic Segmentation Tasks. The number of parameters for Detection Tasks will be even less than this number.
