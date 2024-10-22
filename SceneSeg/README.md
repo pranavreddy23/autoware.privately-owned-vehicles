@@ -21,7 +21,7 @@ SceneSeg was trained on a diverse dataset comprised of multiple open-source data
 | Drivable Road Surface | **84.2** | 85.7 | 70.8 | 74.4 | 81.8 | **86.3** |
 | Class Average | **78.6** | **80.1** | 65.2 | 71.5 | 76.8 | **80.1** |
 
-### Test Set Performance - mIoU
+### Test Set Performance - mIoU Scores
 || BDD100K |
 |-|---------|
 | Overall | **91.5** |
