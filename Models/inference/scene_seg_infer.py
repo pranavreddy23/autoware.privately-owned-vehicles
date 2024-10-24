@@ -11,7 +11,7 @@ from model_components.scene_seg_network import SceneSegNetwork
 class SceneSegNetworkInfer():
     def __init__(self, checkpoint_path = ''):
 
-          # Loaders
+        # Image loader
         self.image_loader = transforms.Compose(
             [
                 transforms.ToTensor(),
@@ -40,7 +40,7 @@ class SceneSegNetworkInfer():
         image_tensor = self.image_loader(image)
         image_tensor = image_tensor.unsqueeze(0)
         image_tensor = image_tensor.to(self.device)
-
+    
         # Run model
         prediction = self.model(image_tensor)
 
