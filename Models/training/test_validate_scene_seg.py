@@ -11,7 +11,7 @@ def main():
 
     # Saved model checkpoint path
     model_checkpoint_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/' \
-        + 'run_1_batch_decay_Oct18_02-46-35/iter_78107_epoch_2_step_15999.pth'
+        + 'run_1_batch_decay_Oct18_02-46-35/iter_140215_epoch_4_step_15999.pth'
     
     # Root path
     root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
@@ -99,7 +99,7 @@ def main():
 
     # No gradient calculation
     with torch.no_grad():
-
+        
         for dataset_count in range (0, len(val_data_list)):
             dataset = val_data_list[dataset_count]
 
@@ -184,12 +184,12 @@ def main():
         print('Cross Dataset IoU Background ', mIoU_bg)
         print('Cross Dataset IoU Foreground ', mIoU_fg)
         print('Cross Dataset IoU Road ', mIoU_rd)
-
+        
         test_IoU_full = 0
         test_IoU_bg = 0
         test_IoU_fg = 0
         test_IoU_rd = 0
-
+        
         # Test set on BDD100K dataset
         for dataset_count in range (0, bdd100k_num_val_samples):
             image_val, gt_val, _ = \
@@ -223,7 +223,7 @@ def main():
         mIoU_test_fg = test_IoU_fg/total_test_samples
         mIoU_test_rd = test_IoU_rd/total_test_samples
 
-        print('Overall Test Set with Total Testing Samples: ', total_test_samples)
+        print('BDD100K - Overall Test Set with Total Testing Samples: ', total_test_samples)
         print('Test Dataset IoU Overall ', mIoU_test_full)
         print('Test Dataset IoU Background ', mIoU_test_bg)
         print('Test Dataset IoU Foreground ', mIoU_test_fg)

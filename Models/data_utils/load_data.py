@@ -86,7 +86,6 @@ class LoadData():
         rx = ground_truth_road.load()
 
         # Counters for pixel level class frequency in image
-        sky_class_freq = 0
         background_class_freq = 0
         foreground_class_freq = 0
         road_class_freq = 0
@@ -95,17 +94,11 @@ class LoadData():
         for x in range(row):
             for y in range(col):
 
-                # SKY
-                if px[x, y] == sky_colour:
-
-                    vx[x,y] = sky_colour
-                    sx[x, y] = 255
-                    sky_class_freq += 1
-
                 # BACKGROUND OBJECTS
-                elif px[x,y] == background_objects_colour or \
+                if px[x,y] == background_objects_colour or \
                     px[x,y] == road_edge_delimiter_colour or \
-                    px[x,y] == unlabelled_colour:
+                    px[x,y] == unlabelled_colour or \
+                    px[x,y] == sky_colour:
 
                     vx[x,y] = background_objects_colour
                     bx[x, y] = 255
@@ -131,9 +124,6 @@ class LoadData():
         # Calculate class weights for loss function
         class_weights = []
 
-        sky_class_weight = num_pixels/(sky_class_freq + 5120)
-        class_weights.append(sky_class_weight)
-
         background_class_weight = num_pixels/(background_class_freq + 5120)
         class_weights.append(background_class_weight)
 
@@ -146,7 +136,6 @@ class LoadData():
         # Getting ground truth data
         ground_truth = []
         ground_truth.append(np.array(vis))
-        ground_truth.append(np.array(ground_truth_sky))
         ground_truth.append(np.array(ground_truth_background))
         ground_truth.append(np.array(ground_truth_foreground))
         ground_truth.append(np.array(ground_truth_road))
