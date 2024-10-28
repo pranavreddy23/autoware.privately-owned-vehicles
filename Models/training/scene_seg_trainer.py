@@ -12,7 +12,7 @@ from model_components.scene_seg_network import SceneSegNetwork
 from data_utils.augmentations import Augmentations
 
 class SceneSegTrainer():
-    def __init__(self, checkpoint_path = ''):
+    def __init__(self, checkpoint_path = '', size=''):
 
         self.image = 0
         self.image_val = 0
@@ -38,8 +38,9 @@ class SceneSegTrainer():
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print(f'Using {self.device} for inference')
         
-        # Instantiate model 
+        # Instantiate model
         self.model = SceneSegNetwork()
+            
         if(len(self.checkpoint_path) > 0):
             self.model.load_state_dict(torch.load \
                 (self.checkpoint_path, weights_only=True))
