@@ -1,7 +1,6 @@
 #%%
 # Comment above is for Jupyter execution in VSCode
 #! /usr/bin/env python3
-from pytorch_model_summary import summary
 import torch
 import time
 import numpy as np
@@ -14,6 +13,7 @@ def benchmark(model, input_data, dtype='fp32', nwarmup=50, nruns=1000):
 
     if dtype=='fp16':
         input_data = input_data.half()
+        model = model.half()
 
     print("Warm up ...")
 
