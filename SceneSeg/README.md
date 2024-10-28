@@ -20,8 +20,8 @@ Mean Intersection Over Union (mIoU) scores are provided for both validation and 
 || Cross Dataset | Mapillary| MUSES | ACDC | IDDAW | Comma10K |
 |--------|---------------|------------------|-------|------|-------|----------|
 | Overall | **90.7** | 91.1 | 83.7 | 89.3 | 87.2 | **92.5** |
-| Static Background Elements | **93.5** | 93.7 | 89.1 | 93.2 | 90.0 | **95.1** |
-| Movable Foreground Objects | **58.2** | **60.9** | 35.7 | 46.9 | 58.6 | 58.9 |
+| Background Objects | **93.5** | 93.7 | 89.1 | 93.2 | 90.0 | **95.1** |
+| Foreground Objects | **58.2** | **60.9** | 35.7 | 46.9 | 58.6 | 58.9 |
 | Drivable Road Surface | **84.2** | 85.7 | 70.8 | 74.4 | 81.8 | **86.3** |
 | Class Average | **78.6** | **80.1** | 65.2 | 71.5 | 76.8 | **80.1** |
 
@@ -29,8 +29,8 @@ Mean Intersection Over Union (mIoU) scores are provided for both validation and 
 || BDD100K |
 |-|---------|
 | Overall | **91.5** |
-| Static Background Elements | **94.3** |
-| Movable Foreground Objects | **69.8** |
+| Background Objects | **94.3** |
+| Foreground Objects | **69.8** |
 | Drivable Road Surface | **71.3** |
 | Class Average | **78.5** |
 
