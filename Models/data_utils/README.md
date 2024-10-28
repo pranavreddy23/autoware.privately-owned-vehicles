@@ -7,3 +7,6 @@ Image augmentation is an essential part of training visual neural networks. It h
 ## load_data.py
 
 Helper class to load multiple datasets, separate data into training and validation splits and extract a Region of Interest (ROI) from images
+
+## benchmark.py
+Script to print model layers, number of parameters, and measure inference speed of model at either FP32 or FP16 precision
