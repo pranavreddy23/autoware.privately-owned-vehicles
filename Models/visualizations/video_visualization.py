@@ -3,10 +3,12 @@
 #! /usr/bin/env python3
 import cv2
 import sys
-sys.path.append('..')
-from inference.scene_seg_infer import SceneSegNetworkInfer
 import numpy as np
 from PIL import Image
+from argparse import ArgumentParser
+sys.path.append('..')
+from inference.scene_seg_infer import SceneSegNetworkInfer
+
 
 def make_visualization(prediction):
     shape = prediction.shape
@@ -30,21 +32,27 @@ def make_visualization(prediction):
                
     return vis_predict_object
 
-def main():  
+def main(): 
+
+  parser = ArgumentParser()
+  parser.add_argument("-p", "--model_checkpoint_path", dest="model_checkpoint_path", help="path to pytorch checkpoint file to load model dict")
+  parser.add_argument("-i", "--video_filepath", dest="video_filepath", help="path to input video which will be processed by SceneSeg")
+  parser.add_argument("-o", "--output_file", dest="output_file", help="path to output video visualization file, must include output file name")
+  parser.add_argument('-v', "--vis", action='store_true', help="flag for whether to show frame by frame visualization while processing is occuring")
+  args = parser.parse_args() 
 
   # Saved model checkpoint path
-  model_checkpoint_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/' \
-    + 'run_1_batch_decay_Oct18_02-46-35/iter_140215_epoch_4_step_15999.pth'
+  model_checkpoint_path = args.model_checkpoint_path
   
   model = SceneSegNetworkInfer(checkpoint_path=model_checkpoint_path)
     
   # Create a VideoCapture object and read from input file
   # If the input is taken from the camera, pass 0 instead of the video file name.
-  video_filepath = '/home/zain/Autoware/AutoSeg/videos/Driving_Scenes_Videos_2.mp4'
+  video_filepath = args.video_filepath
   cap = cv2.VideoCapture(video_filepath)
 
   # Output filepath
-  output_filepath_obj = '/home/zain/Autoware/AutoSeg/videos/Driving_Scenes_Visualization_Objects_2.avi'
+  output_filepath_obj = args.output_file + '.avi'
 
   
   writer_obj = cv2.VideoWriter(output_filepath_obj,
@@ -73,8 +81,10 @@ def main():
       
       vis_obj = cv2.resize(vis_obj, (1280, 720))
       image_vis_obj = cv2.addWeighted(vis_obj, alpha, frame, 1 - alpha, 0)
-      cv2.imshow('Prediction Objects', image_vis_obj)
-      cv2.waitKey(10)
+
+      if(args.v):
+        cv2.imshow('Prediction Objects', image_vis_obj)
+        cv2.waitKey(10)
 
       # Writing to video frame
       writer_obj.write(image_vis_obj)
