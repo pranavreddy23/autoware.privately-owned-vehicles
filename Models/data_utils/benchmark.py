@@ -46,13 +46,9 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
 
-    # Instantiating Model, loading from checkpoint and setting to evaluation mode
+    # Instantiating Model and setting to evaluation mode
     model = SceneSegNetwork()
     print(summary(SceneSegNetwork(), torch.zeros((1, 3, 320, 640)), show_input=True))
-    model_checkpoint_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/' \
-        + 'run_1_batch_decay_Oct18_02-46-35/iter_140215_epoch_4_step_15999.pth'
-    model.load_state_dict(torch.load \
-                    (model_checkpoint_path, weights_only=True))
     model = model.to(device)
     model = model.eval()
 
