@@ -4,6 +4,7 @@
 import torch
 import random
 from scene_seg_trainer import SceneSegTrainer
+from argparse import ArgumentParser
 import sys
 sys.path.append('..')
 from data_utils.load_data import LoadData
@@ -11,11 +12,16 @@ from data_utils.load_data import LoadData
 
 def main():
 
+    parser = ArgumentParser()
+    parser.add_argument("-s", "--model_save_root_path", dest="model_save_root_path", help="root path where pytorch checkpoint file should be saved")
+    parser.add_argument("-r", "--root", dest="root", help="root path to folder where data training data is stored")
+    args = parser.parse_args()
+
     # Root path
-    root = '/home/zain/Autoware/AutoSeg/training_data/Scene_Seg/'
+    root = args.root
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/AutoSeg/Models/exports/SceneSeg/run_2/'
+    model_save_root_path =args.model_save_root_path
 
     # Data paths
     # ACDC
