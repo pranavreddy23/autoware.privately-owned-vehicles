@@ -7,7 +7,7 @@ AutoSeg has been hardened by training on a diverse set of real-world image data 
 
 By following an ensemble-of-experts approach, AutoSeg is able to learn generalizble features that are adaptable to out-of-domain scenarios and can facilitate multiple downstream perceptual tasks such as semantic object segmentation, lane perception, and even end-to-end autonomous driving. Furthermore, each neural expert can be independently refined and fine-tuned with additional data allowing for a richer representation of edge-case scenarios which are challenging to capture in a single predictor model.
 
-The current AutoSeg release comprises 6 perceptual tasks performed by different sub-network experts, these include: SceneSeg, ObjectSeg, RoadworkSeg, LaneDet, PathDet, and DiversionDet.
+The current AutoSeg release comprises 5 perceptual tasks performed by different sub-network experts, these include: SceneSeg, DriveSeg, LaneDet, PathDet, and DiversionDet.
 
 ![Autoseg Network Diagram](Diagrams/AutoSeg.jpg)
 
