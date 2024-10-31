@@ -1,4 +1,4 @@
-Contains scripts to process open datasets and create semantic masks in a unified labelling scheme according to the SceneSeg neural task specification. 
+Contains scripts to process open datasets and create semantic masks in a unified labelling scheme according to the SceneSeg neural task specification. To process each open dataset, the file structure and heirarchy of published open datasets was simplified manually such that each open dataset had a two top level folders, a first folder with all images and a second folder with ground truth labels.
 
 Open semantic segmentation datasets contain various labelling methodologies and semantic classes. The scripts in create_masks parse data and create semantic colormaps in a single unified semantic format.
 
