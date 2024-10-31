@@ -40,7 +40,7 @@ def createMask(colorMap):
     cx = coarseSegColorMap.load()
 
     # Colourmaps for classes
-    roadwork_objects_colour = (255, 125, 0)
+    safety_critical_objects_colour = (255, 125, 0)
     background_objects_colour = (61, 93, 255)
     road_colour = (0, 255, 220)
 
@@ -50,55 +50,55 @@ def createMask(colorMap):
 
             # Barrier
             if px[x, y] == (246, 116, 185):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Barricade    
             elif px[x,y] == (248, 135, 182):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
             
             # Police Vehicle    
             elif px[x,y] == (255, 68, 51):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Work Vehicle    
             elif px[x,y] == (255,104, 66):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Police Officer    
             elif px[x,y] == (184, 107, 35):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Worker    
             elif px[x,y] == (205, 135, 29):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Worker    
             elif px[x,y] == (30, 119, 179):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
             
             # Drum    
             elif px[x,y] == (44, 79, 206):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Vertical Panel    
             elif px[x,y] == (102, 81, 210):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Tubular Marker    
             elif px[x,y] == (170, 118, 213):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Work Equipment 
             elif px[x,y] == (214, 154, 219):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Arrow Board 
             elif px[x,y] == (241, 71, 14):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # TTC Sign 
             elif px[x,y] == (254, 139, 32):
-                cx[x,y] = roadwork_objects_colour
+                cx[x,y] = safety_critical_objects_colour
 
             # Road
             elif px[x,y] == (70, 70, 70):
