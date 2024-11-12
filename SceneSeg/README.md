@@ -1,9 +1,6 @@
 ## SceneSeg
 Self-driving cars are usually trained to detect specific object types, such as cars, pedestrians, buses, etc. Such approaches are prone to failure cases when a self-driving car encounters an unusual object that it hasn't seen before, e.g. a rickshaw, or if a self-driving car encounters a strange presentation of a known object, e.g. a cyclist that has fallen over. In these scenarios, self-driving cars are unable to detect these critical objects leading to dangerous driving outcomes. To address this, we have developed SceneSeg, a neural network that is able to segment all important foreground objects, irrespective of what that object is. SceneSeg is able to implicitly learn the visual features of foreground objects such as cars, buses, vans, pedestrians, cyclists, animals, rickshaws, trucks and other similar objects, even though it has not been explicitly trained to detect these object types. SceneSeg is also able to detect objects that are outside of its training data, such as tyres rolling down a highway, or a loose trailer. SceneSeg can also detect objects in unusual presentations that it hasn't seen during training. SceneSeg performs robustly across challenging weather and lighting conditions, including during heavy rain, snow and low light driving. SceneSeg performs out of the box on roads across the world without any parameter tuning. SceneSeg provides self-driving cars with a core safety layer, helping to address 'long-tail' edge cases which plauge object-level detectors.
 
-## Video explanation of SceneSeg
-[Video link](https://drive.google.com/file/d/1riGlT3Ct-O1Y2C0DqxemwWS233dJrY7F/view?usp=sharing)
-
 ![SceneSeg GIF](../Media/SceneSeg_GIF.gif) ![SceneSeg GIF Rain](../Media/SceneSeg_GIF_Rain.gif)
 
 During training, SceneSeg estimates three semantic classes
@@ -13,6 +10,9 @@ During training, SceneSeg estimates three semantic classes
 - `Drivable Road Surface`
 
 However, during inference, we only use the outputs from the **`Foreground Objects`** class.
+
+## Watch the explainer video
+Please click the video link to play - [***Video link***](https://drive.google.com/file/d/1riGlT3Ct-O1Y2C0DqxemwWS233dJrY7F/view?usp=sharing)
 
 ## Performance Results
 SceneSeg was trained on a diverse dataset comprised of multiple open-source datasets, including ACDC, MUSES, IDDAW, Mapillary Vistas and the Comma10K datset. These datasets provide challenging training data covering a wide range of countries, road types, lighting conditions and weather conditions. The BDD100K dataset was not used during training and served as a broad and diverse test set.
