@@ -23,7 +23,7 @@ Typically, the obstacle detection logic in highway pilot systems is as follows:
 - Moving or static objected detected in vision - Treated as True Positive
 - Static object detected only in RADAR - Treated as Noise
 
-This leaves a **blindspot in obstacle perception for long-tail edge case scenarios**, where, if a static object is not detected by the vision system, then the detection is ignored by the autonomous vehicle. Such edge-case scenarios are caused by out-of-domain objects that occur rarely in driving scnes, such as fire trucks, police cars, ambulances, an animal crossing the road, etc. or strange presentations of known objects, e.g. a vehicle that has over-turned on the highway. **There are many publicly documented examples of accidents that have occured with autonomous vehicles in exactly this scenario.** 
+This leaves a **blindspot in obstacle perception for long-tail edge case scenarios**, where, if a static object is not detected by the vision system, then the detection is ignored by the autonomous vehicle. Such edge-case scenarios are caused by out-of-domain objects that occur rarely in driving scnes, such as fire trucks, police cars, ambulances, an animal crossing the road, etc. or strange presentations of known objects, e.g. a vehicle that has over-turned on the highway. **There are many publicly documented examples of accidents that have occured with autonomous vehicles in exactly these types of driving scenario.** 
 
 ![Obstacle Perception Challenge](Media/Obstacle_Perception_Challenge.jpg) 
 
@@ -44,7 +44,9 @@ Overall, our obstacle perception stack will comprise two key technologies which 
 - **Drive3D** - a robust 3D detection, classification, and tracking system to understand the scene context of commonly occuring road objects such as cars, buses, vans, trucks, etc.
 
 ### Driving Corridor Perception Challenge
-Existing highway pilot systems can reliably detect the driving corridor through lane lines. Lane line perception can be performed reliably through either AI-based methods or Computer Vision methods, achieving performance on-par with human drivers. However, highway pilot systems struggle to detect the driving corridor in safety-critical edge case scenarios, such as situations where lanes are no longer visible due to road maintenance issues, snow, etc. and scenarios where the driving corridor is highly adaptable, e.g. roadworks with traffic cones and road barriers. **There are many publicly documented examples of accidents that have occured with autonomous vehicles failed to perceive the correct driving corridor in these edge cases.**
+Existing highway pilot systems can reliably detect the driving corridor through lane lines. Lane line perception can be performed reliably through either AI-based methods or Computer Vision methods, achieving performance on-par with human drivers. However, highway pilot systems struggle to detect the driving corridor in safety-critical edge case scenarios, such as situations where lanes are no longer visible due to road maintenance issues, snow, etc. and scenarios where the driving corridor is highly adaptable, e.g. roadworks with traffic cones and road barriers. **There are many publicly documented examples of accidents that have occured with autonomous vehicles failed to perceive the correct driving corridor in these type of edge case scenarios.**
+
+![Driving Corridor Perception Challenge](Media/Driving_Corridor_Perception_Challenge.jpg) 
 
 #### Driving Corridor Perception Solution
 To solve the driving corridor perception challenge, we will develop a universal driving path detection system called **Pathfinder**, using three independent driving corridor perception technologies:
