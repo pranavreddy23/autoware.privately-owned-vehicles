@@ -1,29 +1,55 @@
+# Privately Owned Vehicles - Autonomous Highway Pilot
 
-# AutoSeg
+The goal for this effort in Autoware is to build an open-source highway autonomy system for privately owned vehicles that can be developed to a production level and be integrated with automotive OEMs and Tier-1s - eventually powering autonomous driving for cars around the world.
 
-AutoSeg is an AI Foundation Model which provides real-time visual scene perception for autonomous vehicles. It utilizes a single neural network backbone to extract diverse image features, a set of context blocks which focus the network's attention on key visual elements within input images, a set of feature necks which aggregate and fuse multi-scale image features, and multiple segmentation and detection heads which provide useful perceptual outputs for autonomous decision making. Overall, the network is split into three branches, a Depth Branch which calculates the per-pixel scene depth, a Scene Branch which focuses on per-pixel scene segmentation, and a Path Branch, which focuses on driving corridor detection through multiple means.
+## Value Proposition
+It is estimated that over **20 Trillion** passenger miles are driven on highways around the world, each year. This equates to **280 Billion** hours of driver time spent behind the wheel. If an autonomous driving technology could be developed to a sufficiently advanced level such that people did not need to manually drive on highways, and could do other activities with their time, then this would unlock a **$1 Trillion/annum** market opportunity, if we were to simply cost the time of a person at around $4/hour (conservative estimate).
 
-AutoSeg has been hardened by training on a diverse set of real-world image data collected from various countries, across different road types and weather conditions.
+## Limitations of Existing Technologies
+Current autonomous highway pilot systems face challenges in achieving the safety and performance requirements for true hands-off, eyes-off, self-driving, where the human driver no longer has to pay attention to the road or be engaged with the driving task. Specifically, there are two areas where autonomous driving technologies are currently lacking: obstacle perception for out of domain objects, and driving corridor perception in challenging scenarios.
 
-By following an ensemble-of-experts approach, AutoSeg is able to learn generalizble features that are adaptable to out-of-domain scenarios and can facilitate multiple downstream perceptual tasks such as semantic object segmentation, lane perception, and even end-to-end autonomous driving. Furthermore, each neural expert can be independently refined and fine-tuned with additional data allowing for a richer representation of edge-case scenarios which are challenging to capture in a single predictor model.
+### Obstacle Perception Challenge
+Highway pilot systems typically rely upon vision (cameras), and RADAR as primary sensors.
 
-The current AutoSeg release will comprise 5 perceptual tasks performed by different sub-neural-network experts, these include: **SceneSeg** (completed), **SuperDepth** (in-progress), **LaneDet** (in-progress), **PathDet** (to do), and **DiversionDet** (to do).
+RADAR is a highly useful sensor in detecting moving obstacles at long range in all weather and lighting conditions, especially other moving vehicles. However, RADAR sensors suffer from frequent false-positive detections for static objects. This is often caused by ground-reflections, multi-path reflections, and sensor noise. This means that it is not possible to reliably use existing off-the-shelf automotive RADAR to reliably detect all obstacles in the driving scene as static objects cannot be distinguished from noise.
 
-![Autoseg Network Diagram](Diagrams/AutoSeg.jpg)
+To complement RADAR, highway pilot systems utilize vision technologies. These usually consist of AI-powered bounding-box detectors or semantic segmentation systems that attempt to classify objects by their type - e.g. cars, buses, vans, trucks, pedestrians, etc.
 
-## Backbone
-We utilise EfficientNetB0 as a real-time capable, high performance backbone to act as a general purpose feature extractor. EfficientNetB0 provides a very good compromise between performance and accuracy amongst state-of-the art neural network backbones. The feature backbone has 4.07M Trainable Parameters
+Typically, the obstacle detection logic in highway pilot systems is as follows:
+- Moving object detected in RADAR - Treated as True Positive
+- Moving or static objected detected in vision - Treated as True Positive
+- Static object detected only in RADAR - Treated as Noise
 
-## Context Block
-Convolutional neural networks are very good feature extractors, however, they have limited ability to capture the inter-relationships and shared context of image features. Transformers on the other hand, have limited capacity at capturing fine grained image features, but excell at capture overall scene context through multi-head self attention mechanisms. The context block aims to bridge the CNN/Transformer gap by capturing channel-wise feature relationships and creating a pesudo-attention matrix which is element-wise multiplied with the input features, accompanied by a residual skip connection. The context block has 9.20M Trainable Parameters
+This leaves a **blindspot in obstacle perception**, where, if a static object is not detected by the vision system, then the detection is ignored by the autonomous vehicle. Such edge-case scenarios are caused by out-of-domain objects that occur rarely in driving scnes, such as fire trucks, police cars, ambulances, an animal crossing the road, etc. or strange presentations of known objects, e.g. a vehicle that has over-turned on the highway. **There are many publicly documented examples of accidents that have occured with autonomous vehicles in exactly this scenario.** 
 
-## Neck
-The purpose of the neck is to aggregate and fuse multi-scale neural network features into a rich representation. The neck is the most critical neural network block in AutoSeg since all downstream tasks are derived from a single neck block. The neck block therefore needs to be able to capture salient and generalisable feature relationships to serve downstream tasks. A Link-Net style architecture is used to upsample lower-level neural network features and skip connections are added to the neck through 1D convolutions. The neck block has 33.7M Trainable Parameters
+#### Obstacle Perception Solution
+To address this challenge, we aim to develop a **Safety Shield** for self-driving cars that can reliably and robustly detect every obstacle in the driving scene, irrespective of what that object is, whether it is a static or moving object, across all weather and lighting conditions, even if the self-driving car has never seen such an object type or object presentation before. 
 
-## Shared Features
-The Backbone, Context Block, and Neck are shared by the various output heads in AutoSeg and together comprise a total of 46.97M Trainable Parameters
+Many developers feel that the way to address this challenge is to utilize LIDAR - however, LIDAR sensors suffer from severe noise in rain, snow and fog, making them unusable in these weather conditions and unable to address the obstacle perception challenge. Therefore, we will utilize vision as the primary sensor, alongside RADAR - however, we will utilize vision to not only detect objects using AI, but we will also utilize vision to calculate true metric depth of the driving scene and develop a best-in-class VIDAR (vision-LIDAR) that works at long-range and can reliably measure depth in those weather conditions where LIDAR struggles. We will also utilize state-of-the-art 4D Imaging Radar to have RADAR sensing with greater resolution allowing stronger noise filtering, enabling us to more reliably detect static objects in RADAR alone.
 
-## Head
-The head is designed to process rich contextual and scene features from the neck block and process them to create a useful output based on a specific downstream task. The output heads in AutoSeg can be categorised broadly as serving two types of downstream tasks in parallel branches, a Scene Branch and a Path Branch. The Scene branch focuses on scene-level and object-level tasks, where as the path branch focuses on driving corridor related tasks. 
+Our **Safety Shield** will comprise three layers:
+- **Sentry** - Imaging RADAR obstacle detection using 4D pointclouds
+- **SceneSeg** - Vision based AI-powered segmentation of all obstacles
+- **SuperDepth** - VIDAR based obstacle detection using 3D pointclouds
 
-By focusing the majority of the neural network feature extraction and expression in upstream layers, AutoSeg is able to support multiple specialised output heads without incurring performance penalities. The head comprises the fewest number of neural network parameters in AutoSeg, with a total of 1.44M Trainable Parameters for Semantic Segmentation Tasks. The number of parameters for Detection Tasks will be even less than this number.
+We will additionally detect, classify and track objects based on their semantic class in the 3D scene through an independent vision and 4D Radar pipeline, called **Drive3D**.
+
+Overall, our obstacle perception stack will comprise two key technologies which will operate independently to provide unparalleled scne perception:
+- **Safety Shield** - to detect every object in the scene with the aim to never have an at-fault autonomous vehicle crash
+- **Drive3D** - a robust 3D detection, classification, and tracking system to understand the scene context of commonly occuring road objects such as cars, buses, vans, trucks, etc.
+
+### Driving Corridor Perception Challenge
+Existing highway pilot systems can reliably detect the driving corridor through lane lines. Lane line perception can be performed reliably through either AI-based methods or Computer Vision methods, achieving performance on-par with human drivers. However, highway pilot systems struggle to detect the driving corridor in safety-critical edge case scenarios, such as situations where lanes are no longer visible due to road maintenance issues, snow, etc. and scenarios where the driving corridor is highly adaptable, e.g. roadworks with traffic cones and road barriers. **There are many publicly documented examples of accidents that have occured with autonomous vehicles failed to perceive the correct driving corridor in these edge cases.**
+
+#### Driving Corridor Perception Solution
+To solve the driving corridor perception challenge, we will develop a universal driving path detection system called **Pathfinder**, using three independent driving corridor perception technologies:
+
+- **LaneDet** - lane line detection
+- **PathDet** - direct prediction of driving corridors
+- **DiversionDet** - direct prediction of driving corridors during roadworks
+
+By using an ensemble approach, **Pathfinder** will be able to robustly tackle edge case driving scnearios and ensure autonomous vehicle safety.
+
+## High Definition Maps
+**We will not utilize 3D high definition prior maps**, instead opting to use existing 2D navigational (sat-nav style) maps, also called ADAS maps. Human beings can drive on highways without prior knowledge of the detailed 3D geometry of roadways by relying on real-time scene perception, and our system aims to mimic this process.
+
