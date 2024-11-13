@@ -9,7 +9,7 @@ By following an ensemble-of-experts approach, AutoSeg is able to learn generaliz
 
 The current AutoSeg release will comprise 5 perceptual tasks performed by different sub-neural-network experts, these include: **SceneSeg** (completed), **SuperDepth** (in-progress), **LaneDet** (in-progress), **PathDet** (to do), and **DiversionDet** (to do).
 
-![Autoseg Network Diagram](Diagrams/AutoSeg.jpg)
+![Autoseg Network Diagram](../Diagrams/AutoSeg.jpg)
 
 ## Backbone
 We utilise EfficientNetB0 as a real-time capable, high performance backbone to act as a general purpose feature extractor. EfficientNetB0 provides a very good compromise between performance and accuracy amongst state-of-the art neural network backbones. The feature backbone has 4.07M Trainable Parameters
