@@ -29,7 +29,7 @@ Many developers feel that the way to address this challenge is to utilize LIDAR 
 
 Our **Safety Shield** will comprise three layers:
 - **Sentry** - Imaging RADAR obstacle detection using 4D pointclouds
-- **SceneSeg** - Vision based AI-powered segmentation of all obstacles
+- [**SceneSeg**](/SceneSeg/README.md) - Vision based AI-powered segmentation of all obstacles
 - **SuperDepth** - VIDAR based obstacle detection using 3D pointclouds
 
 We will additionally detect, classify and track objects based on their semantic class in the 3D scene through an independent vision and 4D Radar pipeline, called **Drive3D**.
