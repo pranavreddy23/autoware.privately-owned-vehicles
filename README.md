@@ -50,6 +50,20 @@ To solve the driving corridor perception challenge, we will develop a universal 
 
 By using an ensemble approach, **Pathfinder** will be able to robustly tackle edge case driving scnearios and ensure autonomous vehicle safety.
 
+#### Vision Pipeline
+The **AutoSeg foundation model** is currently being developed as part of the vision pipeline of the Autoware Privately Owned Vehicle Highway Pilot System. It includes the development and implementation of **SuperDepth**, **SceneSeg**, **LaneDet**, **PathDet**, and **DiversionDet**.
+
 ## High Definition Maps
 **We will not utilize 3D high definition prior maps**, instead opting to use existing 2D navigational (sat-nav style) maps, also called ADAS maps. Human beings can drive on highways without prior knowledge of the detailed 3D geometry of roadways by relying on real-time scene perception, and our system aims to mimic this process.
 
+## Technology Roadmap
+We will aim to develop true hands-off, eyes-off autonomous driving which is enabled on highways across the world. This will be classified as SAE Level-3 conditional automation, where the self-driving car can operate fully autonomously so long as certain road conditions are met, and when those road conditions are violated, the self-driving system will perform a graceful handover of driving control back to the human driver - and if the human driver is unable to take back control from the self-driving system, then the self-driving car will perform a 'minimal risk maneouvre' to ensure the car is in a safe state. As part of our technology roadmap, we will develop three versions of the Autoware Privately Owned Vehicle Highway Pilot System, called **DrivePilot**, **DrivePilotPlus** and **DrivePilotPro**.
+
+### DrivePilot
+DrivePilot will enable SAE Level 3 autonomy over the full range of highway driving speeds (0 - 70mph). The system will be constrained to single lane driving (no lane changes, exits, on-ramps, roadworks), and will be operable on roads with clearly visible lanes. If these road conditions (ODD) are violated, then the system will perform a Minimal Risk Manoeuvre for safe handover of control to the human driver. DrivePilot's sensing suite will comprise a pair of front-facing mid-range automotive cameras arranged as a stereo pair, a front-facing short range wide-angle automotive monocular camera, a front-facing long range narrow-angle automotive monocular camera, and a front-facing 4D Imaging Radar.
+
+### DrivePilot Plus
+DrivePilot will enable SAE Level 3 autonomy over the full range of highway driving speeds (0 - 70mph), and will build on top of the functionality of DrivePilot to enable fully autonomous lane changes - exits, on/off ramps will be outside of the operational domain of the system. To enable autonomous lane changes, DrivePilot Plus will utilise surround view automotive parking cameras, a mid-range rear facing automotive camera, and corner RADAR sensors.
+
+### DrivePilot PRO
+DrivePilot PRO will enable SAE Level 3 autonomy over the full range of highway driving speeds (0 - 70mph) for an entire highway journey, including fully automous lane changes, exits, and on/off-ramps. To enable autonomous driving of an entire highway journey, DrivePilot PRO will include integration with 2D/ADAS maps to have more detailed road context and informaiton about highway road layouts.
