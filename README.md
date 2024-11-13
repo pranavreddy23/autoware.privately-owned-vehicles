@@ -1,8 +1,11 @@
 # Privately Owned Vehicles - Autonomous Highway Pilot
 ![Autoware PoV](Media/Autoware_PoV.jpg) 
+
 The goal for this effort in Autoware is to build an open-source highway autonomy system for privately owned vehicles that can be developed to a production level and be integrated with automotive OEMs and Tier-1s - eventually powering autonomous driving for cars around the world.
 
 ## Value Proposition
+![Autoware PoV](Media/Value_Proposition.jpg) 
+
 It is estimated that over **20 Trillion** passenger miles are driven on highways around the world, each year. This equates to **280 Billion** hours of driver time spent behind the wheel. If an autonomous driving technology could be developed to a sufficiently advanced level such that people did not need to manually drive on highways, and could do other activities with their time, then this would unlock a **$1 Trillion/annum** market opportunity, if we were to simply cost the time of a person at around $4/hour (conservative estimate).
 
 ## Limitations of Existing Technologies
