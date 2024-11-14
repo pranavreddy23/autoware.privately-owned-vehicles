@@ -13,6 +13,7 @@ class DepthSupervision(nn.Module):
         self.depth_feature_layer_2 = nn.Conv2d(1, 64, 3, 1, 1)
         self.depth_feature_layer_3 = nn.Conv2d(1, 64, 3, 1, 1)
         self.depth_feature_layer_4 = nn.Conv2d(1, 64, 3, 1, 1)
+        self.depth_feature_layer_5 = nn.Conv2d(1, 64, 3, 1, 1)
 
         # Depth Supervision - 1D Conv Layers
         self.depth_super_layer_0 = nn.Conv2d(64, 128, 1)
@@ -20,6 +21,7 @@ class DepthSupervision(nn.Module):
         self.depth_super_layer_2 = nn.Conv2d(64, 512, 1)
         self.depth_super_layer_3 = nn.Conv2d(64, 768, 1)
         self.depth_super_layer_4 = nn.Conv2d(64, 1280, 1)
+        self.depth_super_layer_5 = nn.Conv2d(64, 1280, 1)
        
     def forward(self, depth_pyramid_features):
 
@@ -53,5 +55,11 @@ class DepthSupervision(nn.Module):
         d4 = self.depth_super_layer_4(d4)
         d4 = self.GeLU(d4)
         depth_pyramid_features[4] = d4
+
+        # Layer 5
+        d5 = self.depth_feature_layer_5(depth_pyramid_features[5])
+        d5 = self.depth_super_layer_5(d5)
+        d5 = self.GeLU(d5)
+        depth_pyramid_features[5] = d5
 
         return depth_pyramid_features   
