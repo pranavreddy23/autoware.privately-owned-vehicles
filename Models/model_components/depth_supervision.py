@@ -15,11 +15,11 @@ class DepthSupervision(nn.Module):
         self.depth_feature_layer_4 = nn.Conv2d(1, 64, 3, 1, 1)
 
         # Depth Supervision - 1D Conv Layers
-        self.depth_super_layer_0 = nn.Conv2d(1, 128, 1)
-        self.depth_super_layer_1 = nn.Conv2d(1, 256, 1)
-        self.depth_super_layer_2 = nn.Conv2d(1, 512, 1)
-        self.depth_super_layer_3 = nn.Conv2d(1, 768, 1)
-        self.depth_super_layer_4 = nn.Conv2d(1, 1280, 1)
+        self.depth_super_layer_0 = nn.Conv2d(64, 128, 1)
+        self.depth_super_layer_1 = nn.Conv2d(64, 256, 1)
+        self.depth_super_layer_2 = nn.Conv2d(64, 512, 1)
+        self.depth_super_layer_3 = nn.Conv2d(64, 768, 1)
+        self.depth_super_layer_4 = nn.Conv2d(64, 1280, 1)
        
     def forward(self, depth_pyramid_features):
 
