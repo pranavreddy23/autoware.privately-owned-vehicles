@@ -1,5 +1,5 @@
 # Privately Owned Vehicles - Autonomous Highway Pilot
-The goal for this effort in Autoware is to build an open-source highway autonomy system for privately owned vehicles that can be developed to a production level and be integrated with automotive OEMs and Tier-1s - eventually powering autonomous driving for cars around the world.
+The goal for this effort in Autoware is to build an open-source highway autonomy system for privately owned vehicles that can power safe autonomous driving for cars around the world.
 
 ![Autoware PoV](Media/Autoware_PoV.jpg) 
 
