@@ -3,7 +3,7 @@
 Thank you for your interest in helping contribute to our work at Autoware Foundation to develop an open-source autonomous highway pilot system for privately owned vehicles. To get started, please follow the steps below:
 
 ## How to Get Started:
-- **Give our Github repo a 'star'** and review the README file to familiarize yourself with the project goals
+- **Give this Github repo a 'star'** and review the README file to familiarize yourself with the project goals
 
 - Join our Discord, and in the 'privately owned vehicles' channel, please add a brief message to introduce yourself. Here is the link to join our Discord: https://discord.com/invite/Q94UsPvReQ
   - And this is the link to the [privately owned vehicles discord channel](https://discord.com/channels/953808765935816715/1301551216740012113)
