@@ -7,7 +7,6 @@ class SuperDepthHead(nn.Module):
         super(SuperDepthHead, self).__init__()
         # Standard
         self.GeLU = nn.GELU()
-        self.Softsign = nn.Softsign()
 
         # Segmentation Head - Output Layers
         self.upsample_layer_3 = nn.ConvTranspose2d(256, 256, 2, 2)
@@ -44,15 +43,16 @@ class SuperDepthHead(nn.Module):
         d9 = self.decode_layer_9(d8)
         d10 = self.GeLU(d9)
 
-        # Depth Prediction Output
-        output = self.decode_layer_10(d10)
-        prediction = output - torch.mean(output)
-        prediction = self.Softsign(prediction)
+        # Prediction Output Upper Branch
+        output_upper = self.decode_layer_10(d10)
 
-        # Confidence Map Estimation
-        confidence = self.decode_layer_11(d10)
+        # Prediction Output Lower Branch
+        output_lower = self.decode_layer_11(d10)
 
+        # Final Prediction
+        prediction = output_upper - output_lower
+        
         # Foreground Background Boundary Estimation
         boundary = self.decode_layer_12(d10)
 
-        return prediction, confidence, boundary
+        return prediction, boundary
