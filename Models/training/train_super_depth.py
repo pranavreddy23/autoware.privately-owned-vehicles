@@ -34,23 +34,19 @@ def main():
     test_data_pyramid_features.append(feature_4)
     test_data_pyramid_features.append(feature_5)
 
-    prediction, confidence, boundary = model(test_data_image, test_data_pyramid_features)
+    prediction, boundary = model(test_data_image, test_data_pyramid_features)
 
     prediction = prediction.squeeze(0).cpu().detach()
     prediction = prediction.permute(1, 2, 0)
     prediction = prediction.numpy()
     prediction = prediction + abs(np.min(prediction))
 
-    confidence = confidence.squeeze(0).cpu().detach()
-    confidence = confidence.permute(1, 2, 0)
-
     boundary = boundary.squeeze(0).cpu().detach()
     boundary = boundary.permute(1, 2, 0)
 
-    fig, axarr = plt.subplots(1, 3)
+    fig, axarr = plt.subplots(1, 2)
     axarr[0].imshow(prediction)
-    axarr[1].imshow(confidence)
-    axarr[2].imshow(boundary)
+    axarr[1].imshow(boundary)
     
 if __name__ == '__main__':
     main()
