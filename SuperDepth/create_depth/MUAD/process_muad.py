@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
 import pathlib
+import cv2
 from PIL import Image
+import numpy as np
 
 def main():
 
@@ -41,6 +43,21 @@ def main():
         raise ValueError('Number of ground truth depth maps does not match number of input images:')
     else:
         is_data_valid = True
+    
+    # If all data checks have been passed
+    if(is_depth_path_valid and is_image_path_valid and is_data_valid):
+
+        print('Beginning processing of data')
+
+        # Looping through data
+        for index in range(0, num_images):
+            
+            # Open images and pre-existing masks
+            image = Image.open(str(images[index]))
+            depth = cv2.imread(str(depth_maps[index]), cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+            depth = Image.fromarray(depth)
+            depth = np.asarray(depth, dtype=np.float32)
+            depth = 400 * (1 - depth) # the depth in meters
 
 if __name__ == '__main__':
     main()
