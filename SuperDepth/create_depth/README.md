@@ -1,1 +1,7 @@
-Contains scripts to process open datasets and create depth maps in a unified labelling scheme according to the SuperDepth neural task specification. To process each open dataset, the file structure and heirarchy of published open datasets was simplified manually such that each open dataset had a two top level folders, a first folder with all images and a second folder with ground truth depth data.
+
+## SuperDepth Dataset
+To train the SuperDepth network, a custom dataset was created using a number of open-source, publicly available datasets which capture scene depth through simulation, LIDAR or a combination of LIDAR and Stereo Vision.
+
+The SuperDepth dataset includes RGB images, ground truth depth maps, ground truth height maps, foreground-background object boundary masks as well as sparse depth supervision input. The sparse depth supervision input is calculated either through sparse stereo matching, or by simulating sparse stereo features by analyzing image and depth data.
+
+![SuperDepth_Data](../../Diagrams/SuperDepth_Data.jpg)
