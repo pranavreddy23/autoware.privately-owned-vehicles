@@ -127,9 +127,6 @@ def createSparseSupervision(image, height_map, max_height, min_height, depth_map
     # Getting pixel access for image
     px = image.load()
 
-    # Max depth value
-    max_depth = np.max(depth_map)
-
     # Fiding image gradients
     for i in range(1, width-1):
         for j in range(1, height-1):
