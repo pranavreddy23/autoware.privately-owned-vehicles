@@ -11,26 +11,26 @@ from inference.scene_seg_infer import SceneSegNetworkInfer
 
 
 def make_visualization(prediction):
-    shape = prediction.shape
-  
-    row = shape[0]
-    col = shape[1]
-    vis_predict_object = np.zeros((row, col, 3), dtype = "uint8")
+  shape = prediction.shape
 
-    background_objects_colour = (255, 93, 61)
-    foreground_objects_colour = (145, 28, 255)
+  row = shape[0]
+  col = shape[1]
+  vis_predict_object = np.zeros((row, col, 3), dtype = "uint8")
 
-    # Extracting predicted classes and assigning to colourmap
-    for x in range(row):
-        for y in range(col):
-            if(prediction[x,y].item() == 0):
-                vis_predict_object[x,y] = background_objects_colour
-            elif(prediction[x,y].item() == 1):
-                vis_predict_object[x,y] = foreground_objects_colour
-            elif(prediction[x,y].item() == 2):
-                vis_predict_object[x,y] = background_objects_colour
-               
-    return vis_predict_object
+  background_objects_colour = (255, 93, 61)
+  foreground_objects_colour = (145, 28, 255)
+
+  # Extracting predicted classes and assigning to colourmap
+  for x in range(row):
+      for y in range(col):
+          if(prediction[x,y].item() == 0):
+              vis_predict_object[x,y] = background_objects_colour
+          elif(prediction[x,y].item() == 1):
+              vis_predict_object[x,y] = foreground_objects_colour
+          elif(prediction[x,y].item() == 2):
+              vis_predict_object[x,y] = background_objects_colour
+              
+  return vis_predict_object
 
 def main(): 
 
