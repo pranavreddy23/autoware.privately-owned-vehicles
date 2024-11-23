@@ -78,7 +78,7 @@ def createDepthMap(depth_data):
     # Converting depth data to metric depth values
     depth_map = Image.fromarray(depth_data)
     depth_map = np.asarray(depth_map, dtype=np.float32)
-    depth_map = 100000 * depth_map
+    depth_map = 400 * (1 - depth_map) 
 
     # Removing erroneous depth data
     max_depth = np.max(depth_map)
