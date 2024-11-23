@@ -162,7 +162,7 @@ def main():
 
     # Paths to read ground truth depth and input images from training data
     depth_filepath = root_data_path + 'depth/'
-    images_filepath = root_data_path + '/rgb'
+    images_filepath = root_data_path + 'rgb/'
 
     # Reading dataset labels and images and sorting returned list in alphabetical order
     depth_maps = sorted([f for f in pathlib.Path(depth_filepath).glob("*.exr")])
@@ -216,7 +216,7 @@ def main():
             boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
             boundary_mask = Image.fromarray(depth_boundaries)
             boundary_mask.save(boundary_save_path, "PNG")
-    
+        
         print('----- Processing complete -----') 
 
 
