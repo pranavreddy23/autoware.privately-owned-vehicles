@@ -5,8 +5,6 @@ import pathlib
 import cv2
 from PIL import Image
 import numpy as np
-import matplotlib.pyplot as plt
-import random 
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 
