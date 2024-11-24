@@ -211,36 +211,38 @@ def main():
             image = Image.open(str(images[index]))
             depth_data = cv2.imread(str(depth_maps[index]), cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
 
-            # Create metric depth map and height map
-            depth_map = createDepthMap(depth_data)
-            depth_boundaries = findDepthBoundaries(depth_map)
-            max_height = 7
-            min_height = -0.5
-            height_map = createHeightMap(depth_map, max_height, min_height)
-            sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height, depth_map)
+            # Adding check in case data is corrupted
+            if depth_data is not None:
+                # Create metric depth map and height map
+                depth_map = createDepthMap(depth_data)
+                depth_boundaries = findDepthBoundaries(depth_map)
+                max_height = 7
+                min_height = -0.5
+                height_map = createHeightMap(depth_map, max_height, min_height)
+                sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height, depth_map)
+                
+                # Save files
+                # RGB Image as PNG
+                image_save_path = root_save_path + '/image/' + str(index) + '.png'
+                image.save(image_save_path, "PNG")
 
-            # Save files
-            # RGB Image as PNG
-            image_save_path = root_save_path + '/image/' + str(index) + '.png'
-            image.save(image_save_path, "PNG")
+                # Depth map as binary file in .npy format
+                depth_save_path = root_save_path + '/depth/' + str(index) + '.npy'
+                np.save(depth_save_path, depth_map)
 
-            # Depth map as binary file in .npy format
-            depth_save_path = root_save_path + '/depth/' + str(index) + '.npy'
-            np.save(depth_save_path, depth_map)
+                # Height map as binary file in .npy format
+                height_save_path = root_save_path + '/height/' + str(index) + '.npy'
+                np.save(height_save_path, height_map)
 
-            # Height map as binary file in .npy format
-            height_save_path = root_save_path + '/height/' + str(index) + '.npy'
-            np.save(height_save_path, height_map)
+                # Sparse supervision map as binary file in .npy format
+                supervision_save_path = root_save_path + '/supervision/' + str(index) + '.npy'
+                np.save(supervision_save_path, sparse_supervision)
 
-            # Sparse supervision map as binary file in .npy format
-            supervision_save_path = root_save_path + '/supervision/' + str(index) + '.npy'
-            np.save(supervision_save_path, sparse_supervision)
-
-            # Boundary mask as PNG
-            boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
-            boundary_mask = Image.fromarray(depth_boundaries)
-            boundary_mask.save(boundary_save_path, "PNG")
-        
+                # Boundary mask as PNG
+                boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
+                boundary_mask = Image.fromarray(depth_boundaries)
+                boundary_mask.save(boundary_save_path, "PNG")
+            
         print('----- Processing complete -----') 
       
 
