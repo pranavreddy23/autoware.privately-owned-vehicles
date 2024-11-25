@@ -1,6 +1,5 @@
 #! /usr/bin/env python3
 import pathlib
-import logging
 from argparse import ArgumentParser
 from PIL import Image
 import sys
@@ -122,7 +121,7 @@ def main():
     # If all data checks have been passed
     if(check_passed and check_sky_passed):
 
-        logging.info('Beginning processing of data')
+        print('Beginning processing of data')
 
         # Looping through data
         for index in range(0, len(labels)):
@@ -139,9 +138,9 @@ def main():
             image.save(images_save_path + str(index) + ".png","PNG")
             coarseSegColorMap.save(labels_save_path + str(index) + ".png","PNG")
 
-            logging.info(f'Processing image {index} of {num_images-1}')
+            print(f'Processing image {index} of {num_images-1}')
     
-        logging.info('----- Processing complete -----') 
+        print('----- Processing complete -----') 
 
 if __name__ == '__main__':
     main()
