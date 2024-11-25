@@ -1,16 +1,13 @@
 #! /usr/bin/env python3
 import pathlib
 import logging
-import sys
-sys.tracebacklimit = 0
 from argparse import ArgumentParser
 import json
 from PIL import Image, ImageDraw
+import sys
+sys.path.append('../../../')
+from Models.data_utils.check_data import CheckData
 
-logging.basicConfig(
-    level = logging.DEBUG,
-    format = '%(levelname)s - %(message)s'
-)
 
 # Create coarse semantic segmentation mask
 # of combined classes
@@ -104,41 +101,15 @@ def main():
     labels = sorted([f for f in pathlib.Path(labels_filepath).glob(("*/*"))])
     images = sorted([f for f in pathlib.Path(images_filepath).glob("*/*")])
 
-    # Checking validity
-    is_label_path_valid = False
-    is_image_path_valid = False
-    is_data_valid = False
-
     # Getting number of labels and images
     num_labels = len(labels)
     num_images = len(images)
 
-    # Checking if ground truth labels were read and logging error if missing
-    if (num_labels > 0):
-        logging.info(f'Found {num_labels} ground truth masks')
-        is_label_path_valid = True
-    else:
-        logging.error(f'No ground truth png masks found - check your labels filepath: {labels_filepath}')
-        raise ValueError('Input data is incorrect')
-
-    # Checking if input images were read and logging error if missing
-    if (num_images > 0):
-        logging.info(f'Found {num_images} input images')
-        is_image_path_valid = True
-    else:
-        logging.error(f'No input png images found - check your images filepath: {images_filepath}')
-        raise ValueError('Input data is incorrect')
-
-    # Checking if number of ground truth labels matches number of input images
-    # and logging error if mismatched
-    if (num_labels != num_images):
-        logging.error(f'Number of ground truth masks: {num_labels} - does not match number of input images: {num_images}')
-        raise ValueError('Input data is incorrect')
-    else:
-        is_data_valid = True
+    # Check if sample numbers are correct
+    check_passed = CheckData(num_images, num_labels)
 
     # If all data checks have been passed
-    if(is_label_path_valid and is_image_path_valid and is_data_valid):
+    if(check_passed):
 
         logging.info('Beginning processing of data')
 
