@@ -3,7 +3,6 @@
 import pathlib
 import cv2
 from PIL import Image
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
