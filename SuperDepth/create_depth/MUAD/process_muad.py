@@ -7,39 +7,9 @@ from PIL import Image
 import numpy as np
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
-
-def checkData(num_depth_maps, num_images):
-    
-    is_depth_path_valid = False
-    is_image_path_valid = False
-    is_data_valid = False
-    check_passed = False
-
-    # Checking if ground truth labels were read and logging error if missing
-    if (num_depth_maps > 0):
-        print(f'Found {num_depth_maps} ground truth masks')
-        is_depth_path_valid = True
-    else:
-        raise ValueError('No ground truth .exr depth maps found - check your depth filepath:')
-
-    # Checking if input images were read and logging error if missing
-    if (num_images > 0):
-        print(f'Found {num_images} input images')
-        is_image_path_valid = True
-    else:
-        raise ValueError('No input png images found - check your images filepath')
-
-    # Checking if number of ground truth labels matches number of input images
-    if (num_depth_maps != num_images):
-        raise ValueError('Number of ground truth depth maps does not match number of input images:')
-    else:
-        is_data_valid = True
-    
-    # Final check
-    if(is_depth_path_valid and is_image_path_valid and is_data_valid):
-        check_passed = True
-    
-    return check_passed
+import sys
+sys.path.append('../../../')
+from Models.data_utils.check_data import CheckData
 
 def createHeightMap(depth_map, max_height, min_height):
 
@@ -114,7 +84,7 @@ def findDepthBoundaries(depth_map):
 
     return depth_boundaries
 
-def createSparseSupervision(image, height_map, max_height, min_height, depth_map):
+def createSparseSupervision(image, height_map, max_height, min_height):
 
     # Getting size of height map
     size = height_map.shape
@@ -169,7 +139,7 @@ def main():
     num_depth_maps = len(depth_maps)
     num_images = len(images)
 
-    check_passed = checkData(num_depth_maps, num_images)
+    check_passed = CheckData(num_images, num_depth_maps)
 
     if(check_passed):
 
@@ -190,8 +160,8 @@ def main():
             max_height = 7
             min_height = -0.5
             height_map = createHeightMap(depth_map, max_height, min_height)
-            sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height, depth_map)
-
+            sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height)
+            
             # Save files
             # RGB Image as PNG
             image_save_path = root_save_path + '/image/' + str(index) + '.png'
@@ -215,7 +185,7 @@ def main():
             boundary_mask.save(boundary_save_path, "PNG")
         
         print('----- Processing complete -----') 
-
+    
 
 if __name__ == '__main__':
     main()
