@@ -13,7 +13,7 @@ class CheckData():
             print(f'Found {num_gt} ground truth samples')
             is_gt_path_valid = True
         else:
-            raise ValueError('No ground samples found - check your ground truth data filepath:')
+            raise ValueError('No ground truth samples found - check your ground truth data filepath:')
 
         # Checking if input images were read and logging error if missing
         if (num_images > 0):
