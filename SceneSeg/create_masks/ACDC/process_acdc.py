@@ -4,7 +4,6 @@ import logging
 from argparse import ArgumentParser
 from PIL import Image
 import sys
-sys.tracebacklimit = 0
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 
