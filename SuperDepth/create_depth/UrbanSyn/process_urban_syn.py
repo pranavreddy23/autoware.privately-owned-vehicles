@@ -109,7 +109,7 @@ def createHeightMap(depth_map, max_height, min_height):
     
     return height_map
 
-def createSparseSupervision(image, height_map, max_height, min_height, depth_map):
+def createSparseSupervision(image, height_map, max_height, min_height):
 
     # Getting size of height map
     size = height_map.shape
@@ -189,7 +189,7 @@ def main():
                 max_height = 7
                 min_height = -0.5
                 height_map = createHeightMap(depth_map, max_height, min_height)
-                sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height, depth_map)
+                sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height)
                 
                 # Save files
                 # RGB Image as PNG
