@@ -30,7 +30,7 @@ class CheckData():
         
         # Final check
         if(is_gt_path_valid and is_image_path_valid and is_data_valid):
-            check_passed = True
+            self.check_passed = True
 
         self.getCheck()
 
