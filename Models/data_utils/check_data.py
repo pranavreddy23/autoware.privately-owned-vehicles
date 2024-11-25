@@ -29,7 +29,7 @@ class CheckData():
             is_data_valid = True
         
         # Final check
-        if(is_depth_path_valid and is_image_path_valid and is_data_valid):
+        if(is_gt_path_valid and is_image_path_valid and is_data_valid):
             check_passed = True
 
         self.getCheck()
