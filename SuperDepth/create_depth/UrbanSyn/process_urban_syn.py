@@ -96,11 +96,16 @@ def createHeightMap(depth_map, max_height, min_height):
 
     # Height of camera above ground plane
     camera_height = 2 
+
+    # Focal length
+    image_wdith_mm = 2.90000009537
+    focal_length_mm = 4.900001049041748
+    focal_length = (focal_length_mm/image_wdith_mm)*width
     
     for i in range(0, height):
         for j in range(0, width):
             depth_val = depth_map[i, j]
-            H = (cy-i)*(depth_val)/1024
+            H = (cy-i)*(depth_val)/focal_length
             height_map[i,j] = H + camera_height
     
     # Clipping height values for dataset
