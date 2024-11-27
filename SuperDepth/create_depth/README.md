@@ -18,4 +18,4 @@ The datasets used to train SuperDepth include:
 - [DDAD](https://github.com/TRI-ML/DDAD#dataset-details)
 
 ## common
-Contains helper scripts to  create ground truth data for non-simulation-based LIDAR + monocular vision, as well as LIDAR + stereo vision datasets
+Contains helper classes to  create ground truth data for non-simulation-based LIDAR + monocular vision, as well as LIDAR + stereo vision datasets
