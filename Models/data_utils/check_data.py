@@ -32,7 +32,5 @@ class CheckData():
         if(is_gt_path_valid and is_image_path_valid and is_data_valid):
             self.check_passed = True
 
-        self.getCheck()
-
     def getCheck(self):
         return self.check_passed
