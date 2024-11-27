@@ -8,7 +8,7 @@ import cv2
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
-from Models.data_utils.lidar_depth_fill import LidarDepthFill
+from SuperDepth.create_depth.lidar_depth_fill import LidarDepthFill
 
 def removeExtraSamples(image_folders):
     
