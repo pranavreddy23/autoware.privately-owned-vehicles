@@ -124,7 +124,8 @@ def main():
     num_images = len(images)
 
     # Check if sample numbers are correct
-    check_passed = CheckData(num_images, num_labels)
+    check_data = CheckData(num_images, num_labels)
+    check_passed = check_data.getCheck()
     
     # If all data checks have been passed
     if(check_passed):

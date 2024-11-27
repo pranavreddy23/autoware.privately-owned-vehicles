@@ -115,8 +115,10 @@ def main():
     num_sky_masks = len(sky_masks)
 
     # Check if sample numbers are correct
-    check_passed = CheckData(num_images, num_labels)
-    check_sky_passed = CheckData(num_images, num_sky_masks)
+    check_data = CheckData(num_images, num_labels)
+    check_data_sky = CheckData(num_images, num_sky_masks)
+    check_passed = check_data.getCheck()
+    check_sky_passed = check_data_sky.getCheck()
 
     # If all data checks have been passed
     if(check_passed and check_sky_passed):

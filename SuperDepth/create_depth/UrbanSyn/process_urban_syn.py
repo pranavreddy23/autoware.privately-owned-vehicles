@@ -170,8 +170,9 @@ def main():
     num_depth_maps = len(depth_maps)
     num_images = len(images)
 
-    check_passed = CheckData(num_images, num_depth_maps)
-
+    check_data = CheckData(num_images, num_depth_maps)
+    check_passed = check_data.getCheck()
+    
     if(check_passed):
 
         print('Beginning processing of data')
