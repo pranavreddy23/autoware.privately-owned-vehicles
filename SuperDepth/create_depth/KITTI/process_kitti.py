@@ -8,6 +8,7 @@ import cv2
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
+from Models.data_utils.lidar_depth_fill import LidarDepthFill
 
 def removeExtraSamples(image_folders):
     
@@ -24,41 +25,9 @@ def removeExtraSamples(image_folders):
 def createDepthMap(depth_data):
 
     assert(np.max(depth_data) > 255)
-
     depth_map = depth_data.astype('float32') / 256.
-
-    depth_map = filterDepthMap(depth_map)
     return depth_map
 
-def filterDepthMap(depth_map):
-
-    erosion_kernel = np.ones((3,3), np.uint8) 
-    depth_map = cv2.dilate(depth_map, erosion_kernel, iterations=4) 
-
-    closing_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (19,19))
-    depth_map = cv2.morphologyEx(depth_map, cv2.MORPH_CLOSE, closing_kernel)
-    
-    # Getting size of depth map
-    size = depth_map.shape
-    height = size[0]
-    width = size[1]
-
-    # Interpolate along height
-    for j in range(0, width):
-        interp_depth = 0
-        for i in range(height-1, 1, -1):
-
-            lower_depth = depth_map[i,j]
-            upper_depth = depth_map[i-1, j]
-
-            if(lower_depth != 0 and upper_depth == 0):
-                interp_depth = lower_depth
-            
-            if(interp_depth != 0 and upper_depth == 0):
-                depth_map[i-1, j] = interp_depth
-    
-    depth_map = cv2.medianBlur(depth_map, 5)
-    return depth_map
 
 def cropData(image, depth_map):
 
@@ -100,14 +69,16 @@ def main():
 
         print('Beginning processing of data')
         # Looping through data
-        for index in range(0, 1):
+        for index in range(4000, 4001):
 
             print(f'Processing image {index} of {num_images-1}')
             
             # Open images and pre-existing masks
             image = Image.open(str(images[index]))
             depth_data = np.array(Image.open(str(depth_maps[index])), dtype=int)
-            depth_map = createDepthMap(depth_data)
+            sparse_depth_map = createDepthMap(depth_data)
+            lidar_depth_fill = LidarDepthFill(sparse_depth_map)
+            depth_map = lidar_depth_fill.getDepthMap()
             image, depth_map = cropData(image, depth_map)
 
             plt.figure()
