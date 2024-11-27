@@ -17,7 +17,5 @@ The datasets used to train SuperDepth include:
 - [Boreas](https://www.boreas.utias.utoronto.ca/#/)
 - [DDAD](https://github.com/TRI-ML/DDAD#dataset-details)
 
-## lidar_depth_fill.py
-In order to train the SuperDepth network, we require ground truth depth maps. In real world datasets, ground druth depth maps are acquired by LIDAR scanners, resulting in sparse virtual depth maps created by proejction of 3D lidar points onto in image, where, in most cases, depth data is only available for 5% of pixels. This script creates a fully filled in lidar depth map based on the method [In Defense of Classical Image Processing: Fast Depth Completion on the CPU](https://arxiv.org/abs/1802.00036)
-
-![Lidar Depth Fill](../../Diagrams/Lidar_Depth_Fill.jpg)
+## common
+Contains helper scripts to  create ground truth data for non-simulation-based LIDAR + monocular vision, as well as LIDAR + stereo vision datasets
