@@ -21,6 +21,8 @@ class LidarDepthFill():
         height = size[0]
         width = size[1]
 
+        self.depth_map_fill_only = np.copy(self.depth_map)
+
         # Interpolate along height
         for j in range(0, width):
             interp_depth = 0
@@ -38,6 +40,10 @@ class LidarDepthFill():
         # Median blur
         self.depth_map = cv2.medianBlur(self.depth_map, 5)
 
-    # Get filled in lidar depth map
+    # Get filled in and interpolated lidar depth map
     def getDepthMap(self):
         return self.depth_map
+    
+    # Get filled in and interpolated lidar depth map
+    def getDepthMapFillOnly(self):
+        return self.depth_map_fill_only
