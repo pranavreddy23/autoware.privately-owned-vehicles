@@ -58,5 +58,5 @@ class StereoSparseSupervision():
         self.sparse_height_map = self.sparse_height_map.clip(min = min_height, max = max_height)
         
 
-        def getSparseHeightMap(self):
-            return self.sparse_height_map
+    def getSparseHeightMap(self):
+        return self.sparse_height_map
