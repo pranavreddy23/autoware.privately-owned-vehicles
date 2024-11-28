@@ -4,6 +4,7 @@ import pathlib
 import cv2
 from PIL import Image
 import numpy as np
+import matplotlib.pyplot as plt
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 import sys
@@ -121,7 +122,7 @@ def createSparseSupervision(image, height_map, max_height, min_height):
 def main():
 
     # Filepaths for data loading and savind
-    root_data_path = '/home/zain/Autoware/Privately_Owned_Vehicles/training_data/SuperDepth/UrbanSyn/'
+    root_data_path = '/mnt/media/UrbanSyn/'
     root_save_path = '/mnt/media/SuperDepth/UrbanSyn'
 
     # Paths to read ground truth depth and input images from training data
@@ -154,14 +155,14 @@ def main():
         # Projection centre for Y-axis
         cy = 512
         # Camera mounting height above ground
-        camera_height = 2
+        camera_height = 1.2
 
         # Height map limits
         max_height = 7
-        min_height = -0.5
+        min_height = -2
 
         # Looping through data
-        for index in range(0, num_images):
+        for index in range(100, 101):
 
             print(f'Processing image {index} of {num_images-1}')
             
@@ -200,10 +201,10 @@ def main():
                 boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
                 boundary_mask = Image.fromarray(depth_boundaries)
                 boundary_mask.save(boundary_save_path, "PNG")
-            
+                
         print('----- Processing complete -----') 
       
-      
+
 if __name__ == '__main__':
     main()
 #%%
