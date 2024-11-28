@@ -9,6 +9,7 @@ os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
+from SuperDepth.create_depth.common.height_map import HeightMap
 
 def removeExtraSamples(depth_filepath, depth_maps, images_filepath, images):
     
@@ -81,38 +82,6 @@ def findDepthBoundaries(depth_map):
 
     return depth_boundaries
 
-def createHeightMap(depth_map, max_height, min_height):
-
-    # Getting size of depth map
-    size = depth_map.shape
-    height = size[0]
-    width = size[1]
-
-    # Projection centre for Y-axis
-    cy = round(height/2)
-
-    # Initializing height-map
-    height_map = np.zeros_like(depth_map)
-
-    # Height of camera above ground plane
-    camera_height = 2 
-
-    # Focal length
-    image_wdith_mm = 2.90000009537
-    focal_length_mm = 4.900001049041748
-    focal_length = (focal_length_mm/image_wdith_mm)*width
-    
-    for i in range(0, height):
-        for j in range(0, width):
-            depth_val = depth_map[i, j]
-            H = (cy-i)*(depth_val)/focal_length
-            height_map[i,j] = H + camera_height
-    
-    # Clipping height values for dataset
-    height_map = height_map.clip(min = min_height, max = max_height)
-    
-    return height_map
-
 def createSparseSupervision(image, height_map, max_height, min_height):
 
     # Getting size of height map
@@ -177,6 +146,20 @@ def main():
 
         print('Beginning processing of data')
 
+        # Focal length of camera
+        image_height_mm = 2.90000009537
+        focal_length_mm = 4.900001049041748
+        focal_length = (focal_length_mm/image_height_mm)*1024
+
+        # Projection centre for Y-axis
+        cy = 512
+        # Camera mounting height above ground
+        camera_height = 2
+
+        # Height map limits
+        max_height = 7
+        min_height = -0.5
+
         # Looping through data
         for index in range(0, num_images):
 
@@ -191,9 +174,9 @@ def main():
                 # Create metric depth map and height map
                 depth_map = createDepthMap(depth_data)
                 depth_boundaries = findDepthBoundaries(depth_map)
-                max_height = 7
-                min_height = -0.5
-                height_map = createHeightMap(depth_map, max_height, min_height)
+                heightMap = HeightMap(depth_map, max_height, min_height, 
+                 camera_height, focal_length, cy)
+                height_map = heightMap.getHeightMap()
                 sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height)
                 
                 # Save files
@@ -220,8 +203,7 @@ def main():
             
         print('----- Processing complete -----') 
       
-
-
+      
 if __name__ == '__main__':
     main()
 #%%
