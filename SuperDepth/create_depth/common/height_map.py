@@ -17,10 +17,10 @@ class HeightMap():
             for j in range(0, width):
                 depth_val = depth_map[i, j]
                 H = (cy-i)*(depth_val)/focal_length
-                height_map[i,j] = H + camera_height
+                self.height_map[i,j] = H + camera_height
         
         # Clipping height values for dataset
-        height_map = height_map.clip(min = min_height, max = max_height)
+        self.height_map = self.height_map.clip(min = min_height, max = max_height)
 
     def getHeightMap(self):
         return self.height_map
