@@ -6,3 +6,6 @@ In order to train the SuperDepth network, we require ground truth depth maps. In
 
 ## stereo_sparse_supervision.py
 As part of the SuperDepth network, sparse stereo supervision is used to help guide the network in capturing the tre scene scale. In order to create sparse stereo supervision, the OpenCV block-matching algorithm is utilized to find sparse stereo correspondences between the left and right stereo image pair. Median blurring is utilized to remove speckle noise and the resulting data is transformed to a height map.
+
+## height_map.py
+Helper class to convert depth map into height map based on camera parameters.
