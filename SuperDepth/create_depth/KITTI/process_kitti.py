@@ -4,11 +4,11 @@ import pathlib
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
-import cv2
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
+from SuperDepth.create_depth.common.stereo_sparse_supervision import StereoSparseSupervision
 
 def removeExtraSamples(image_folders):
     
@@ -72,92 +72,26 @@ def findDepthBoundaries(depth_map):
 
     return depth_boundaries
 
-def createHeightMap(depth_map, max_height, min_height):
+def createHeightMap(depth_map, max_height, min_height, camera_height, focal_length, cy):
 
     # Getting size of depth map
     size = depth_map.shape
     height = size[0]
     width = size[1]
 
-    # Projection centre for Y-axis
-    cy = 194.13
-
     # Initializing height-map
     height_map = np.zeros_like(depth_map)
 
-    # Height of camera above ground plane
-    camera_height = 1.65 
-    
     for i in range(0, height):
         for j in range(0, width):
             depth_val = depth_map[i, j]
-            H = (cy-i)*(depth_val)/645.24
+            H = (cy-i)*(depth_val)/focal_length
             height_map[i,j] = H + camera_height
     
     # Clipping height values for dataset
     height_map = height_map.clip(min = min_height, max = max_height)
     
     return height_map
-
-def createStereoSupervision(image_left, image_right, max_height, min_height):
-
-    # SAD window size should be between 5..255
-    block_size = 15
-
-    # Matching parameters
-    min_disp = 0
-    num_disp = 256 - min_disp
-    uniquenessRatio = 10
-
-    # Block matcher
-    stereo = cv2.StereoBM_create(numDisparities = num_disp, blockSize = block_size)
-    stereo.setUniquenessRatio(uniquenessRatio)
-
-    # Single channel image in OpenCV/Numpy format from PIL
-    left_image_gray = np.array(image_left)[:,:,1]
-    right_image_gray = np.array(image_right)[:,:,1]
-
-    # Calculate disparity
-    disparity = stereo.compute(left_image_gray, right_image_gray).astype(np.float32)/16 + 0.0001
-    
-    # Remove speclkes by consecutive medianBlur
-    disparity = cv2.medianBlur(disparity, 5)
-    disparity = cv2.medianBlur(disparity, 5)
-    disparity = cv2.medianBlur(disparity, 5)
-    disparity = cv2.medianBlur(disparity, 5)
-    disparity = cv2.medianBlur(disparity, 5)
-    disparity = cv2.medianBlur(disparity, 5)
-    disparity = cv2.medianBlur(disparity, 5)
-    disparity = cv2.medianBlur(disparity, 5)
-    disparity = cv2.medianBlur(disparity, 5)
-    disparity = cv2.medianBlur(disparity, 5)
-    
-    # Calculating Depth
-    sparse_depth_map = 0.54 * 645.24 / disparity
-    
-    # Caculating Height
-    sparse_height_map = np.zeros_like(sparse_depth_map)
-    
-    # Camera mounting height
-    camera_height = 1.65 
-    
-    # Projection centre for Y-axis
-    cy = 194.13
-
-    size = sparse_depth_map.shape
-    height = size[0]
-    width = size[1]
-
-    for i in range(0, height):
-        for j in range(0, width):
-            depth_val = sparse_depth_map[i, j]
-            if(depth_val > 0):
-                H = (cy-i)*(depth_val)/645.24
-                sparse_height_map[i,j] = H + camera_height
-    
-    # Clipping height values for dataset
-    sparse_height_map = sparse_height_map.clip(min = min_height, max = max_height)
-    return sparse_height_map
 
 
 def main():
@@ -191,6 +125,20 @@ def main():
     if(check_passed_left and check_passed_right):
 
         print('Beginning processing of data')
+
+        # Focal length of camera
+        focal_length = 645.24
+        # Projection centre for Y-axis
+        cy = 194.13
+        # Camera mounting height above ground
+        camera_height = 1.65
+        # Stereo camera baseline distance
+        baseline = 0.54 
+
+        # Height map limits
+        max_height = 7
+        min_height = -0.5
+
         # Looping through data with temporal downsampling to get frames every second
         for index in range(1000, 1001):
 
@@ -213,13 +161,12 @@ def main():
             depth_boundaries = findDepthBoundaries(depth_map_fill_only)
 
             # Height map
-            max_height = 7
-            min_height = -2
-            height_map = createHeightMap(depth_map, max_height, min_height)
+            height_map = createHeightMap(depth_map, max_height, min_height, camera_height, focal_length, cy)
 
             # Sparse supervision
-            sparse_supervision = \
-                createStereoSupervision(image_left, image_right, max_height, min_height)
+            stereoSparseSupervision = StereoSparseSupervision(image_left, image_right, max_height, min_height, 
+                    baseline, camera_height, focal_length, cy)
+            sparse_supervision = stereoSparseSupervision.getSparseHeightMap()
             
             # Crop side regions where depth data is missing
             image_left, depth_map, depth_boundaries, height_map, sparse_supervision= \
