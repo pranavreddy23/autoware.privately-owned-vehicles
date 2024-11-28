@@ -9,6 +9,7 @@ sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
 from SuperDepth.create_depth.common.stereo_sparse_supervision import StereoSparseSupervision
+from SuperDepth.create_depth.common.height_map import HeightMap
 
 def removeExtraSamples(image_folders):
     
@@ -161,7 +162,9 @@ def main():
             depth_boundaries = findDepthBoundaries(depth_map_fill_only)
 
             # Height map
-            height_map = createHeightMap(depth_map, max_height, min_height, camera_height, focal_length, cy)
+            heightMap = HeightMap(depth_map, max_height, min_height, 
+                 camera_height, focal_length, cy)
+            height_map = heightMap.getHeightMap()
 
             # Sparse supervision
             stereoSparseSupervision = StereoSparseSupervision(image_left, image_right, max_height, min_height, 
