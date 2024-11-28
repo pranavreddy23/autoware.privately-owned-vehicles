@@ -161,7 +161,7 @@ def main():
         min_height = -2
 
         # Looping through data
-        for index in range(100, 101):
+        for index in range(0, num_images):
 
             print(f'Processing image {index} of {num_images-1}')
             
