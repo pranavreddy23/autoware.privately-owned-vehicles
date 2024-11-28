@@ -3,7 +3,6 @@
 import pathlib
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
@@ -141,7 +140,8 @@ def main():
         min_height = -0.5
 
         # Looping through data with temporal downsampling to get frames every second
-        for index in range(1000, 1001):
+        counter = 0
+        for index in range(0, num_depth_maps, 10):
 
             print(f'Processing image {index} of {num_depth_maps-1}')
             
@@ -175,16 +175,29 @@ def main():
             image_left, depth_map, depth_boundaries, height_map, sparse_supervision= \
                 cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision)
             
-            plt.figure()
-            plt.imshow(image_left)
-            plt.figure()
-            plt.imshow(depth_boundaries, cmap='gray')
-            plt.figure()
-            plt.imshow(height_map, cmap='inferno_r')
-            plt.figure()
-            plt.imshow(depth_map, cmap='inferno')
-            plt.figure()
-            plt.imshow(sparse_supervision, cmap='inferno_r')
+            # Save files
+            # RGB Image as PNG
+            image_save_path = root_save_path + '/image/' + str(counter) + '.png'
+            image_left.save(image_save_path, "PNG")
+
+            # Depth map as binary file in .npy format
+            depth_save_path = root_save_path + '/depth/' + str(counter) + '.npy'
+            np.save(depth_save_path, depth_map)
+
+            # Height map as binary file in .npy format
+            height_save_path = root_save_path + '/height/' + str(counter) + '.npy'
+            np.save(height_save_path, height_map)
+
+            # Sparse supervision map as binary file in .npy format
+            supervision_save_path = root_save_path + '/supervision/' + str(counter) + '.npy'
+            np.save(supervision_save_path, sparse_supervision)
+
+            # Boundary mask as PNG
+            boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
+            boundary_mask = Image.fromarray(depth_boundaries)
+            boundary_mask.save(boundary_save_path, "PNG")
+
+            counter += 1
 
         print('----- Processing complete -----') 
                 
