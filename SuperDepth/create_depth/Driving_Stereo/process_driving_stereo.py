@@ -41,6 +41,19 @@ def main():
 
         print('Beginning processing of data')
 
+        # Focal length of camera
+        focal_length = 1002.53
+        # Projection centre for Y-axis
+        cy = 195.96
+        # Camera mounting height above ground
+        camera_height = 0
+        # Stereo camera baseline distance
+        baseline = 0.54 
+
+        # Height map limits
+        max_height = 7
+        min_height = -0.5
+
 if __name__ == '__main__':
     main()
 #%%
