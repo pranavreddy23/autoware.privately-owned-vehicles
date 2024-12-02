@@ -7,5 +7,5 @@ The datasets used to train PathDet include:
 - [CurveLanes] (https://github.com/SoulmateB/CurveLanes)
 - [BDD100K] (https://doc.bdd100k.com/download.html#drivable-area)
 - [Comma2K19] (https://github.com/commaai/comma2k19)
-- [RoadWORK](https://www.cs.cmu.edu/~ILIM/roadwork_dataset/)
+- [RoadWORK] (https://www.cs.cmu.edu/~ILIM/roadwork_dataset/)
 
