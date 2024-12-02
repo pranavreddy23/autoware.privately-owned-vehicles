@@ -11,7 +11,6 @@ The datasets used to train SuperDepth include:
 - [UrbanSyn](https://www.urbansyn.org)
 - [MUAD](https://muad-dataset.github.io/)
 - [KITTI](https://www.cvlibs.net/datasets/kitti/eval_depth.php?benchmark=depth_prediction)
-- [Driving Stereo](https://drivingstereo-dataset.github.io/)
 - [Argoverse 1.0](https://www.argoverse.org/av1.html#stereo-link)
 - [MUSES](https://muses.vision.ee.ethz.ch/)
 - [Boreas](https://www.boreas.utias.utoronto.ca/#/)
