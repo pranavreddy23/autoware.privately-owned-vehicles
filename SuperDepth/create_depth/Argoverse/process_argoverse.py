@@ -54,16 +54,51 @@ def createDepthMap(depth_data, focal_length, baseline):
     # Using the stereo relationship, recover the depth map by:
     depth_map = np.float32((focal_length * baseline) / (depth_data + (1.0 - valid_pixels)))
 
+    # Clamping max value
     depth_map[depth_map > 200] = 0
-    #for i in range(0, depth_map.shape[0]):
-    #    for j in range(0, depth_map.shape[1]):
-            
-    #        if(depth_map[i,j] < 200.0):
-    #            print(depth_map[i,j])
-                
-    #depth_map[depth_map > 0] = 200
 
-    return depth_map       
+    return depth_map      
+
+def findDepthBoundaries(depth_map):
+
+    # Getting size of depth map
+    size = depth_map.shape
+    height = size[0]
+    width = size[1]
+
+    # Initializing depth boundary mask
+    depth_boundaries = np.zeros_like(depth_map, dtype=np.uint8)
+
+    # Fiding depth boundaries
+    for i in range(1, height-1):
+        for j in range(1, width-1):
+
+            # Finding derivative
+            x_grad = depth_map[i-1,j] - depth_map[i+1, j]
+            y_grad = depth_map[i,j-1] - depth_map[i, j+1]
+            grad = abs(x_grad) + abs(y_grad)
+            
+            # Derivative threshold accounting for gap in depth map
+            if(grad > 8 and depth_map[i-1, j] != 0):
+                depth_boundaries[i,j] = 255
+
+    return depth_boundaries 
+
+def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision):
+
+    # Getting size of depth map
+    size = depth_map.shape
+    height = size[0]
+    width = size[1]
+
+    # Cropping out those parts of data for which depth is unavailable
+    image_left = image_left.crop((256, 950, width, height-50))
+    depth_map = depth_map[950:height-50, 256 : width]
+    depth_boundaries = depth_boundaries[950:height-50, 256 : width]
+    height_map = height_map[950:height-50, 256 : width]
+    sparse_supervision = sparse_supervision[950:height-50, 256 : width]
+
+    return image_left, depth_map, depth_boundaries, height_map, sparse_supervision
 
 def main():
     
@@ -105,9 +140,9 @@ def main():
 
         # Height map limits
         max_height = 7
-        min_height = -7
+        min_height = -2
 
-        for index in range(10, 11):
+        for index in range(0, 1):
 
             print(f'Processing image {index} of {num_depth_maps-1}')
 
@@ -130,19 +165,35 @@ def main():
             # Fill in sparse depth map
             lidar_depth_fill = LidarDepthFill(sparse_depth_map)
             depth_map = lidar_depth_fill.getDepthMap()
+            depth_map_fill_only = lidar_depth_fill.getDepthMapFillOnly()
+            
+            # Calculating depth boundaries
+            depth_boundaries = findDepthBoundaries(depth_map_fill_only)
 
             # Height map
             heightMap = HeightMap(depth_map, max_height, min_height, 
                  camera_height, focal_length, cy)
             height_map = heightMap.getHeightMap()
 
+            # Sparse supervision
+            stereoSparseSupervision = StereoSparseSupervision(image_left, image_right, max_height, min_height, 
+                    baseline, camera_height, focal_length, cy)
+            sparse_supervision = stereoSparseSupervision.getSparseHeightMap()
+
+            # Crop side regions where depth data is missing
+            image_left, depth_map, depth_boundaries, height_map, sparse_supervision= \
+                cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision)
 
             plt.figure()
             plt.imshow(image_left)
             plt.figure()
             plt.imshow(depth_map, cmap='inferno_r')
             plt.figure()
-            plt.imshow(height_map, cmap='inferno')
+            plt.imshow(height_map, cmap='inferno_r')
+            plt.figure()
+            plt.imshow(sparse_supervision, cmap='inferno_r')
+            plt.figure()
+            plt.imshow(depth_boundaries, cmap='Greys_r')
             
          
             
