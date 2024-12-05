@@ -84,6 +84,17 @@ def main():
             image_left = Image.open(str(images_left[index]))
             image_right = Image.open(str(images_right[index]))
             depth_data = np.array(Image.open(str(depth_maps[index])), dtype=int)
+
+            # Getting index associated with log
+            data_log = str(str(images_left[index])[56:-69])
+            log_index = calib_logs.index(data_log)
+            
+            # Reading focal length and principal point y-offset based on log index
+            focal_length = focal_lengths[log_index]
+            cy = centre_y_vals[log_index]
+
+
+         
             
 
 if __name__ == '__main__':
