@@ -3,6 +3,7 @@
 import pathlib
 import numpy as np
 from PIL import Image
+import matplotlib.pyplot as plt
 import json
 import sys
 sys.path.append('../../../')
@@ -42,7 +43,27 @@ def parseCalib(calib_files):
                     centre_y_vals.append(cy)
 
     return calib_logs, focal_lengths, centre_y_vals
-       
+
+def createDepthMap(depth_data, focal_length, baseline):
+
+    assert(np.max(depth_data) > 255)
+    depth_data = depth_data.astype('float32') / 256.
+
+    valid_pixels = depth_data > 0
+
+    # Using the stereo relationship, recover the depth map by:
+    depth_map = np.float32((focal_length * baseline) / (depth_data + (1.0 - valid_pixels)))
+
+    depth_map[depth_map > 200] = 0
+    #for i in range(0, depth_map.shape[0]):
+    #    for j in range(0, depth_map.shape[1]):
+            
+    #        if(depth_map[i,j] < 200.0):
+    #            print(depth_map[i,j])
+                
+    #depth_map[depth_map > 0] = 200
+
+    return depth_map       
 
 def main():
     
@@ -75,8 +96,18 @@ def main():
         print('Beginning processing of data')
 
         calib_logs, focal_lengths, centre_y_vals = parseCalib(calib_files)
+        
+        # Stereo camera baseline distance
+        baseline = 0.2986  
 
-        for index in range(0, 1):
+        # Camera height above road surface
+        camera_height = 1.67
+
+        # Height map limits
+        max_height = 7
+        min_height = -7
+
+        for index in range(10, 11):
 
             print(f'Processing image {index} of {num_depth_maps-1}')
 
@@ -93,7 +124,26 @@ def main():
             focal_length = focal_lengths[log_index]
             cy = centre_y_vals[log_index]
 
+            # Create depth map
+            sparse_depth_map = createDepthMap(depth_data, focal_length, baseline)
 
+            # Fill in sparse depth map
+            lidar_depth_fill = LidarDepthFill(sparse_depth_map)
+            depth_map = lidar_depth_fill.getDepthMap()
+
+            # Height map
+            heightMap = HeightMap(depth_map, max_height, min_height, 
+                 camera_height, focal_length, cy)
+            height_map = heightMap.getHeightMap()
+
+
+            plt.figure()
+            plt.imshow(image_left)
+            plt.figure()
+            plt.imshow(depth_map, cmap='inferno_r')
+            plt.figure()
+            plt.imshow(height_map, cmap='inferno')
+            
          
             
 
