@@ -127,10 +127,63 @@ def findDepthBoundaries(depth_map):
 
     return depth_boundaries 
 
+def createSparseSupervision(image, height_map, max_height, min_height):
+
+    # Getting size of height map
+    size = height_map.shape
+    height = size[0]
+    width = size[1]
+
+    # Initializing depth boundary mask
+    sparse_supervision = np.zeros_like(height_map)
+
+    # Getting pixel access for image
+    px = image.load()
+
+    # Fiding image gradients
+    for i in range(1, width-1):
+        for j in range(1, height-1):
+
+            # Finding image derivative - using green colour channel
+            x_grad = px[i-1,j][1] - px[i+1, j][1]
+            y_grad = px[i,j-1][1] - px[i, j+1][1]
+            grad = abs(x_grad) + abs(y_grad)
+
+            # Derivative threshold to find likely stereo candidates
+            if(grad > 25):
+                sparse_supervision[j,i] = height_map[j,i]
+            else:
+                sparse_supervision[j,i] = max_height
+
+            # Max height threshold
+            if(height_map[j,i] == max_height):
+                sparse_supervision[j,i] = max_height
+    
+    # Clipping height values for dataset
+    sparse_supervision = sparse_supervision.clip(min = min_height, max = max_height)
+    return sparse_supervision
+
+def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision):
+
+    # Getting size of depth map
+    size = depth_map.shape
+    height = size[0]
+    width = size[1]
+
+    # Cropping out those parts of data for which depth is unavailable
+    image_left = image_left.crop((500, 300, 1300, 700))
+    depth_map = depth_map[300:700, 500:1300]
+    depth_boundaries = depth_boundaries[300:700, 500:1300]
+    height_map = height_map[300:700, 500:1300]
+    sparse_supervision = sparse_supervision[300:700, 500:1300]
+
+    return image_left, depth_map, depth_boundaries, height_map, sparse_supervision
+
 def main():
     
     # Filepaths for data loading and saving
     root_data_path = '/mnt/media/MUSES/'
+    root_save_path = '/mnt/media/SuperDepth/MUSES/'
 
     # Paths to read ground truth depth and input images from training data
     depth_filepath = root_data_path + 'lidar/'
@@ -162,16 +215,22 @@ def main():
         camera_height = 1.4
 
         # Looping through data 
-        for index in range(10, 11):
+        for index in range(0, num_depth_maps):
+            
+            print(f'Processing image {index} of {num_depth_maps-1}')
 
+            # Image
             image = Image.open(str(images[index]))
 
+            # Pointcloud projection
             uv_img_cords_filtered, pcd_points_filtered = \
                 load_points_in_image_lidar(str(depth_maps[index]), 
                     K_rgb, lidar_to_rgb, target_shape = target_shape)
 
             pointcloud_projection = create_image_from_point_cloud(uv_img_cords_filtered, pcd_points_filtered, target_shape)
             sparse_depth_map = pointcloud_projection[:,:,0]
+
+            # Filled in depth map
             lidar_depth_fill = LidarDepthFill(sparse_depth_map)
             depth_map = lidar_depth_fill.getDepthMap()
             depth_map_fill_only = lidar_depth_fill.getDepthMapFillOnly()
@@ -184,19 +243,40 @@ def main():
                  camera_height, focal_length, cy)
             height_map = heightMap.getHeightMap()
 
-            print(height_map[750, 900], height_map[750, 1000], height_map[750, 1150])
-            
-            
-            plt.figure()
-            plt.imshow(image)
-            plt.figure()
-            plt.imshow(pointcloud_projection, cmap='inferno')
-            plt.figure()
-            plt.imshow(depth_map, cmap='inferno')
-            plt.figure()
-            plt.imshow(height_map, cmap='inferno_r')
-            plt.figure()
-            plt.imshow(depth_boundaries, cmap='Greys_r')
+            # Sparse Supervision
+            sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height)
+
+             # Crop side regions where depth data is missing
+            image, depth_map, depth_boundaries, height_map, sparse_supervision= \
+                cropData(image, depth_map, depth_boundaries, height_map, sparse_supervision)
+                        
+            # Save files
+            # RGB Image as PNG
+            image_save_path = root_save_path + '/image/' + str(index) + '.png'
+            image.save(image_save_path, "PNG")
+
+            # Depth map as binary file in .npy format
+            depth_save_path = root_save_path + '/depth/' + str(index) + '.npy'
+            np.save(depth_save_path, depth_map)
+
+            # Height map as binary file in .npy format
+            height_save_path = root_save_path + '/height/' + str(index) + '.npy'
+            np.save(height_save_path, height_map)
+
+            # Sparse supervision map as binary file in .npy format
+            supervision_save_path = root_save_path + '/supervision/' + str(index) + '.npy'
+            np.save(supervision_save_path, sparse_supervision)
+
+            # Boundary mask as PNG
+            boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
+            boundary_mask = Image.fromarray(depth_boundaries)
+            boundary_mask.save(boundary_save_path, "PNG")
+
+            # Height map plot for data auditing purposes
+            height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
+            plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
+
+        print('----- Processing complete -----')    
 
 if __name__ == '__main__':
     main()
