@@ -3,7 +3,6 @@
 import pathlib
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
 import json
 import sys
 sys.path.append('../../../')
