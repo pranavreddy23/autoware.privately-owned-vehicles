@@ -104,7 +104,7 @@ def main():
     
     # Filepaths for data loading and saving
     root_data_path = '/mnt/media/Argoverse/'
-    root_save_path = '/mnt/media/SuperDepth/Argoverse/'
+    root_save_path = '/mnt/media/SuperDepth/Argoverse'
 
     # Paths to read ground truth depth and input images from training data
     depth_filepath = root_data_path + 'disparity_maps_v1.1/'
