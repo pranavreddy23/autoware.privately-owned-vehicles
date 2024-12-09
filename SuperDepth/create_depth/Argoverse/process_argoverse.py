@@ -3,6 +3,7 @@
 import pathlib
 import numpy as np
 from PIL import Image
+import matplotlib.pyplot as plt
 import json
 import sys
 sys.path.append('../../../')
@@ -188,25 +189,29 @@ def main():
 
             # Save files
             # RGB Image as PNG
-            image_save_path = root_save_path + '/image/' + str(counter) + '.png'
-            image_left.save(image_save_path, "PNG")
+            #image_save_path = root_save_path + '/image/' + str(counter) + '.png'
+            #image_left.save(image_save_path, "PNG")
 
             # Depth map as binary file in .npy format
-            depth_save_path = root_save_path + '/depth/' + str(counter) + '.npy'
-            np.save(depth_save_path, depth_map)
+            #depth_save_path = root_save_path + '/depth/' + str(counter) + '.npy'
+            #np.save(depth_save_path, depth_map)
 
             # Height map as binary file in .npy format
-            height_save_path = root_save_path + '/height/' + str(counter) + '.npy'
-            np.save(height_save_path, height_map)
+            #height_save_path = root_save_path + '/height/' + str(counter) + '.npy'
+            #np.save(height_save_path, height_map)
 
             # Sparse supervision map as binary file in .npy format
-            supervision_save_path = root_save_path + '/supervision/' + str(counter) + '.npy'
-            np.save(supervision_save_path, sparse_supervision)
+            #supervision_save_path = root_save_path + '/supervision/' + str(counter) + '.npy'
+            #np.save(supervision_save_path, sparse_supervision)
 
             # Boundary mask as PNG
-            boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
-            boundary_mask = Image.fromarray(depth_boundaries)
-            boundary_mask.save(boundary_save_path, "PNG")
+            #boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
+            #boundary_mask = Image.fromarray(depth_boundaries)
+            #boundary_mask.save(boundary_save_path, "PNG")
+
+            # Height map plot for data auditing purposes
+            height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
+            plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
             
             counter += 1
 
