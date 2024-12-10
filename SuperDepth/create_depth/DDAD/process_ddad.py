@@ -37,8 +37,9 @@ def quaternion_rotation_matrix(q0, q1, q2, q3):
 def parseCalib(calib_files):
     
     calib_logs = []
-    world_to_cam_projections = []
-    cam_to_image_projections = []
+    world_to_image_transforms = []
+    focal_lengths = []
+    cy_vals = []
 
 
     for i in range (0, len(calib_files)):
@@ -66,19 +67,17 @@ def parseCalib(calib_files):
             # Convert from quaternion to rotation matrix
             camera_rotation_matrix = quaternion_rotation_matrix(q0, q1, q2, q3)
             
-            # Include translation compontent
+            # Include translation compontent to get final 3x4 matrix
             world_to_camera_projection_matrix = camera_rotation_matrix
             world_to_camera_projection_matrix[0].append(camera_translation['x'])
             world_to_camera_projection_matrix[1].append(camera_translation['y'])
             world_to_camera_projection_matrix[2].append(camera_translation['z'])
 
-            # Append to list
-            world_to_cam_projections.append(world_to_camera_projection_matrix)
-
             # Get camera to image projection matrix
             camera_to_image_projection_matrix = []
             camera_intrinsic_row = []
 
+            # Contstruct matrix
             camera_intrinsic_row.append(camera_intrinsic['fx'])
             camera_intrinsic_row.append(camera_intrinsic['skew'])
             camera_intrinsic_row.append(camera_intrinsic['cx'])
@@ -96,10 +95,17 @@ def parseCalib(calib_files):
             camera_intrinsic_row.append(1.0)
             camera_to_image_projection_matrix.append(camera_intrinsic_row.copy())
 
-            # Append to list
-            cam_to_image_projections.append(camera_to_image_projection_matrix)
+            # Get world to image matrix
+            world_to_cam_np = np.array(world_to_camera_projection_matrix)
+            cam_to_image_np = np.array(camera_to_image_projection_matrix)
+            world_to_image_transform = np.matmul(cam_to_image_np, world_to_cam_np)
 
-    return calib_logs, world_to_cam_projections, cam_to_image_projections
+            # Append to list
+            world_to_image_transforms.append(world_to_image_transform)
+            focal_lengths.append(camera_intrinsic['fy'])
+            cy_vals.append(camera_intrinsic['cy'])
+
+    return calib_logs, world_to_image_transforms, focal_lengths, cy_vals
 
 def main():
     
@@ -122,10 +128,10 @@ def main():
     if(check_passed):
         print('Beginning processing of data')
 
-        calib_logs, world_to_cam_projections, cam_to_image_projections = \
+        calib_logs, world_to_image_transforms, focal_lengths, cy_vals = \
             parseCalib(calib_files)
         
-        print(calib_logs[0], world_to_cam_projections[0], cam_to_image_projections[0])
+        print(calib_logs[0], world_to_image_transforms[0], focal_lengths[0], cy_vals[0])
 
 if __name__ == '__main__':
     main()
