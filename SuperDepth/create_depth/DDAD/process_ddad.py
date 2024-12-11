@@ -1,7 +1,7 @@
 #%%
 import pathlib
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
 import json
 import sys
@@ -11,7 +11,7 @@ from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
 from SuperDepth.create_depth.common.height_map import HeightMap
 
 def quaternion_rotation_matrix(q0, q1, q2, q3):
-
+    
     # First row of the rotation matrix
     r00 = 2 * (q0 * q0 + q1 * q1) - 1
     r01 = 2 * (q1 * q2 - q0 * q3)
@@ -31,7 +31,7 @@ def quaternion_rotation_matrix(q0, q1, q2, q3):
     rot_matrix = [[r00, r01, r02],
                   [r10, r11, r12],
                   [r20, r21, r22]]
-                            
+                     
     return rot_matrix
 
 def parseCalib(calib_files):
@@ -69,9 +69,9 @@ def parseCalib(calib_files):
             
             # Include translation compontent to get final 3x4 matrix
             world_to_camera_projection_matrix = camera_rotation_matrix
-            world_to_camera_projection_matrix[0].append(camera_translation['x'])
-            world_to_camera_projection_matrix[1].append(camera_translation['y'])
-            world_to_camera_projection_matrix[2].append(camera_translation['z'])
+            world_to_camera_projection_matrix[0].append(-1*camera_translation['x'])
+            world_to_camera_projection_matrix[1].append(-1*camera_translation['y'])
+            world_to_camera_projection_matrix[2].append(-1*camera_translation['z'])
 
             # Get camera to image projection matrix
             camera_to_image_projection_matrix = []
@@ -98,7 +98,9 @@ def parseCalib(calib_files):
             # Get world to image matrix
             world_to_cam_np = np.array(world_to_camera_projection_matrix)
             cam_to_image_np = np.array(camera_to_image_projection_matrix)
-            world_to_image_transform = np.matmul(cam_to_image_np, world_to_cam_np)
+            world_to_image_transform = cam_to_image_np.dot(world_to_cam_np)
+            #world_to_image_transform = np.matmul(cam_to_image_np, world_to_cam_np)
+            
 
             # Append to list
             world_to_image_transforms.append(world_to_image_transform)
@@ -106,6 +108,32 @@ def parseCalib(calib_files):
             cy_vals.append(camera_intrinsic['cy'])
 
     return calib_logs, world_to_image_transforms, focal_lengths, cy_vals
+
+def projectPoincloudToImage(image, pointcloud, world_to_image_transform, img_height, img_width):
+    
+    draw = ImageDraw.Draw(image)
+
+    for i in range(0, len(pointcloud)):
+        pointcloud_point = []
+        pointcloud_point.append(pointcloud[i][0])
+        pointcloud_point.append(pointcloud[i][1])
+        pointcloud_point.append(pointcloud[i][2])
+        pointcloud_point.append(1.0)
+
+        world_point = np.array(pointcloud_point)
+        
+        scaled_image_point = world_to_image_transform.dot(world_point)
+        image_projection_x = scaled_image_point[0]/scaled_image_point[2] 
+        image_projection_y = scaled_image_point[1]/scaled_image_point[2]
+
+        if(image_projection_x >= 0 and image_projection_x < img_height):
+            if(image_projection_y >= 0 and image_projection_y < img_width):
+               
+               if(world_point[2] > 0):
+                    x_val = round(image_projection_x)
+                    y_val = round(image_projection_y)
+                    draw.ellipse((y_val-5, x_val-5, y_val+5, x_val+5), fill=(255, 125, 0))
+               
 
 def main():
     
@@ -131,7 +159,35 @@ def main():
         calib_logs, world_to_image_transforms, focal_lengths, cy_vals = \
             parseCalib(calib_files)
         
-        print(calib_logs[0], world_to_image_transforms[0], focal_lengths[0], cy_vals[0])
+        
+        # Height map limits
+        max_height = 7
+        min_height = -5
+
+        # Camera height above ground
+        camera_height = 0
+
+        # Looping through data 
+        for index in range(20, 21):
+            
+            # Image
+            image = Image.open(str(images[index]))
+            img_width, img_height = image.size
+
+            # Pointcloud
+            pointcloud = np.load(str(depth_maps[index]))['data']
+
+            print(str(depth_maps[index]), str(images[index]))
+
+            # Data log and its index
+            data_log = str(images[index])[26:32]
+            log_index = calib_logs.index(data_log)
+            
+            # Projection of pointlcoud point to image coordinates       
+            projectPoincloudToImage(image, pointcloud, world_to_image_transforms[log_index], img_height, img_width)
+            
+            plt.figure()
+            plt.imshow(image)
 
 if __name__ == '__main__':
     main()
