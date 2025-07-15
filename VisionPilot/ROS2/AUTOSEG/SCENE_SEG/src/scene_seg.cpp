@@ -49,9 +49,10 @@ void SceneSeg::initializeOrtSession(const std::string& model_path, const std::st
 
 void SceneSeg::createColorMap()
 {
+  // Set all non-foreground classes to black to only highlight the foreground.
   color_map_.push_back(cv::Vec3b(0, 0, 0));       // BG: Black
   color_map_.push_back(cv::Vec3b(0, 0, 255));     // FG: Red
-  color_map_.push_back(cv::Vec3b(255, 0, 0));     // Road: Blue
+  color_map_.push_back(cv::Vec3b(0, 0, 0));     // Road: Black (was Blue)
 }
 
 void SceneSeg::preprocess(const cv::Mat & input_image, std::vector<float> & output_tensor, std::vector<int64_t>& input_dims)
