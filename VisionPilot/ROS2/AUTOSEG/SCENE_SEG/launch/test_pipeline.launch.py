@@ -35,7 +35,7 @@ def generate_launch_description():
         arguments=[
             LaunchConfiguration("video_path"), # video_path
             "/in/image",                       # topic_name
-            "10.0"                             # frame_rate
+            "20.0"                             # frame_rate
         ],
     )
 

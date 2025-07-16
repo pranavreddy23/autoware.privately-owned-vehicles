@@ -10,7 +10,7 @@ import sys
 class VideoPublisherNode(Node):
     def __init__(self, video_path, topic_name, frame_rate):
         super().__init__('video_publisher_node')
-        self.publisher_ = self.create_publisher(Image, topic_name, 10)
+        self.publisher_ = self.create_publisher(Image, topic_name, 20)
         self.bridge = CvBridge()
         self.video_capture = cv2.VideoCapture(video_path)
         
@@ -41,7 +41,7 @@ def main(args=None):
     # A more robust solution would use declare_parameter if this were a Component.
     video_path_arg = sys.argv[1] if len(sys.argv) > 1 else 'input.mp4'
     topic_name_arg = sys.argv[2] if len(sys.argv) > 2 else '/in/image'
-    frame_rate_arg = float(sys.argv[3]) if len(sys.argv) > 3 else 10.0
+    frame_rate_arg = float(sys.argv[3]) if len(sys.argv) > 3 else 20.0
 
     video_publisher_node = VideoPublisherNode(video_path_arg, topic_name_arg, frame_rate_arg)
     
