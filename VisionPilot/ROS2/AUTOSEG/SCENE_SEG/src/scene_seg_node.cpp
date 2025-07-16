@@ -32,9 +32,15 @@ void SceneSegNode::onConnect()
   if (mask_pub_.getNumSubscribers() == 0 && color_mask_pub_.getNumSubscribers() == 0) {
     image_sub_.shutdown();
   } else if (!image_sub_) {
+    // Define a QoS profile that prioritizes freshness over reliability
+    rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
+    qos_profile.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+    qos_profile.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+    qos_profile.depth = 1;
+
     image_sub_ = image_transport::create_subscription(
       this, "~/in/image", std::bind(&SceneSegNode::onImage, this, std::placeholders::_1), "raw",
-      rmw_qos_profile_sensor_data);
+      qos_profile);
   }
 }
 
@@ -48,10 +54,24 @@ void SceneSegNode::onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg)
     return;
   }
   
+  // Ultra-lightweight latency monitoring - only measure occasionally
+  bool measure_latency = (++frame_count_ % LATENCY_SAMPLE_INTERVAL == 0);
+  if (measure_latency) {
+    inference_start_time_ = std::chrono::steady_clock::now();
+  }
+  
   // Run inference
   if (!scene_seg_->doInference(in_image_ptr->image)) {
     RCLCPP_WARN(this->get_logger(), "Failed to run inference");
     return;
+  }
+  
+  // Report latency only occasionally (minimal overhead)
+  if (measure_latency) {
+    auto inference_end_time = std::chrono::steady_clock::now();
+    auto latency_ms = std::chrono::duration<double, std::milli>(inference_end_time - inference_start_time_).count();
+    RCLCPP_INFO(this->get_logger(), "Frame %zu: Inference=%.1fms (%.1f FPS)", 
+                frame_count_, latency_ms, 1000.0/latency_ms);
   }
   
   // Decide whether we need to generate any masks

@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <chrono>
 
 #include <image_transport/image_transport.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -40,6 +41,11 @@ private:
 
   // Timer to check for connections
   rclcpp::TimerBase::SharedPtr timer_;
+
+  // Lightweight latency monitoring (minimal overhead)
+  std::chrono::steady_clock::time_point inference_start_time_;
+  size_t frame_count_{0};
+  static constexpr size_t LATENCY_SAMPLE_INTERVAL = 200; // Only measure every 200th frame
 
 //   // Debugging utilities
 //   std::unique_ptr<autoware_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_;

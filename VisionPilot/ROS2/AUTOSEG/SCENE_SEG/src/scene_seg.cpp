@@ -52,7 +52,7 @@ void SceneSeg::createColorMap()
   // Set all non-foreground classes to black to only highlight the foreground.
   color_map_.push_back(cv::Vec3b(0, 0, 0));       // BG: Black
   color_map_.push_back(cv::Vec3b(0, 0, 255));     // FG: Red
-  color_map_.push_back(cv::Vec3b(0, 0, 0));     // Road: Black (was Blue)
+  color_map_.push_back(cv::Vec3b(0, 0, 0));       // Road: Black (was Blue)
 }
 
 void SceneSeg::preprocess(const cv::Mat & input_image, std::vector<float> & output_tensor, std::vector<int64_t>& input_dims)
@@ -108,31 +108,46 @@ void SceneSeg::getRawMask(cv::Mat & raw_mask, const cv::Size & output_size) cons
     const int height = static_cast<int>(output_dims[2]);
     const int width = static_cast<int>(output_dims[3]);
 
+    // Create argmax mask manually since cv::reduce doesn't work with 3D tensors
     cv::Mat argmax_mask(height, width, CV_8UC1);
+    
+    // Process each spatial location to find the class with maximum score
     for (int h = 0; h < height; ++h) {
         for (int w = 0; w < width; ++w) {
-            int max_idx = 0;
-            float max_val = -std::numeric_limits<float>::infinity();
+            float max_score = -std::numeric_limits<float>::infinity();
+            uint8_t best_class = 0;
+            
             for (int c = 0; c < num_classes; ++c) {
-                const float val = output_data[c * (height * width) + h * width + w];
-                if (val > max_val) {
-                    max_val = val;
-                    max_idx = c;
+                // NCHW format: output_data[c * height * width + h * width + w]
+                float score = output_data[c * height * width + h * width + w];
+                if (score > max_score) {
+                    max_score = score;
+                    best_class = static_cast<uint8_t>(c);
                 }
             }
-            argmax_mask.at<uchar>(h, w) = static_cast<uchar>(max_idx);
+            
+            argmax_mask.at<uint8_t>(h, w) = best_class;
         }
     }
+    
     cv::resize(argmax_mask, raw_mask, output_size, 0, 0, cv::INTER_NEAREST);
 }
 
 void SceneSeg::colorizeMask(const cv::Mat & raw_mask, const cv::Mat & original_image, cv::Mat & blended_image) const
 {
-    // First, create the BGR color mask from the single-channel raw_mask
-    cv::Mat color_mask(raw_mask.size(), CV_8UC3);
+    cv::Mat color_mask(raw_mask.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+    
+    // Simple and fast colorization - only color foreground pixels
     for (int y = 0; y < raw_mask.rows; ++y) {
+        const uint8_t* mask_row = raw_mask.ptr<uint8_t>(y);
+        cv::Vec3b* color_row = color_mask.ptr<cv::Vec3b>(y);
+        
         for (int x = 0; x < raw_mask.cols; ++x) {
-            color_mask.at<cv::Vec3b>(y, x) = color_map_[raw_mask.at<uchar>(y, x)];
+            uint8_t class_id = mask_row[x];
+            if (class_id == 1) {  // Only color foreground class
+                color_row[x] = cv::Vec3b(0, 0, 255);  // Red for foreground
+            }
+            // All other classes remain black (already initialized to 0,0,0)
         }
     }
 
