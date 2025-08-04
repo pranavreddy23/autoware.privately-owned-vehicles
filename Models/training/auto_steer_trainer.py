@@ -2,12 +2,9 @@
 
 import torch
 from torchvision import transforms
-from torch import nn, optim
+from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-import math
-import cv2
-from PIL import Image
 import numpy as np
 from typing import Literal, get_args
 import sys
@@ -23,60 +20,50 @@ class AutoSteerTrainer():
         checkpoint_path = ""
     ):
         
-        # Images and gts
-        self.orig_image = None
-        self.image = None
-        self.H = None
-        self.W = None
-        self.drivable_path_bev = []
-        self.drivable_path = []
-        self.ego_left_lane_bev = []
-        self.ego_left_lane = []
-        self.ego_right_lane_bev = []
-        self.ego_right_lane = []
+        # Initializing Data
+        self.homotrans_mat = None
+        self.bev_image = None
+        self.perspective_image = None
+        self.bev_egopath = None
+        self.bev_egoleft = None
+        self.bev_egoright = None
+        self.reproj_egopath = None
+        self.reproj_egoleft = None
+        self.reproj_egoright = None
+        self.perspective_H = None
+        self.perspective_W = None
+        self.BEV_H = None
+        self.BEV_W = None
 
-        # Dims
-        self.height = 640
-        self.width = 320
+        # Initializing BEV to Image transformation matrix
+        self.homotrans_mat_tensor = None
 
-        # Tensors
-        self.image_tensor = None
-        self.xs_tensor = []
-        self.valids_tensor = []
+        # Initializing BEV Image tensor
+        self.bev_image_tensor = None
 
-        # Model and pred
-        self.model = None
-        self.pred_ego_path = None
-        self.pred_ego_left_lane = None
-        self.pred_ego_right_lane = None
+        # Initializing Ground Truth Tensors
+        self.gt_bev_egopath_tensor = None
+        self.gt_bev_egoleft_lane_tensor = None
+        self.gt_bev_egoright_lane_tensor = None
+        self.gt_reproj_egopath_tensor = None
+        self.gt_reproj_egoleft_lane_tensor = None
+        self.gt_reproj_egoright_lane_tensor = None
+
+        # Model predictions
+        self.pred_bev_ego_path_tensor = None
+        self.pred_bev_egoleft_lane_tensor = None
+        self.pred_bev_egoright_lane_tensor = None
 
         # Losses
-        self.loss = 0
-        self.data_loss = 0
-        self.smoothing_loss = 0
-        self.flag_loss = 0
-        self.gradient_type = "NUMERICAL"
-
-        # Loss scale factors
-        self.data_loss_bev_scale_factor = 1.0
-        self.smoothing_loss_bev_scale_factor = 1.0
-        self.data_loss_scale_factor = 1.0
-        self.smoothing_loss_scale_factor = 1.0
-        self.ego_path_loss_scale_factor = 1.0
-        self.ego_lanes_loss_scale_factor = 1.0
+        self.BEV_loss = None
+        self.reprojected_loss = None
+        self.total_loss = None
 
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
 
         # Currently limiting to available datasets only. Will unlock eventually
-        self.VALID_DATASET_LITERALS = Literal[
-            # "BDD100K",
-            # "COMMA2K19",
-            # "CULANE",
-            "CURVELANES",
-            # "ROADWORK",
-            # "TUSIMPLE"
-        ]
+        self.VALID_DATASET_LITERALS = Literal["TUSIMPLE"]
         self.VALID_DATASET_LIST = list(get_args(self.VALID_DATASET_LITERALS))
 
         # Checking devices (GPU vs CPU)
@@ -88,21 +75,21 @@ class AutoSteerTrainer():
 
         # Instantiate model
         self.model = AutoSteerNetwork()
-            
-        if(len(checkpoint_path) > 0):
-            self.model.load_state_dict(torch.load \
-                (checkpoint_path, weights_only=True))
-            print("Loading trained AutoSteer model from checkpoint")
         
+        if(checkpoint_path):
+            print("Loading trained AutoSteer model from checkpoint")
+            self.model.load_state_dict(torch.load \
+                (checkpoint_path, weights_only = True))  
+        else:
+            print("Loading vanilla AutoSteer model for training")
+            
         self.model = self.model.to(self.device)
-        print("Loading vanilla AutoSteer model for training")
-
         
         # TensorBoard
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.0005
+        self.learning_rate = 0.0001
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -113,7 +100,6 @@ class AutoSteerTrainer():
             ]
         )
 
-    
     # Zero gradient
     def zero_grad(self):
         self.optimizer.zero_grad()
@@ -121,40 +107,23 @@ class AutoSteerTrainer():
     # Learning rate adjustment
     def set_learning_rate(self, learning_rate):
         self.learning_rate = learning_rate
-
-    # Set scale factors for losses
-    def set_loss_scale_factors(
-        self,
-        data_loss_bev_scale_factor,
-        smoothing_loss_bev_scale_factor,
-        data_loss_scale_factor,
-        smoothing_loss_scale_factor,
-        ego_path_loss_scale_factor,
-        ego_lanes_loss_scale_factor
-    ):
-        self.data_loss_bev_scale_factor = data_loss_bev_scale_factor
-        self.smoothing_loss_bev_scale_factor = smoothing_loss_bev_scale_factor
-        self.data_loss_scale_factor = data_loss_scale_factor
-        self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
-        self.ego_path_loss_scale_factor = ego_path_loss_scale_factor
-        self.ego_lanes_loss_scale_factor = ego_lanes_loss_scale_factor
-
-    # Assign input variables
-    def set_data(self, orig_image, image, drivable_path_bev, drivable_path, \
-                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
-                ego_right_lane):
         
-        self.orig_image = orig_image
-        h, w, _ = image.shape
-        self.image = image
-        self.H = h
-        self.W = w
-        self.drivable_path_bev = np.array(drivable_path_bev, dtype = "float32")
-        self.drivable_path = np.array(drivable_path, dtype = "float32")
-        self.ego_left_lane_bev = np.array(ego_left_lane_bev, dtype = "float32")
-        self.ego_left_lane = np.array(ego_left_lane, dtype = "float32")
-        self.ego_right_lane_bev = np.array(ego_right_lane_bev, dtype = "float32")
-        self.ego_right_lane = np.array(ego_right_lane, dtype = "float32")
+    # Assign input variables
+    def set_data(self, homotrans_mat, bev_image, perspective_image, \
+                bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
+                reproj_egoleft, reproj_egoright):
+
+        self.homotrans_mat = np.array(homotrans_mat, dtype = "float32")
+        self.bev_image = np.array(bev_image)
+        self.perspective_image = np.array(perspective_image)
+        self.bev_egopath = np.array(bev_egopath, dtype = "float32").transpose()
+        self.bev_egoleft = np.array(bev_egoleft, dtype = "float32").transpose()
+        self.bev_egoright = np.array(bev_egoright, dtype = "float32").transpose()
+        self.reproj_egopath = np.array(reproj_egopath, dtype = "float32").transpose()
+        self.reproj_egoleft = np.array(reproj_egoleft, dtype = "float32").transpose()
+        self.reproj_egoright = np.array(reproj_egoright, dtype = "float32").transpose()
+        self.perspective_H, self.perspective_W, _ = self.perspective_image.shape
+        self.BEV_H, self.BEV_W, _ = self.bev_image.shape
 
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -163,106 +132,318 @@ class AutoSteerTrainer():
             is_train = is_train, 
             data_type = "KEYPOINTS"
         )
-        aug.setImage(self.image)
-        self.image = aug.applyTransformKeypoint(self.image)
+        aug.setImage(self.bev_image)
+        self.bev_image = aug.applyTransformKeypoint(self.bev_image)
 
     # Load data as Pytorch tensors
     def load_data(self):
-        # Converting image to Pytorch tensor
-        image_tensor = self.image_loader(self.image)
-        image_tensor = image_tensor.unsqueeze(0)
-        self.image_tensor = image_tensor.to(self.device)
 
-        # Converting gt lists to Pytorch Tensor
-        # Xs
-        xs_tensor = torch.from_numpy(self.xs)
-        xs_tensor = xs_tensor.unsqueeze(0)
-        self.xs_tensor = xs_tensor.to(self.device)
+        # BEV to Image matrix
+        homotrans_mat_tensor = torch.from_numpy(self.homotrans_mat)
+        homotrans_mat_tensor = homotrans_mat_tensor.type(torch.FloatTensor)
+        self.homotrans_mat_tensor = homotrans_mat_tensor.to(self.device)
 
-        # Valids
-        valids_tensor = torch.from_numpy(self.valids)
-        valids_tensor = valids_tensor.unsqueeze(0)
-        self.valids_tensor = valids_tensor.to(self.device)
+        # BEV Image
+        bev_image_tensor = self.image_loader(self.bev_image)
+        bev_image_tensor = bev_image_tensor.unsqueeze(0)
+        self.bev_image_tensor = bev_image_tensor.to(self.device)
+
+        # BEV Egopath
+        bev_egopath_tensor = torch.from_numpy(self.bev_egopath)
+        bev_egopath_tensor = bev_egopath_tensor.type(torch.FloatTensor)
+        self.gt_bev_egopath_tensor = bev_egopath_tensor.to(self.device)
+
+        # BEV Egoleft Lane
+        bev_egoleft_lane_tensor = torch.from_numpy(self.bev_egoleft)
+        bev_egoleft_lane_tensor = bev_egoleft_lane_tensor.type(torch.FloatTensor)
+        self.gt_bev_egoleft_lane_tensor = bev_egoleft_lane_tensor.to(self.device)
+
+        # BEV Egoright Lane
+        bev_egoright_lane_tensor = torch.from_numpy(self.bev_egoright)
+        bev_egoright_lane_tensor = bev_egoright_lane_tensor.type(torch.FloatTensor)
+        self.gt_bev_egoright_lane_tensor = bev_egoright_lane_tensor.to(self.device)
+        
+        # Reprojected Egopath
+        reproj_egopath_tensor = torch.from_numpy(self.reproj_egopath)
+        reproj_egopath_tensor = reproj_egopath_tensor.type(torch.FloatTensor)
+        self.gt_reproj_egopath_tensor = reproj_egopath_tensor.to(self.device)
+
+        # Reprojected Egoleft Lane
+        reproj_egoleft_lane_tensor = torch.from_numpy(self.reproj_egoleft)
+        reproj_egoleft_lane_tensor = reproj_egoleft_lane_tensor.type(torch.FloatTensor)
+        self.gt_reproj_egoleft_lane_tensor = reproj_egoleft_lane_tensor.to(self.device)
+
+        # Reprojected Egoright Lane
+        reproj_egoright_lane_tensor = torch.from_numpy(self.reproj_egoright)
+        reproj_egoright_lane_tensor = reproj_egoright_lane_tensor.type(torch.FloatTensor)
+        self.gt_reproj_egoright_lane_tensor = reproj_egoright_lane_tensor.to(self.device)
     
     # Run Model
     def run_model(self):
-        self.pred_xs = self.model(self.image_tensor)
-        self.pred_ego_path, self.pred_ego_left_lane, \
-            self.pred_ego_right_lane = self.model(self.image_tensor)
+        self.pred_bev_ego_path_tensor, self.pred_bev_egoleft_lane_tensor, \
+            self.pred_bev_egoright_lane_tensor = self.model(self.bev_image_tensor)
+
+        # BEV Loss
+        BEV_data_loss_driving_corridor = self.calc_BEV_data_loss_driving_corridor()
+        BEV_gradient_loss_driving_corridor = self.calc_BEV_gradient_loss_driving_corridor()
+
+        self.BEV_loss = BEV_data_loss_driving_corridor + \
+            BEV_gradient_loss_driving_corridor
+   
+        # Reprojected Loss
+        reprojected_data_loss_driving_corridor = self.calc_reprojected_data_loss_driving_corridor()
+        reprojected_gradient_loss_driving_corridor = self.calc_reprojected_gradient_loss_driving_corridor()
+
+        self.reprojected_loss = reprojected_data_loss_driving_corridor + \
+            reprojected_gradient_loss_driving_corridor
+
+        # Total Loss
+        self.total_loss = self.BEV_loss + self.reprojected_loss
+
+    # BEV Data Loss for the entire driving corridor
+    def calc_BEV_data_loss_driving_corridor(self):
+
+        BEV_egopath_data_loss = \
+            self.calc_BEV_data_loss(self.gt_bev_egopath_tensor, self.pred_bev_ego_path_tensor)
+
+        BEV_egoleft_lane_data_loss = \
+            self.calc_BEV_data_loss(self.gt_bev_egoleft_lane_tensor, self.pred_bev_egoleft_lane_tensor)
+   
+        BEV_egoright_lane_data_loss = \
+            self.calc_BEV_data_loss(self.gt_bev_egoright_lane_tensor, self.pred_bev_egoright_lane_tensor)
+
+
+        BEV_data_loss_driving_corridor = BEV_egopath_data_loss +  \
+            BEV_egoleft_lane_data_loss + BEV_egoright_lane_data_loss
         
-        #self.loss = self.calc_loss(
-        #    self.pred_xs, 
-        #    self.xs_tensor,
-        #    self.valids_tensor
-        #)
-
-    # Calculate loss
-    def calc_loss(self, pred_xs, xs, valids):
-        self.data_loss = self.calc_data_loss(pred_xs, xs, valids)
-        self.smoothing_loss = self.calc_smoothing_loss(pred_xs, xs, valids)
-
-        total_loss = (
-            self.data_loss * self.data_loss_scale_factor + \
-            self.smoothing_loss * self.smoothing_loss_scale_factor
-        )
-
-        return total_loss 
+        return BEV_data_loss_driving_corridor
     
+    # BEV Gradient Loss for the entire driving corridor
+    def calc_BEV_gradient_loss_driving_corridor(self):
 
-    # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
-    def set_gradient_loss_type(self, type):
-        if (type == "NUMERICAL"):
-            self.gradient_type = "NUMERICAL"
-        elif(type == "ANALYTICAL"):
-            self.gradient_type = "ANALYTICAL"
-        else:
-            raise ValueError("Please specify either NUMERICAL or ANALYTICAL gradient loss as a string")
+        BEV_egopath_gradient_loss = \
+            self.calc_BEV_graient_loss(self.gt_bev_egopath_tensor, 
+                                       self.pred_bev_ego_path_tensor)
+
+        BEV_egoleft_lane_gradient_loss = \
+            self.calc_BEV_graient_loss(self.gt_bev_egoleft_lane_tensor, 
+                                       self.pred_bev_egoleft_lane_tensor)
+   
+        BEV_egoright_lane_gradient_loss = \
+            self.calc_BEV_graient_loss(self.gt_bev_egoright_lane_tensor, 
+                                       self.pred_bev_egoright_lane_tensor)
+
+
+        BEV_gradient_loss_driving_corridor = BEV_egopath_gradient_loss +  \
+            BEV_egoleft_lane_gradient_loss + BEV_egoright_lane_gradient_loss
         
-    # Data loss - MAE between x-point GTs and preds
-    def calc_data_loss(self, pred_xs, gt_xs, valids):
-        num_valids = torch.sum(valids)
-        loss = torch.sum(torch.abs(pred_xs * valids - gt_xs * valids)) / num_valids
-        return loss
-
-    # Smoothing loss - MAE between gradient angle (tangent angle) of point pairs between GTs and preds
-    def calc_smoothing_loss(self, pred_xs, gt_xs, valids):
-        pred_xs_valids = pred_xs * valids
-        gt_xs_valids = gt_xs * valids
-        pred_gradients = pred_xs_valids[0][1 : ] - pred_xs_valids[0][ : -1]
-        gt_gradients = gt_xs_valids[0][1 : ] - gt_xs_valids[0][ : -1]
-
-        num_valids = torch.sum(valids)
-        loss = torch.sum(torch.abs(pred_gradients - gt_gradients)) / num_valids
-
-        return loss
+        return BEV_gradient_loss_driving_corridor
     
+    # Reprojected Data Loss for the entire driving corridor
+    def calc_reprojected_data_loss_driving_corridor(self):
+
+        reprojected_ego_path_data_loss =  \
+            self.calc_reprojected_data_loss(self.gt_reproj_egopath_tensor, 
+                                            self.gt_bev_egopath_tensor, 
+                                            self.pred_bev_ego_path_tensor)
+        
+        reprojected_egoleft_lane_data_loss =  \
+            self.calc_reprojected_data_loss(self.gt_reproj_egoleft_lane_tensor, 
+                                            self.gt_bev_egoleft_lane_tensor, 
+                                            self.pred_bev_egoleft_lane_tensor)
+        
+        reprojected_egoright_lane_data_loss =  \
+            self.calc_reprojected_data_loss(self.gt_reproj_egoright_lane_tensor, 
+                                            self.gt_bev_egoright_lane_tensor, 
+                                            self.pred_bev_egoright_lane_tensor)
+
+        reprojected_data_loss_driving_corridor = reprojected_ego_path_data_loss + \
+            reprojected_egoleft_lane_data_loss + reprojected_egoright_lane_data_loss
+        
+        return reprojected_data_loss_driving_corridor
+    
+    # Reprojected Gradient Loss for the entire driving corridor
+    def calc_reprojected_gradient_loss_driving_corridor(self):
+
+        reprojected_ego_path_gradient_loss =  \
+            self.calc_reprojected_gradient_loss(self.gt_reproj_egopath_tensor, 
+                                            self.gt_bev_egopath_tensor, 
+                                            self.pred_bev_ego_path_tensor)
+        
+        reprojected_egoleft_lane_gradient_loss =  \
+            self.calc_reprojected_gradient_loss(self.gt_reproj_egoleft_lane_tensor, 
+                                            self.gt_bev_egoleft_lane_tensor, 
+                                            self.pred_bev_egoleft_lane_tensor)
+        
+        reprojected_egoright_lane_gradient_loss =  \
+            self.calc_reprojected_gradient_loss(self.gt_reproj_egoright_lane_tensor, 
+                                            self.gt_bev_egoright_lane_tensor, 
+                                            self.pred_bev_egoright_lane_tensor)
+
+        reprojected_gradient_loss_driving_corridor = reprojected_ego_path_gradient_loss + \
+            reprojected_egoleft_lane_gradient_loss + reprojected_egoright_lane_gradient_loss
+        
+        return reprojected_gradient_loss_driving_corridor
+    
+    # BEV Data Loss for a single lane/path element
+    # Mean absolute error on predictions
+    def calc_BEV_data_loss(self, gt_tensor, pred_tensor):
+
+        gt_tensor_x_vals = gt_tensor[0,:]
+        pred_tensor_x_vals = pred_tensor[0]
+
+        data_error_sum = 0
+        num_valid_samples = 0
+
+        for i in range(0, len(gt_tensor_x_vals)):
+                
+            error = torch.abs(gt_tensor_x_vals[i] - pred_tensor_x_vals[i])
+            data_error_sum = data_error_sum + error
+            num_valid_samples = num_valid_samples + 1
+
+        bev_data_loss = data_error_sum/num_valid_samples
+
+        return bev_data_loss
+    
+    # BEV gradient loss for a single lane/path element
+    # Sum of finite difference gradients
+    def calc_BEV_graient_loss(self, gt_tensor, pred_tensor):
+
+        gt_tensor_x_vals = gt_tensor[0,:]
+        pred_tensor_x_vals = pred_tensor[0]
+
+        bev_gradient_loss = 0
+
+        for i in range(0, len(gt_tensor_x_vals) - 1):
+
+            gt_gradient = gt_tensor_x_vals[i+1] - gt_tensor_x_vals[i]
+            pred_gradient = pred_tensor_x_vals[i+1] - pred_tensor_x_vals[i]
+
+            error = torch.abs(gt_gradient - pred_gradient)
+            bev_gradient_loss = bev_gradient_loss + error
+
+        return bev_gradient_loss
+    
+    # Reprojected Data Loss for a single lane/path element
+    # Mean absolute error on predictions
+    def calc_reprojected_data_loss(self, gt_reprojected_tesnor, gt_tensor, pred_tensor):
+
+        prediction_reprojected, _ = \
+            self.getPerspectivePointsFromBEV(gt_tensor, pred_tensor)
+        
+        gt_tensor_x_vals = gt_tensor[0,:]
+        gt_reprojected_tensor_x_vals = gt_reprojected_tesnor[0,:]
+        gt_reprojected_tensor_y_vals = gt_reprojected_tesnor[1,:]
+
+        data_error_sum = 0
+        num_valid_samples = 0
+
+        for i in range(0, len(gt_tensor_x_vals)):
+
+            gt_reprojected_x = gt_reprojected_tensor_x_vals[i]
+            prediction_reprojected_x = prediction_reprojected[i][0]
+            
+            gt_reprojected_y = gt_reprojected_tensor_y_vals[i]
+            prediction_reprojected_y = prediction_reprojected[i][1]
+            
+            x_error = torch.abs(gt_reprojected_x - prediction_reprojected_x)
+            y_error = torch.abs(gt_reprojected_y - prediction_reprojected_y)
+            L1_error = x_error + y_error
+
+            data_error_sum = data_error_sum + L1_error
+            num_valid_samples = num_valid_samples + 1
+
+        reprojected_data_loss = data_error_sum/num_valid_samples
+        return reprojected_data_loss
+    
+    # Reprojected points gradient loss for a single lane/path element
+    # Sum of finite difference gradients
+    def calc_reprojected_gradient_loss(self, gt_reprojected_tesnor, gt_tensor, pred_tensor):
+
+        prediction_reprojected, _ = \
+            self.getPerspectivePointsFromBEV(gt_tensor, pred_tensor)
+        
+        gt_tensor_x_vals = gt_tensor[0,:]
+        gt_reprojected_tensor_x_vals = gt_reprojected_tesnor[0,:]
+
+        reprojected_gradient_loss = 0
+
+        for i in range(0, len(gt_tensor_x_vals)-1):
+
+            gt_reprojected_gradient = gt_reprojected_tensor_x_vals[i+1] \
+                - gt_reprojected_tensor_x_vals[i]
+            
+            prediction_reprojected_gradient = prediction_reprojected[i+1][0] \
+                - prediction_reprojected[i][0]
+            
+            error = torch.abs(gt_reprojected_gradient - prediction_reprojected_gradient)
+            reprojected_gradient_loss = reprojected_gradient_loss + error
+
+        return reprojected_gradient_loss
+
+    # Get the list of reprojected points from X,Y BEV coordinates
+    def getPerspectivePointsFromBEV(self, gt_tensor, pred_tensor):
+        gt_tensor_y_vals = gt_tensor[1,:]
+        pred_tensor_x_vals = pred_tensor[0]
+
+        perspective_image_points, perspective_image_points_normalized = \
+            self.projectBEVtoImage(pred_tensor_x_vals, gt_tensor_y_vals)
+
+        return perspective_image_points_normalized, perspective_image_points
+
+    # Reproject BEV points to perspective image
+    def projectBEVtoImage(self, bev_x_points, bev_y_points):
+
+        perspective_image_points = []
+        perspective_image_points_normalized = []
+
+        for i in range(0, len(bev_x_points)):
+            
+            image_homogenous_point_x = self.BEV_W*bev_x_points[i]*self.homotrans_mat_tensor[0][0] + \
+                self.BEV_H*bev_y_points[i]*self.homotrans_mat_tensor[0][1] + self.homotrans_mat_tensor[0][2]
+            
+            image_homogenous_point_y = self.BEV_W*bev_x_points[i]*self.homotrans_mat_tensor[1][0] + \
+                self.BEV_H*bev_y_points[i]*self.homotrans_mat_tensor[1][1] + self.homotrans_mat_tensor[1][2]
+            
+            image_homogenous_point_scale_factor = self.BEV_W*bev_x_points[i]*self.homotrans_mat_tensor[2][0] + \
+                self.BEV_H*bev_y_points[i]*self.homotrans_mat_tensor[2][1] + self.homotrans_mat_tensor[2][2]
+            
+            image_point = [(image_homogenous_point_x/image_homogenous_point_scale_factor), \
+                (image_homogenous_point_y/image_homogenous_point_scale_factor)]
+            
+            image_point_normalized = [image_point[0]/self.perspective_W, image_point[1]/self.perspective_H]
+
+            perspective_image_points.append(image_point)
+            perspective_image_points_normalized.append(image_point_normalized)
+
+        return perspective_image_points, perspective_image_points_normalized
+
     # Loss backward pass
     def loss_backward(self):
-        self.loss.backward()
+        self.total_loss.backward()
 
     # Get total loss value
-    def get_loss(self):
-        return self.loss.item()
+    def get_total_loss(self):
+        return self.total_loss.item()
+    
+    # Get total loss value
+    def get_total_loss(self):
+        return self.total_loss.detach().cpu().numpy()
+    
+    def get_bev_loss(self):
+        return self.BEV_loss.item()
+    
+    def get_reprojected_loss(self):
+        return self.reprojected_loss.item()
 
-    # Get data loss
-    def get_data_loss(self):
-        scaled_data_loss = self.data_loss * self.data_loss_scale_factor
-        return scaled_data_loss.item()
-    
-    # Get smoothing (gradient) loss
-    def get_smoothing_loss(self):
-        scaled_smoothing_loss = self.smoothing_loss * self.smoothing_loss_scale_factor
-        return scaled_smoothing_loss.item()
-    
-    
-    # Logging all losses
+    # Logging losses - Total, BEV, Reprojected
     def log_loss(self, log_count):
         self.writer.add_scalars(
-            "Train", {
-                "total_loss" : self.get_loss(),
-                "data_loss" : self.get_data_loss(),
-                "smoothing_loss" : self.get_smoothing_loss()
-            }, 
+            "Training Loss", {
+                "Total_loss" : self.get_total_loss(),
+                "BEV_loss" : self.get_bev_loss(),
+                "Reprojected_loss" : self.get_reprojected_loss()
+            },
             (log_count)
         )
 
@@ -292,258 +473,133 @@ class AutoSteerTrainer():
         print("Finished training")
 
     # Save predicted visualization
-    def save_visualization(self, log_count, orig_vis):
+    def save_visualization(self, log_count, bev_vis, vis_path = "", is_train = False):
 
-        # Get pred/gt tensors and detach em
-        pred_xs = self.pred_xs.cpu().detach().numpy()
-        gt_xs = self.xs_tensor.cpu().detach().numpy()
-
-        # BEV GROUNDTRUTH
-
-        # Plot fig
-        fig_gt_bev = self.visualizeBEV(gt_xs)
-
-        # Write fig
-        self.writer.add_figure(
-            "BEV - Groundtruth",
-            fig_gt_bev,
-            global_step = (log_count)
-        )
-
-        # BEV PREDICTION
-
-        # Plot fig
-        fig_pred_bev = self.visualizeBEV(pred_xs)
-
-        # Write fig
-        self.writer.add_figure(
-            "BEV - Prediction",
-            fig_pred_bev,
-            global_step = (log_count)
-        )
-
-        # ORIGINAL GROUNDTRUTH (basically just slap the visualization img)
-
-        # Prep image tensor
-        fig_orig = self.visualizeOriginal(pred_xs, self.mat)
-
-        # Write image
-        self.writer.add_figure(
-            "Original - Groundtruth vs Prediction",
-            fig_orig,
-            global_step = (log_count)
-        )
-
-    # Run validation with metrics
-    def validate(
-        self, 
-        orig_vis,
-        image, 
-        gt_xs, gt_ys, valids, mat, 
-        save_path = None
-    ):
-
-        # Set data
-        self.set_data(orig_vis, image, gt_xs, gt_ys, valids, mat)
-
-        # Augment image
-        self.apply_augmentations(is_train = False)
-
-        # Tensor conversion
-        self.load_data()
-
-        # Run model
-        self.pred_xs = self.model(self.image_tensor)
-
-        # Validation loss
-        val_data_loss_tensor = self.calc_data_loss(
-            self.pred_xs,
-            self.xs_tensor,
-            self.valids_tensor
-        )
-
-        val_smoothing_loss_tensor = self.calc_smoothing_loss(
-            self.pred_xs,
-            self.xs_tensor,
-            self.valids_tensor
-        )
-
-        val_data_loss = val_data_loss_tensor.detach().cpu().numpy()
-        val_smoothing_loss = val_smoothing_loss_tensor.detach().cpu().numpy()
-        sum_val_loss = val_data_loss + val_smoothing_loss
-
-        # Save this visualization, both BEV and original
-        if (save_path):
-            pred_xs = self.pred_xs.detach().cpu().numpy()
-            self.visualizeBEV(
-                pred_xs,
-                f"{save_path}_BEV.jpg"
-            )
-            self.visualizeOriginal(
-                pred_xs,
-                mat,
-                f"{save_path}_Orig.jpg"
-            )
-
-        return sum_val_loss, val_data_loss, val_smoothing_loss
-    
-    # Log val loss to TensorBoard
-    def log_validation(self, msdict):
-        # Val score for each dataset
-        val_score_payload = {}
-        val_data_score_payload = {}
-        val_smooth_score_payload = {}
-        for dataset in self.VALID_DATASET_LIST:
-            val_score_payload[dataset] = msdict[dataset]["val_score"]
-            val_data_score_payload[dataset] = msdict[dataset]["val_data_score"]
-            val_smooth_score_payload[dataset] = msdict[dataset]["val_smooth_score"]
-            
-            self.writer.add_scalars(
-                f"Val Score - {dataset}", 
-                {
-                    "val_score" : val_score_payload[dataset],
-                    "val_data" : val_data_score_payload[dataset],
-                    "val_smooth" : val_smooth_score_payload[dataset]
-                },
-                (msdict["log_counter"])
-            )
-
-        # Overall val score
-        self.writer.add_scalars(
-            "Val Score - Overall",
-            {
-                "overall_val_score" : msdict["overall_val_score"],
-                "overall_val_data_score" : msdict["overall_val_data_score"],
-                "overall_val_smooth_score" : msdict["overall_val_smooth_score"]
-            },
-            (msdict["log_counter"])
-        )
-
-    # Validate network on TEST dataset and visualize result
-    def test(
-        self,
-        image_test,
-        save_path
-    ):
+        # Predicted Egopath (BEV)
+        pred_bev_ego_path = self.pred_bev_ego_path_tensor.cpu().detach().numpy()
         
-        # Acquire test image
-        frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        test_img = Image.fromarray(frame).resize((320, 640))
+        # Predicted Egopath (Reprojected)
+        _, pred_reprojected_ego_path_tensor = \
+                self.getPerspectivePointsFromBEV(self.gt_bev_egopath_tensor, 
+                                            self.pred_bev_ego_path_tensor)
+        pred_reprojected_ego_path_x_vals = []
+        pred_reprojected_ego_path_y_vals = []
 
-        # Load as tensor
-        test_img_tensor = self.image_loader(test_img).unsqueeze(0).to(self.device)
+        for i in range(0, len(pred_reprojected_ego_path_tensor)):
+            pred_reprojected_ego_path_x_val = pred_reprojected_ego_path_tensor[i][0].cpu().detach().numpy()
+            pred_reprojected_ego_path_y_val = pred_reprojected_ego_path_tensor[i][1].cpu().detach().numpy()
 
-        # Model inference
-        test_pred_xs = self.model(test_img_tensor).cpu().detach().numpy()
+            pred_reprojected_ego_path_x_vals.append(pred_reprojected_ego_path_x_val)
+            pred_reprojected_ego_path_y_vals.append(pred_reprojected_ego_path_y_val)
 
-        # Vis it
-        self.visualizeBEV(
-            test_pred_xs,
-            save_path
-        )
+        # Predicted Egoleft Lane (BEV)
+        prev_bev_egoleft_lane = self.pred_bev_egoleft_lane_tensor.cpu().detach().numpy()
 
-    # Inverse transform: BEV -> original perspective
-    def invTrans(
-        self,
-        line,
-        transform_matrix
-    ):
-        inv_mat = np.linalg.inv(transform_matrix)
-        orig_view = cv2.warpPerspective(
-            self.image, inv_mat,
-            (self.H, self.W)        # 320 x 640 ==> 640 x 320
-        )
-        np_line = np.array(
-            line, 
-            dtype = np.float32
-        ).reshape(-1, 1, 2)
-        orig_line = cv2.perspectiveTransform(np_line, inv_mat)
-        orig_line = [tuple(point[0]) for point in orig_line]
+        # Predicted Egoleft Lane (Reprojected)
+        _, pred_reprojected_egoleft_lane_tensor = \
+                self.getPerspectivePointsFromBEV(self.gt_bev_egoleft_lane_tensor, 
+                                            self.pred_bev_egoleft_lane_tensor)
+        pred_reprojected_egoleft_lane_x_vals = []
+        pred_reprojected_egoleft_lane_y_vals = []
 
-        return orig_view, orig_line
+        for i in range(0, len(pred_reprojected_egoleft_lane_tensor)):
+            pred_reprojected_egoleft_lane_x_val = pred_reprojected_egoleft_lane_tensor[i][0].cpu().detach().numpy()
+            pred_reprojected_egoleft_lane_y_val = pred_reprojected_egoleft_lane_tensor[i][1].cpu().detach().numpy()
 
-    # Visualize BEV perspective
-    def visualizeBEV(
-        self,
-        pred_xs,
-        save_path = None
-    ):
-        # Visualize image
-        H, W, _ = self.image.shape
-        fig_BEV = plt.figure(figsize = self.BEV_FIGSIZE)
-        plt.axis("off")
-        plt.imshow(self.image)
+            pred_reprojected_egoleft_lane_x_vals.append(pred_reprojected_egoleft_lane_x_val)
+            pred_reprojected_egoleft_lane_y_vals.append(pred_reprojected_egoleft_lane_y_val)
 
-        # Plot BEV egopath
-        BEV_egopath = list(zip(pred_xs[0], self.ys))
-        renormed_BEV_egopath = [
-            (
-                BEV_egopath[i][0] * W, 
-                BEV_egopath[i][1] * H
-            ) 
-            for i in range(len(BEV_egopath))
-            if (self.valids[i] > 0.0)
-        ]
-        plt.plot(
-            [p[0] for p in renormed_BEV_egopath],
-            [p[1] for p in renormed_BEV_egopath],
-            color = "yellow"
-        )
+        # Predicted Egoright Lane (BEV)
+        pred_bev_egoright_lane = self.pred_bev_egoright_lane_tensor.cpu().detach().numpy()
 
-        # Write fig
-        if (save_path):
-            fig_BEV.savefig(save_path)
-        plt.close(fig_BEV)
+        # Predicted Egoright Lane (Reprojected)
+        _, pred_reprojected_egoright_lane_tensor = \
+                self.getPerspectivePointsFromBEV(self.gt_bev_egoright_lane_tensor, 
+                                            self.pred_bev_egoright_lane_tensor)
 
-        return fig_BEV
+        pred_reprojected_egoright_lane_x_vals = []
+        pred_reprojected_egoright_lane_y_vals = []
 
-    # Visualize original perspective
-    def visualizeOriginal(
-        self,
-        pred_xs,
-        transform_matrix,
-        save_path = None
-    ):
-        # Visualize image
-        H, W, _ = self.image.shape
-        fig_orig = plt.figure(figsize = self.ORIG_FIGSIZE)
-        plt.axis("off")
+        for i in range(0, len(pred_reprojected_egoright_lane_tensor)):
+            pred_reprojected_egoright_lane_x_val = pred_reprojected_egoright_lane_tensor[i][0].cpu().detach().numpy()
+            pred_reprojected_egoright_lane_y_val = pred_reprojected_egoright_lane_tensor[i][1].cpu().detach().numpy()
 
-        # Inverse transform
-        _, orig_egopath = self.invTrans(
-            list(zip(
-                [
-                    pred_xs[0][i] * W
-                    for i in range(len(pred_xs[0]))
-                    if (self.valids[i] > 0.0)
-                ],
-                [
-                    self.ys[i] * H
-                    for i in range(len(self.ys))
-                    if (self.valids[i] > 0.0)
-                ]
-            )),
-            transform_matrix
-        )
+            pred_reprojected_egoright_lane_x_vals.append(pred_reprojected_egoright_lane_x_val)
+            pred_reprojected_egoright_lane_y_vals.append(pred_reprojected_egoright_lane_y_val)
 
-        # Plot original perspective and its egopath
-        plt.imshow(self.orig_vis)
-        orig_W, orig_H = self.orig_vis.size
-        trimmed_orig_egopath = [
-            p for p in orig_egopath
-            if 0 <= p[0] <= orig_W
-            and 0 <= p[1] <= orig_H
-        ]
-        plt.plot(
-            [p[0] for p in trimmed_orig_egopath],
-            [p[1] for p in trimmed_orig_egopath],
-            color = "cyan"
-        )
+        # BEV fixed y-values of anchors
+        bev_y_vals = self.gt_bev_egopath_tensor[1,:].cpu().detach().numpy()*self.BEV_H
+   
+        # Visualize Ground Truth and Predictions (BEV)
+        fig_bev, axs = plt.subplots(1,2, figsize=(8, 8))
 
-        # Write fig
-        if (save_path):
-            fig_orig.savefig(save_path)
-        plt.close(fig_orig)
+        # Prediction
+        axs[0].set_title('Prediction',fontweight ="bold") 
+        axs[0].set_xlim(0, self.BEV_W - 1)
+        axs[0].set_ylim(self.BEV_H - 1, 0)
+        axs[0].imshow(self.bev_image)
 
-        return fig_orig
+        pred_bev_ego_path_vals = pred_bev_ego_path[0]*self.BEV_W
+        prev_bev_egoleft_lane_vals = prev_bev_egoleft_lane[0]*self.BEV_W
+        pred_bev_egoright_lane_vals = pred_bev_egoright_lane[0]*self.BEV_W
+
+        axs[0].plot(pred_bev_ego_path_vals, bev_y_vals, 'yellow')
+        axs[0].plot(prev_bev_egoleft_lane_vals, bev_y_vals, 'green')
+        axs[0].plot(pred_bev_egoright_lane_vals, bev_y_vals, 'cyan')
+
+        # Ground Truth
+        axs[1].set_title('Ground Truth',fontweight ="bold") 
+        axs[1].imshow(bev_vis)
+        
+        # Save figure to Tensorboard
+        if(is_train):
+            self.writer.add_figure("Train (BEV)", fig_bev, global_step = (log_count))
+        else:
+            fig_bev.savefig(vis_path + '_BEV.png')
+
+        # Visualize Ground Truth and Predictions (Perspective)
+        fig_perspective, axs = plt.subplots(2,1, figsize=(8, 8))
+
+        # Prediction
+        axs[0].set_title('Prediction',fontweight ="bold") 
+        axs[0].set_xlim(0, self.perspective_W - 1)
+        axs[0].set_ylim(self.perspective_H - 1, 0)
+        axs[0].imshow(self.perspective_image)
+
+        axs[0].plot(pred_reprojected_ego_path_x_vals, pred_reprojected_ego_path_y_vals, 'yellow')
+        axs[0].plot(pred_reprojected_egoleft_lane_x_vals, pred_reprojected_egoleft_lane_y_vals, 'chartreuse')
+        axs[0].plot(pred_reprojected_egoright_lane_x_vals, pred_reprojected_egoright_lane_y_vals, 'cyan')
+
+        # Visualize Ground Truth - Perspective
+        axs[1].set_title('Ground Truth',fontweight ="bold") 
+        axs[1].imshow(self.perspective_image)
+        axs[1].set_xlim(0, self.perspective_W - 1)
+        axs[1].set_ylim(self.perspective_H - 1, 0)
+
+        gt_reprojected_ego_path_x_vals = self.reproj_egopath[0,:]*self.perspective_W
+        gt_reprojected_ego_path_y_vals = self.reproj_egopath[1,:]*self.perspective_H
+        gt_reprojected_egoleft_lane_x_vals = self.reproj_egoleft[0,:]*self.perspective_W
+        gt_reprojected_egoleft_lane_y_vals = self.reproj_egoleft[1,:]*self.perspective_H
+        gt_reprojected_egoright_lane_x_vals = self.reproj_egoright[0,:]*self.perspective_W
+        gt_reprojected_egoright_lane_y_vals = self.reproj_egoright[1,:]*self.perspective_H
+        
+        axs[1].plot(gt_reprojected_ego_path_x_vals, gt_reprojected_ego_path_y_vals, 'yellow')
+        axs[1].plot(gt_reprojected_egoleft_lane_x_vals, gt_reprojected_egoleft_lane_y_vals, 'chartreuse')
+        axs[1].plot(gt_reprojected_egoright_lane_x_vals, gt_reprojected_egoright_lane_y_vals,'cyan')
+
+        # Save figure to Tensorboard
+        if(is_train):
+            self.writer.add_figure("Train (Perspective)", fig_perspective, global_step = (log_count))
+        else:
+            fig_perspective.savefig(vis_path + '_Perspective.png')
+
+        plt.close(fig_bev)
+        plt.close(fig_perspective)
+    
+    # Log validation loss for each dataset to TensorBoard
+    def log_validation_dataset(self, dataset, validation_loss_dataset_total, log_count):
+         self.writer.add_scalar(f"{dataset} (Validation)", validation_loss_dataset_total, log_count)
+
+    # Log overall validation loss across all datasets to TensorBoard
+    def log_validation_overall(self, overall_val_score, log_count):
+        self.writer.add_scalar("Overall (Validation)", overall_val_score, log_count)

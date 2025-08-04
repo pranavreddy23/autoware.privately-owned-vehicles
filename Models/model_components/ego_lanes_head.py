@@ -6,24 +6,23 @@ class EgoLanesHead(nn.Module):
     def __init__(self):
         super(EgoLanesHead, self).__init__()
         # Standard
-        self.GeLU = nn.GELU()
-        self.dropout = nn.Dropout(p=0.25)
+        self.Tanh = nn.Tanh()
 
         # Context - MLP Layers
-        self.ego_path_layer_0 = nn.Linear(800, 200)
-        self.ego_path_layer_1 = nn.Linear(200, 33)
-        self.ego_path_layer_2 = nn.Linear(200, 33)
+        self.ego_left_lane_layer_0 = nn.Linear(800, 11)
+
+        self.ego_right_lane_layer_0 = nn.Linear(800, 11)
+
  
 
-    def forward(self, features):
-        # Pooling and averaging channel layers to get a single vector
-        feature_vector = torch.mean(features, dim = [2,3])
+    def forward(self, feature_vector):
 
         # MLP
-        p0 = self.ego_path_layer_0(feature_vector)
-        p0 = self.GeLU(p0)
-        ego_left_lane = self.ego_path_layer_1(p0)
-        ego_right_lane = self.ego_path_layer_2(p0)
+        ego_left_lane = self.ego_left_lane_layer_0(feature_vector)
+        ego_left_lane = self.Tanh(ego_left_lane)*3
+
+        ego_right_lane = self.ego_right_lane_layer_0(feature_vector)
+        ego_right_lane = self.Tanh(ego_right_lane)*3
 
         # Final result
         return ego_left_lane, ego_right_lane

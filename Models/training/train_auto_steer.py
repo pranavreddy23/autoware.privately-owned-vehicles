@@ -1,74 +1,40 @@
+#%%
 #! /usr/bin/env python3
 
 import os
-import torch
 import random
-import pathlib
+import torch
 from PIL import Image
-from argparse import ArgumentParser
 from typing import Literal, get_args
-from matplotlib import pyplot as plt
 import sys
 sys.path.append('../..')
 from Models.data_utils.load_data_auto_steer import LoadDataAutoSteer
 from Models.training.auto_steer_trainer import AutoSteerTrainer
 
 # Currently limiting to available datasets only. Will unlock eventually
-VALID_DATASET_LITERALS = Literal[
-    # "BDD100K",
-    # "COMMA2K19",
-    # "CULANE",
-    "CURVELANES",
-    # "ROADWORK",
-    # "TUSIMPLE"
-]
+VALID_DATASET_LITERALS = Literal["TUSIMPLE"]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
 BEV_IMG_PATH = "image_bev"
-ORIG_IMG_PATH = "image"
+BEV_VIS_PATH = "visualization_bev"
+PERSPECTIVE_IMG_PATH = "image"
+PERSPECTIVE_VIS_PATH = "visualization"
 
 
 def main():
 
-    # ====================== Parsing input arguments ====================== #
-    
-    parser = ArgumentParser()
-
-    parser.add_argument(
-        "-r", "--root", 
-        dest = "root", 
-        required = True,
-        help = "root path to folder where data training data is stored")
-    
-    parser.add_argument(
-        "-c", "--checkpoint_path", 
-        dest = "checkpoint_path",
-        help = "path to saved EgoPath *.pth checkpoint file for training from saved checkpoint"
-    )
-
-    parser.add_argument(
-        "-s", "--model_save_root_path", 
-        dest = "model_save_root_path",
-        help = "root path where pytorch checkpoint file should be saved"
-    )
-    
-    parser.add_argument(
-        "-t", "--test_images_save_root_path", 
-        required = False,
-        dest = "test_images_save_root_path",
-        help = "root path where test images should be saved"
-    )
-
-    args = parser.parse_args()
-
+   
     # ====================== Loading datasets ====================== #
 
     # Root
-    ROOT_PATH = args.root
+    ROOT_PATH = '/home/zain/Autoware/Data/AutoSteer/'#args.root
 
     # Model save root path
-    MODEL_SAVE_ROOT_PATH = args.model_save_root_path
+    MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/models/' #args.model_save_root_path
+
+    # Visualizations save root path
+    VIS_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/figures/'
 
     # Init metadata for datasets
     msdict = {}
@@ -76,19 +42,21 @@ def main():
         msdict[dataset] = {
             "path_labels"   : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
             "path_images"   : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH),
-            "path_orig_image" : os.path.join(ROOT_PATH, dataset, ORIG_IMG_PATH)
+            "path_perspective_vis" : os.path.join(ROOT_PATH, dataset, PERSPECTIVE_VIS_PATH),
+            "path_perspective_image": os.path.join(ROOT_PATH, dataset, PERSPECTIVE_IMG_PATH),
+            "path_bev_vis" : os.path.join(ROOT_PATH, dataset, BEV_VIS_PATH)
         }
 
     # Deal with TEST dataset
-    if (args.test_images_save_root_path):
-        msdict["TEST"] = {
-            "list_images" : sorted([
-                f for f in pathlib.Path(
-                    os.path.join(ROOT_PATH, "TEST")
-                ).glob("*.png")
-            ]),
-            "path_test_save" : args.test_images_save_root_path
-        }
+    #if (args.test_images_save_root_path):
+    #    msdict["TEST"] = {
+    #        "list_images" : sorted([
+    #            f for f in pathlib.Path(
+    #                os.path.join(ROOT_PATH, "TEST")
+    #            ).glob("*.png")
+    #        ]),
+    #        "path_test_save" : args.test_images_save_root_path
+    #    }
 
     # Load datasets
     for dataset in VALID_DATASET_LIST:
@@ -108,7 +76,6 @@ def main():
         print(f"LOADED: {dataset} with {N_trains} train samples, {N_vals} val samples.")
 
     # All datasets - stats
-
     msdict["Nsum_trains"] = sum([
         msdict[dataset]["N_trains"]
         for dataset in VALID_DATASET_LIST
@@ -126,120 +93,56 @@ def main():
     # Trainer instance
     trainer = None
 
-    
-    CHECKPOINT_PATH = args.checkpoint_path
-
-    if (CHECKPOINT_PATH):
-        trainer = AutoSteerTrainer(checkpoint_path = CHECKPOINT_PATH)
+    CHECKPOINT_PATH = None #args.checkpoint_path
+    if (CHECKPOINT_PATH != None):
+        trainer = AutoSteerTrainer(checkpoint_path = CHECKPOINT_PATH)    
     else:
-      trainer = AutoSteerTrainer()
+        trainer = AutoSteerTrainer()
     
     # Zero gradients
     trainer.zero_grad()
     
     # Training loop parameters
     NUM_EPOCHS = 50
-    LOGSTEP_LOSS = 250
-    LOGSTEP_VIS = 1000
-    LOGSTEP_MODEL = 10000
+    LOGSTEP_LOSS = 25
+    LOGSTEP_VIS = 100
+    LOGSTEP_MODEL = 10
 
     # Val visualization param
-    N_VALVIS = 50
+    N_VALVIS = 25
 
-    # MODIFIABLE PARAMETERS
-    # You can adjust the SCALE FACTORS, GRAD_LOSS_TYPE, DATA_SAMPLING_SCHEME 
-    # and BATCH_SIZE_DECAY during training
-
-    # SCALE FACTORS
-    # These scale factors impact the relative weight of different
-    # loss terms in calculating the overall loss. A scale factor
-    # value of 0.0 means that this loss is ignored, 1.0 means that
-    # the loss is not scaled, and any other number applies a simple
-    # scaling to increase or decrease the contribution of that specific
-    # loss towards the overall loss
-
-    DATA_LOSS_BEV_SCALE_FACTOR = 1.0
-    SMOOTHING_LOSS_BEV_SCALE_FACTOR = 10.0
-    DATA_LOSS_SCALE_FACTOR = 1.0
-    SMOOTHING_LOSS_SCALE_FACTOR = 10.0
-    EGO_PATH_LOSS_SCALE_FACTOR = 1.0
-    EGO_LANES_LOSS_SCALE_FACTOR = 1.0
-
-    # Set training loss term scale factors
-    trainer.set_loss_scale_factors(
-        DATA_LOSS_BEV_SCALE_FACTOR,
-        SMOOTHING_LOSS_BEV_SCALE_FACTOR,
-        DATA_LOSS_SCALE_FACTOR,
-        SMOOTHING_LOSS_SCALE_FACTOR,
-        EGO_PATH_LOSS_SCALE_FACTOR,
-        EGO_LANES_LOSS_SCALE_FACTOR
-
-    )
     
-    print(f"DATA_LOSS_BEV_SCALE_FACTOR : {DATA_LOSS_BEV_SCALE_FACTOR}")
-    print(f"SMOOTHING_LOSS_BEV_SCALE_FACTOR : {SMOOTHING_LOSS_BEV_SCALE_FACTOR}")
-    print(f"DATA_LOSS_SCALE_FACTOR : {DATA_LOSS_SCALE_FACTOR}")
-    print(f"SMOOTHING_LOSS_SCALE_FACTOR : {SMOOTHING_LOSS_SCALE_FACTOR}")
-    print(f"EGO_PATH_LOSS_SCALE_FACTOR : {EGO_PATH_LOSS_SCALE_FACTOR}")
-    print(f"EGO_LANES_LOSS_SCALE_FACTOR : {EGO_LANES_LOSS_SCALE_FACTOR}")
-
-    # GRAD_LOSS_TYPE
-    # There are two types of gradients loss, and either can be selected.
-    # One option is 'NUMERICAL' which calculates the gradient through
-    # the tangent angle between consecutive pairs of points along the
-    # curve. The second option is 'ANALYTICAL' which uses the equation
-    # of the curve to calculate the true mathematical gradient from
-    # the curve's partial dervivatives
-
-    GRAD_LOSS_TYPE = "NUMERICAL" # NUMERICAL or ANALYTICAL
-    trainer.set_gradient_loss_type(GRAD_LOSS_TYPE)
-
-    print(f"GRAD_LOSS_TYPE : {GRAD_LOSS_TYPE}")
-
-    # DATA_SAMPLING_SCHEME
-    # There are two data sampling schemes. The 'EQUAL' data sampling scheme
-    # ensures that in each batch, we have an equal representation of samples
-    # from each specific dataset. This schemes over-fits the network on 
-    # smaller and underepresented datasets. The second sampling scheme is
-    # 'CONCATENATE', in which the data is sampled randomly and the network
-    # only sees each image from each dataset once in an epoch
-
-    DATA_SAMPLING_SCHEME = "EQUAL" # EQUAL or CONCATENATE
-
-    print(f"DATA_SAMPLING_SCHEME : {DATA_SAMPLING_SCHEME}")
-
-
     # ========================= Main training loop ========================= #
+    print('Beginning Training')
 
-    # Batchsize
-    batch_size = 0
-
-    data_list = VALID_DATASET_LIST.copy()
+    # Batch Size
+    batch_size = 32
 
     for epoch in range(0, NUM_EPOCHS):
 
+        data_list = VALID_DATASET_LIST.copy()
         print(f"EPOCH : {epoch}")
 
         # Batch Size Schedule
-        if (epoch == 0):
-            batch_size = 24
-        elif (epoch >= 10 and epoch < 20):
-            batch_size = 12
-        elif (epoch >= 20 and epoch < 30):
-            batch_size = 6
-        elif (epoch >= 30):
-            batch_size = 3
-        
+        if (epoch > 10 and epoch <= 20):
+            batch_size = 16
+        elif (epoch > 20 and epoch <= 30):
+            batch_size = 8
+        elif (epoch > 30):
+            batch_size = 4
+      
         # Learning Rate Schedule
-        if ((epoch >= 30) and (epoch < 40)):
+        if(epoch <= 10):
+            trainer.set_learning_rate(0.0005)
+        elif(epoch > 10 and epoch < 30):
             trainer.set_learning_rate(0.0001)
-        elif (epoch >= 40):
-            trainer.set_learning_rate(0.00005)
+        elif(epoch > 30):
+            trainer.set_learning_rate(0.00001)
 
         # Augmentation Schedule
-        apply_augmentation = False
-        if ((epoch >= 15) and (epoch < 35)):
-            apply_augmentation = True
+        apply_augmentation = True
+        if (epoch > 35):
+            apply_augmentation = False
 
         # Shuffle overall data list at start of epoch
         random.shuffle(data_list)
@@ -251,16 +154,6 @@ def main():
             msdict[dataset]["iter"] = 0
             msdict[dataset]["completed"] = False
 
-        # Checking data sampling scheme
-        if(
-            (DATA_SAMPLING_SCHEME != "EQUAL") and 
-            (DATA_SAMPLING_SCHEME != "CONCATENATE")
-        ):
-            raise ValueError(
-                "Please speficy DATA_SAMPLING_SCHEME as either " \
-                " EQUAL or CONCATENATE"
-            )
-        
         # Loop through data
         while (True):
 
@@ -275,19 +168,11 @@ def main():
             # based on data sampling scheme
             for dataset in VALID_DATASET_LIST:
                 N_trains = msdict[dataset]["N_trains"]
-                if (msdict[dataset]["iter"] == N_trains):
-                    if (DATA_SAMPLING_SCHEME == "EQUAL"):
-                        msdict[dataset]["iter"] = 0
-
-                        msdict[dataset]["sample_list"] = random.sample(list(range(0, N_trains)), N_trains)
-                    elif (
-                        (DATA_SAMPLING_SCHEME == "CONCATENATE") and 
-                        (msdict[dataset]["completed"] == False)
-                    ):
+                if (msdict[dataset]["iter"] == N_trains-1):
+                    if ((msdict[dataset]["completed"] == False)):
                         data_list.remove(dataset)
-
                     msdict[dataset]["completed"] = True
-
+            
             # If we have looped through each dataset at least once - restart the epoch
             if (all([
                 msdict[dataset]["completed"]
@@ -300,50 +185,62 @@ def main():
                 msdict["data_list_count"] = 0
 
             # Fetch data from current processed dataset
-            
-            image = None
-            drivable_path_bev = []
-            drivable_path = []
-            ego_left_lane_bev = []
-            ego_left_lane = []
-            ego_right_lane_bev = []
-            ego_right_lane = []
-            
+            frame_id = 0
+            bev_image = None
+            homotrans_mat = []
+            bev_egopath = []
+            reproj_egopath = []
+            bev_egoleft = []
+            reproj_egoleft = []
+            bev_egoright = []
+            reproj_egoright = []
+           
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            frame_id, image, drivable_path_bev, drivable_path, \
-                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
-                ego_right_lane = msdict[current_dataset]["loader"].getItem(
+            [   frame_id, bev_image,
+                homotrans_mat,
+                bev_egopath, reproj_egopath,
+                bev_egoleft, reproj_egoleft,
+                bev_egoright, reproj_egoright,
+            ] = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
             msdict[current_dataset]["iter"] = current_dataset_iter + 1
 
-            # Also fetch original RGB Image
-            orig_image = Image.open(
+            # Perspective image
+            perspective_image = Image.open(
                 os.path.join(
-                    msdict[dataset]["path_orig_image"],
+                    msdict[dataset]["path_perspective_image"],
                     f"{frame_id}.png"
                 )
             ).convert("RGB")
-
+            
+            # BEV visualization
+            bev_vis = Image.open(
+                os.path.join(
+                    msdict[dataset]["path_bev_vis"],
+                    f"{frame_id}.jpg"
+                )
+            ).convert("RGB")
+          
             # Assign data
-            trainer.set_data(orig_image, image, drivable_path_bev, drivable_path, \
-                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
-                ego_right_lane)
+            trainer.set_data(homotrans_mat, bev_image, perspective_image, \
+                bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
+                reproj_egoleft, reproj_egoright)
             
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
             
             # Converting to tensor and loading
             trainer.load_data()
-
-            # Run model and get loss
+            
+            # Run model and calculate loss
             trainer.run_model()
             
             # Gradient accumulation
             trainer.loss_backward()
-
+            
             # Simulating batch size through gradient accumulation
             if ((msdict["sample_counter"] + 1) % batch_size == 0):
                 trainer.run_optimizer()
@@ -354,7 +251,7 @@ def main():
             
             # Logging Visualization to Tensor Board
             if((msdict["sample_counter"] + 1) % LOGSTEP_VIS == 0):  
-                trainer.save_visualization(msdict["log_counter"] + 1, orig_vis)
+                trainer.save_visualization(msdict["log_counter"] + 1, bev_vis, is_train=True)
             
             # Save model and run Validation on entire validation dataset
             if ((msdict["sample_counter"] + 1) % LOGSTEP_MODEL == 0):
@@ -374,10 +271,9 @@ def main():
 
                 # Validation metrics for each dataset
                 for dataset in VALID_DATASET_LIST:
-                    msdict[dataset]["val_running"] = 0
-                    msdict[dataset]["val_data_running"] = 0
-                    msdict[dataset]["val_smooth_running"] = 0
+
                     msdict[dataset]["num_val_samples"] = 0
+                    msdict[dataset]["total_running"] = 0
 
                 # Temporarily disable gradient computation for backpropagation
                 with torch.no_grad():
@@ -389,109 +285,86 @@ def main():
                         for val_count in range(0, msdict[dataset]["N_vals"]):
 
                             # Fetch data
-                            frame_id, image, xs, ys, _, valids, mat = msdict[dataset]["loader"].getItem(
+                            [   frame_id, bev_image,
+                                homotrans_mat,
+                                bev_egopath, reproj_egopath,
+                                bev_egoleft, reproj_egoleft,
+                                bev_egoright, reproj_egoright,
+                            ] = msdict[dataset]["loader"].getItem(
                                 val_count,
                                 is_train = False
                             )
                             msdict[dataset]["num_val_samples"] = msdict[dataset]["num_val_samples"] + 1
                             
-                            # Path handling
-                            val_save_dir = os.path.join(
-                                MODEL_SAVE_ROOT_PATH,
-                                "VAL_VIS",
-                                dataset,
-                                f"iter_{msdict['log_counter'] + 1}_epoch_{epoch}_step_{msdict['sample_counter'] + 1}"
-                            )
-                            if not (os.path.exists(val_save_dir)):
-                                os.makedirs(val_save_dir)
-
-                            val_save_path = (
+                            # BEV
+                            perspective_image = Image.open(
                                 os.path.join(
-                                    val_save_dir, 
-                                    f"{str(val_count).zfill(2)}"
-                                )
-                                if (val_count < N_VALVIS)
-                                else None
-                            )
-
-                            # Fetch it again, the orig vis
-                            orig_vis = Image.open(
-                                os.path.join(
-                                    msdict[dataset]["path_orig_image"],
+                                    msdict[dataset]["path_perspective_image"],
                                     f"{frame_id}.png"
                                 )
                             ).convert("RGB")
 
-                            # Validate
-                            val_metric, val_data, val_smooth = trainer.validate(
-                                orig_vis, image, 
-                                xs, ys, valids, mat,
-                                val_save_path
-                            )
+                            # BEV visualization
+                            bev_vis = Image.open(
+                                os.path.join(
+                                    msdict[dataset]["path_bev_vis"],
+                                    f"{frame_id}.jpg"
+                                )
+                            ).convert("RGB")
+
+                            # Assign data
+                            trainer.set_data(homotrans_mat, bev_image, perspective_image, \
+                                bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
+                                reproj_egoleft, reproj_egoright)
                             
-                            # Log
-                            msdict[dataset]["val_running"] = msdict[dataset]["val_running"] + val_metric
-                            msdict[dataset]["val_data_running"] = msdict[dataset]["val_data_running"] + val_data
-                            msdict[dataset]["val_smooth_running"] = msdict[dataset]["val_smooth_running"] + val_smooth
-                    
+                            # Augment image
+                            trainer.apply_augmentations(False)
+                            
+                            # Converting to tensor and loading
+                            trainer.load_data()
+                            
+                            # Run model and calculate loss
+                            trainer.run_model()
+
+                            # Get running total of loss value
+                            msdict[dataset]["total_running"] += trainer.get_total_loss()
+
+                            # Save visualization to Tensorboard
+                            if(val_count < N_VALVIS): 
+                                vis_path = VIS_SAVE_ROOT_PATH + dataset + '_epoch_'+ str(epoch) + '_step_' + \
+                                    str(msdict["log_counter"] + 1) + '_image_' + str(frame_id)
+                                trainer.save_visualization(msdict["log_counter"] + 1 + val_count, bev_vis, vis_path, is_train=False)
+
+
                     # Calculate final validation scores for network on each dataset
                     # as well as overall validation score - A lower score is better
+
+                    # Overall validation score across datasets
+                    overall_val_score = 0
+
+                    # Calculating dataset specific validation metrics
                     for dataset in VALID_DATASET_LIST:
-                        msdict[dataset]["val_score"] = msdict[dataset]["val_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_data_score"] = msdict[dataset]["val_data_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_smooth_score"] = msdict[dataset]["val_smooth_running"] / msdict[dataset]["num_val_samples"]
 
-                    # Overall validation metric
-                    msdict["val_overall_running"] = sum([
-                        msdict[dataset]["val_running"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["num_val_overall_samples"] = sum([
-                        msdict[dataset]["num_val_samples"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["overall_val_score"] = msdict["val_overall_running"] / msdict["num_val_overall_samples"]
+                        validation_loss_dataset_total =  msdict[dataset]["total_running"] / msdict[dataset]["num_val_samples"]
+                        overall_val_score += validation_loss_dataset_total
+                        print("DATASET :", dataset, " VAL SCORE : ", validation_loss_dataset_total)
 
-                    # Overall validation data metric
-                    msdict["val_overall_data_running"] = sum([
-                        msdict[dataset]["val_data_running"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["num_val_overall_samples"] = sum([
-                        msdict[dataset]["num_val_samples"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["overall_val_data_score"] = msdict["val_overall_data_running"] / msdict["num_val_overall_samples"]
-
-                    msdict["val_overall_smooth_running"] = sum([
-                        msdict[dataset]["val_smooth_running"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["num_val_overall_samples"] = sum([
-                        msdict[dataset]["num_val_samples"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["overall_val_smooth_score"] = msdict[dataset]["val_smooth_running"] / msdict["num_val_overall_samples"]
+                        # Logging validation metric for each dataset
+                        trainer.log_validation_dataset(dataset, validation_loss_dataset_total, msdict["log_counter"] + 1)
                     
-                    print("================ Complete - Validation Scores ================")
-                    for dataset in VALID_DATASET_LIST:
-                        print(f"\n{dataset} - VAL SCORE : {msdict[dataset]['val_score']}")
-                        print(f"{dataset} - VAL DATA SCORE : {msdict[dataset]['val_data_score']}")
-                        print(f"{dataset} - VAL SMOOTH SCORE : {msdict[dataset]['val_smooth_score']}")
-                    print("\nOVERALL :")
-                    print(f"VAL SCORE : {msdict['overall_val_score']}")
-                    print(f"VAL DATA SCORE : {msdict['overall_val_data_score']}")
-                    print(f"VAL SMOOTH SCORE : {msdict['overall_val_smooth_score']}\n")
+                    overall_val_score = overall_val_score/len(VALID_DATASET_LIST)
+                    print("OVERALL VAL SCORE :", overall_val_score)
 
-                    # Logging average metrics
-                    trainer.log_validation(msdict)
-
+                    # Logging average metric overall across all datasets
+                    trainer.log_validation_overall(overall_val_score, msdict["log_counter"] + 1)
+                        
                 # Switch back to training
                 print("================ Continuing with training ================")
                 trainer.set_train_mode()
             
             msdict["data_list_count"] = msdict["data_list_count"] + 1
-
+            
 
 if (__name__ == "__main__"):
     main()
+#%%
