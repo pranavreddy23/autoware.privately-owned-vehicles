@@ -1,6 +1,8 @@
 #ifndef VISIONPILOT_LONGITUDIANL_PLANNING_HPP
 #define VISIONPILOT_LONGITUDIANL_PLANNING_HPP
 
+extern double dt;   // 50Hz control period — still used by planning.cpp
+
 class LongitudinalPlanner {
 public:
     struct Config {

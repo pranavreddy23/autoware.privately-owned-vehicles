@@ -3,8 +3,9 @@ add_executable(VisionPilot
 )
 
 set_target_properties(VisionPilot PROPERTIES
+        BUILD_RPATH "${ONNXRUNTIME_ROOT}/lib"
         INSTALL_RPATH "/usr/share/visionpilot/onnxruntime/lib"
-        BUILD_WITH_INSTALL_RPATH TRUE
+        BUILD_WITH_INSTALL_RPATH FALSE
 )
 
 add_dependencies(VisionPilot generate_config)
@@ -61,16 +62,16 @@ install(FILES ${VISIONPILOT_CONF_FILES}
 )
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/icons/"
-        DESTINATION "/usr/share/visionpilot/assets/icons"
+        DESTINATION "share/visionpilot/assets/icons"
 )
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/modules/models/weights/"
-        DESTINATION "/usr/share/visionpilot/modules/models/weights"
+        DESTINATION "share/visionpilot/modules/models/weights"
         FILES_MATCHING
         PATTERN "*.onnx"
         PATTERN "trt_cache" EXCLUDE
 )
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/onnxruntime/"
-        DESTINATION "/usr/share/visionpilot/onnxruntime"
+        DESTINATION "share/visionpilot/onnxruntime"
 )
