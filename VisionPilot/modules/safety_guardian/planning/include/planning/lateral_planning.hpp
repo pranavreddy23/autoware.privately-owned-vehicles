@@ -6,7 +6,6 @@
 
 // ── Horizon parameters ───────────────────────────────────────────────────────
 extern size_t N;
-extern double dt;
 
 class LateralPlanner {
 public:

@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <planning/planning.hpp>
 
+// Spatial step size matching the spatial Lateral MPC horizon step (meters)
+constexpr double DS = 0.5;
+
 Planner::Planner(const double speed_limit, const double Lf)
     : Lf_(Lf)
       , longitudinal_planner([&]
@@ -22,30 +25,30 @@ Plan Planner::compute_plan(
     const double cipo_v,
     const double cipo_distance)
 {
-    // KAPPA_RATE_GAIN : 1.0 = use the estimated curvature rate (cubic curve,
-    //                         a little look-ahead from current + previous kappa)
-    //                   0.0 = no rate (quadratic curve ≈ constant curvature;
-    //                         simplest, best steady-state CTE).
+    // KAPPA_RATE_GAIN : 1.0 = use estimated curvature rate d(kappa)/ds
+    //                   0.0 = constant curvature approximation
     constexpr double KAPPA_RATE_GAIN = 1.0;
-    constexpr double RATE_ALPHA = 0.3; // EMA gain for the rate (lower = smoother)
-    constexpr double RATE_MAX = 0.08; // clamp on |d(kappa)/ds| (1/m^2)
+    constexpr double RATE_ALPHA = 0.6; // EMA smoothing factor for dkappa_ds
+    constexpr double RATE_MAX = 0.15;   // Clamp on |d(kappa)/ds| (1/m^2)
 
-    const double KAPPA_MAX = std::tan(0.436332) / Lf_; // steering-achievable, ≈0.175 /m
+    const double KAPPA_MAX = std::tan(0.436332) / Lf_; // Maximum achievable curvature (~0.175 /m)
 
-    // Curvature rate from current + previous kappa (filtered)
+    // Compute spatial derivative d(kappa)/ds using vehicle displacement between loop cycles
     double dkappa_ds = 0.0;
     if (has_prev_kappa_ && KAPPA_RATE_GAIN > 0.0)
     {
-        const double ds = std::max(1e-6, ego_v * dt);
-        double raw = (kappa - prev_kappa_) / ds;
-        raw = std::max(-RATE_MAX, std::min(RATE_MAX, raw));
-        dkappa_filt_ = RATE_ALPHA * raw + (1.0 - RATE_ALPHA) * dkappa_filt_;
+        // Cycle displacement along path: ds_cycle = v * dt
+        const double ds_cycle = std::max(1e-3, ego_v * dt);
+        double raw_dkappa_ds = (kappa - prev_kappa_) / ds_cycle;
+        raw_dkappa_ds = std::max(-RATE_MAX, std::min(RATE_MAX, raw_dkappa_ds));
+
+        dkappa_filt_ = RATE_ALPHA * raw_dkappa_ds + (1.0 - RATE_ALPHA) * dkappa_filt_;
         dkappa_ds = KAPPA_RATE_GAIN * dkappa_filt_;
     }
     prev_kappa_ = kappa;
     has_prev_kappa_ = true;
 
-    // Longitudinal planner
+    // Longitudinal Planner
     double acceleration = longitudinal_planner.compute_acceleration(kappa, ego_v, has_cipo, cipo_v, cipo_distance);
 
     Eigen::VectorXd v_schedule(N);
@@ -62,60 +65,57 @@ Plan Planner::compute_plan(
         }
     }
 
-    // ── Curvature schedule from a local polynomial reference curve ─────────────
-    // Fit  y(x) = c0 + c1·x + c2·x² + c3·x³  in the path-tangent frame, where
-    //   c1 = tan(epsi)       (heading / slope)
-    //   c2 = kappa / 2       (curvature at the ego, small-angle)
-    //   c3 = dkappa_ds / 6   (curvature-rate term; 0 => quadratic ≈ constant)
-    // then sample its signed curvature  k = y'' / (1 + y'²)^1.5  at each horizon
-    // arc-length.  c0 = cte is a pure lateral offset and does not affect
-    // curvature, so it is unused.  x advances by v_schedule[i]·dt, so the curve
-    // is sampled along the predicted arc length.  The clamp keeps the demanded
-    // curvature within what the steering can physically produce.
+    // ── Spatial Curvature Schedule (Polynomial Reference Curve) ───────────────
+    // Fit y(x) = c0 + c1·x + c2·x² + c3·x³ in the path-tangent spatial frame:
+    //   c1 = tan(epsi)     (heading offset)
+    //   c2 = kappa / 2     (ego initial curvature)
+    //   c3 = dkappa_ds / 6 (spatial rate of change of curvature)
+    //
+    // Sample signed curvature k = y'' / (1 + y'²)^1.5 at fixed spatial steps (DS).
     Eigen::VectorXd kappa_schedule(N);
     {
         const double c1 = std::tan(epsi);
         const double c2 = 0.5 * kappa;
         const double c3 = dkappa_ds / 6.0;
-        double x = 0.0; // longitudinal coord ≈ arc length
+        double x = 0.0; // Spatial distance along path-tangent (meters)
+
         for (int i = 0; i < (int)N; i++)
         {
-            double yp = c1 + 2.0 * c2 * x + 3.0 * c3 * x * x; // y'(x)
-            double ypp = 2.0 * c2 + 6.0 * c3 * x; // y''(x)
-            double k = ypp / std::pow(1.0 + yp * yp, 1.5); // signed curvature
+            double yp  = c1 + 2.0 * c2 * x + 3.0 * c3 * x * x; // Spatial slope y'(x)
+            double ypp = 2.0 * c2 + 6.0 * c3 * x;             // Spatial curvature y''(x)
+
+            double k = ypp / std::pow(1.0 + yp * yp, 1.5);
             kappa_schedule[i] = std::max(-KAPPA_MAX, std::min(KAPPA_MAX, k));
-            x += v_schedule[i] * dt; // advance by this step's arc length
+
+            x += DS; // Advance by fixed spatial increment DS (meters)
         }
     }
 
-    // Lateral planner
+    // Lateral Planner (Spatial MPC Execution)
     Eigen::VectorXd state(3);
     state << cte, epsi, kappa;
 
     auto steering = lateral_planner.compute_steering(Lf_, state, v_schedule, kappa_schedule);
 
-    // WARNINGS
+    // Safety Warnings
     std::vector<Warning> warnings;
-    // LLDW
+
+    // LLDW / RLDW
     if (cte < -0.5)
     {
         warnings.push_back(Warning::LLDW);
     }
-
-    // RLDW
-    if (cte > 0.5)
+    else if (cte > 0.5)
     {
         warnings.push_back(Warning::RLDW);
     }
 
-    // FCW
+    // FCW / AEB
     if (-5.0 <= acceleration && acceleration <= -3.0)
     {
         warnings.push_back(Warning::FCW);
     }
-
-    // AEB
-    if (acceleration < -5.0) // deccelerate more than 5.0 m/s
+    else if (acceleration < -5.0)
     {
         warnings.push_back(Warning::AEB);
     }

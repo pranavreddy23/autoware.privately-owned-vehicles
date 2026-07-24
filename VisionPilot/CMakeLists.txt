@@ -71,24 +71,28 @@ set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_CONTACT}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "VisionPilot 1.0")
 
 set(CPACK_DEBIAN_PACKAGE_DEPENDS
-        "libgstreamer1.0-dev,
-        libgstreamer-plugins-base1.0-dev,
-        libgstreamer-plugins-bad1.0-dev,
-        libsoup2.4-dev,
-        libjson-glib-dev,
-        libopencv-dev"
+        "libopencv-dev,
+        libgstreamer1.0-0,
+        libgstreamer-plugins-base1.0-0,
+        libgstreamer-plugins-bad1.0-0,
+        libnice10,
+        gstreamer1.0-nice,
+        libsrtp2-1,
+        coinor-libipopt-dev,
+        liblapack3,
+        libblas3"
 )
 
 if(GPU)
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS
+    set(APPEND CPACK_DEBIAN_PACKAGE_DEPENDS
         "cuda-toolkit-13-3,
-         libcudnn9-cuda-13,
-         libcublas-13-3,
-         cuda-cudart-13-3,
-         libnvinfer10,
-         libnvinfer-plugin10,
-         libnvonnxparsers10,
-         nvidia-open"
+        libcudnn9-cuda-13,
+        libcublas-13-3,
+        cuda-cudart-13-3,
+        libnvinfer10,
+        libnvinfer-plugin10,
+        libnvonnxparsers10,
+        nvidia-open"
     )
 endif()
 

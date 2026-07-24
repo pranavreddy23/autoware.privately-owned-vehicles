@@ -17,6 +17,10 @@ set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
 set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
 
+# Install vendored Eigen headers to a private path so packaging doesn't
+# collide with the system libeigen3-dev package
+set(INCLUDE_INSTALL_DIR "include/visionpilot/eigen3" CACHE STRING "" FORCE)
+
 FetchContent_MakeAvailable(eigen)
 
 add_library(planning

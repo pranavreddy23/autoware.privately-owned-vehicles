@@ -16,6 +16,7 @@ import logging
 import math
 import os
 import signal
+import time
 
 import carla
 
@@ -125,6 +126,52 @@ def _follow_vehicle(world, vehicle, spectator):
     spectator.set_transform(carla.Transform(offset_location, rotation))
 
 
+import random
+
+def _setup_npc_traffic(world, traffic_manager, config, hero_spawn_index):
+    bp_library = world.get_blueprint_library()
+    map_ = world.get_map()
+    spawn_points = map_.get_spawn_points()
+
+    npc_vehicles = []
+    for npc in config.get("npc_vehicles", []):
+        count = npc.get("count", 1)
+        for _ in range(count):
+            bp_filter = npc.get("type", "vehicle.*")
+            candidates = bp_library.filter(bp_filter)
+            if not candidates:
+                logging.warning("No blueprint matches '%s', skipping", bp_filter)
+                continue
+            bp = random.choice(candidates)
+            if bp.has_attribute("color"):
+                color = random.choice(bp.get_attribute("color").recommended_values)
+                bp.set_attribute("color", color)
+
+            idx = npc.get("spawn_index")
+            if idx is not None:
+                if not 0 <= idx < len(spawn_points):
+                    logging.warning("npc spawn_index %d out of range, skipping", idx)
+                    continue
+                spawn_pt = spawn_points[idx]
+            else:
+                # avoid the hero's spawn point and any already-used ones
+                free = [p for i, p in enumerate(spawn_points) if i != hero_spawn_index]
+                spawn_pt = random.choice(free)
+
+            actor = world.try_spawn_actor(bp, spawn_pt)
+            if actor is None:
+                logging.warning("Failed to spawn NPC (spawn point likely occupied)")
+                continue
+
+            if npc.get("autopilot", True):
+                actor.set_autopilot(True, traffic_manager.get_port())
+
+            npc_vehicles.append(actor)
+
+    logging.info("Spawned %d NPC vehicles", len(npc_vehicles))
+    return npc_vehicles
+
+
 def main(args):
 
     world = None
@@ -137,22 +184,26 @@ def main(args):
         client.set_timeout(60.0)
         _check_versions(client)
 
-        if args.map and "Town06" not in client.get_world().get_map().name:
-            logging.info("Loading Town06 map")
-            client.load_world("Town06")
+        # if args.map and "Town06" not in client.get_world().get_map().name:
+        #     logging.info("Loading Town06 map")
+        client.load_world("Town04")
+        # client.load_world("Town06")
 
         world = client.get_world()
 
-        # Asynchronous mode: the server self-ticks in real time; the ego_telemetry node
-        # (bridge container) samples speed independently over the PythonAPI.
+        # Synchronous mode: this client explicitly drives the sim clock via world.tick(),
+        # so each step advances by exactly fixed_delta_seconds. This removes the
+        # wall-clock jitter seen in async mode (sensor_tick is measured in sim-time,
+        # so async render-time variance made camera frame spacing uneven even though
+        # the average rate looked close to the sensor_tick target).
         original_settings = world.get_settings()
         settings = world.get_settings()
-        settings.synchronous_mode = False
-        settings.fixed_delta_seconds = None
+        settings.synchronous_mode = True
+        settings.fixed_delta_seconds = 0.1  # must match sensor_tick in the sensor JSON
         world.apply_settings(settings)
 
         traffic_manager = client.get_trafficmanager()
-        traffic_manager.set_synchronous_mode(False)
+        traffic_manager.set_synchronous_mode(True)
 
         with open(args.file) as f:
             config = json.load(f)
@@ -160,7 +211,10 @@ def main(args):
         vehicle = _setup_vehicle(world, config)
         sensors = _setup_sensors(world, vehicle, config.get("sensors", []))
 
-        _ = world.wait_for_tick()
+        # Spawn additional vehicles
+        npc_vehicles = _setup_npc_traffic(world, traffic_manager, config, config.get("spawn_index", 0))
+
+        world.tick()  # initial tick to settle the world before autopilot/spectator setup
 
         if args.autopilot:
             vehicle.set_autopilot(True)
@@ -169,9 +223,20 @@ def main(args):
 
         logging.info("Running... (ego up; telemetry is published by the bridge container)")
 
+        TARGET_HZ = 10.0
+        TARGET_PERIOD = 1.0 / TARGET_HZ
+
         while True:
+            loop_start = time.time()
+
+            world.tick()  # advances sim by exactly fixed_delta_seconds; blocks until the
+                           # server has finished the step (including sensor captures)
             _follow_vehicle(world, vehicle, spectator)
-            _ = world.wait_for_tick()
+
+            elapsed = time.time() - loop_start
+            sleep_time = TARGET_PERIOD - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
     except KeyboardInterrupt:
         print("\nCancelled by user. Bye!")

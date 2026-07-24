@@ -153,7 +153,7 @@ int main(int argc, char** argv)
 
             VP_INFO(
                 "plan: tyre=%.4f rad  accel=%.3f m/s²  |  cte=%.2fm(raw=%.2fm)  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s",
-                plan.steering.empty() ? 0.0 : plan.steering[0],
+                plan.steering.empty() ? 0.0 : plan.steering[1],
                 plan.acceleration,
                 cte,
                 raw_cte,
@@ -162,7 +162,7 @@ int main(int argc, char** argv)
                 r->cipo.velocity_ms);
 
             vehicle_interface->write(
-                plan.steering.empty() ? 0.0 : plan.steering[0],
+                plan.steering.empty() ? 0.0 : plan.steering[1],
                 plan.acceleration);
 
             if (cfg.visualization_on)
