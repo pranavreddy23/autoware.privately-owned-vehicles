@@ -7,16 +7,17 @@
 #define VP_WARN(fmt, ...)  std::fprintf(stderr, "[WARN]  " fmt "\n", ##__VA_ARGS__)
 #define VP_ERROR(fmt, ...) std::fprintf(stderr, "[ERROR] " fmt "\n", ##__VA_ARGS__)
 
-// Lightweight Rerun-style file logger (no external deps)
-// - Writes structured per-frame logs into an output directory
-// - Images are encoded as PNG files, metadata as simple JSON files
+// Rerun logger - streams per-frame data directly to a native .rrd recording
+// through Rerun C++ SDK.
+// Images are logged zero-copy - raw OpenCV BGR buffer is borrowed inplace,
+// no per-frame allocation, colour conversion or PNG encoding takes place.
+//
+// When built without the SDK (ENABLE_RERUN off), every call is a cheap no-op.
+//
 // Usage:
-//   logging::Rerun::init("/path/to/rerun_out");
-//   logging::Rerun::log_frame_images(frame_id, frame, warped, resized);
-//   logging::Rerun::log_inference(frame_id, inference_result);
-//   logging::Rerun::log_plan(frame_id, plan);
-//   logging::Rerun::log_ego_speed(frame_id, ego_speed_ms);
-//   logging::Rerun::log_visualization(frame_id, viz_image);
+//   logging::Rerun::init("visionpilot.rrd");
+//   logging::Rerun::log_frame(frame_id, frame, warped, resized,
+//                             inference_result, plan, ego_speed_ms, viz_image);
 //   logging::Rerun::shutdown();
 
 namespace cv { class Mat; }
@@ -34,27 +35,28 @@ namespace logging {
 
 class Rerun {
 public:
-	// Init Rerun logger output dir (creates if missing)
-	static void init(const std::string& out_dir = "rerun_logs");
+	// Open a Rerun recording that streams to `rrd_path` (created/truncated).
+	// `app_id` names application in the Rerun viewer.
+	static void init(const std::string& rrd_path = "visionpilot.rrd",
+					 const std::string& app_id   = "visionpilot");
 
-	// Log imgs for a single frame: raw camera frame, warped BEV, resized
-	static void log_frame_images(uint64_t frame_id,
-								 const cv::Mat& frame,
-								 const cv::Mat& warped,
-								 const cv::Mat& resized);
-
-	// Log inference outputs (models + fusion)
-	static void log_inference(uint64_t frame_id,
-							  const visionpilot::models::InferenceFrameResult& r);
-
-	// Log plan / control output
-	static void log_plan(uint64_t frame_id, const Plan& p);
-
-	// Log ego vehicle speed (m/s)
-	static void log_ego_speed(uint64_t frame_id, double ego_speed_ms);
-
-	// Log output vis image
-	static void log_visualization(uint64_t frame_id, const cv::Mat& viz);
+	// Log everything for a single frame in one call. 
+	// Timeline is set once, all entities share it.
+	//   frame        : raw input image
+	//   warped       : warped BEV image (AutoDrive input)
+	//   resized      : cropped + resized image (AutoSteer / AutoSpeed input)
+	//   r            : model + fusion outputs
+	//   plan         : planner output (tyre angle, acceleration, warnings)
+	//   ego_speed_ms : ego vehicle speed (m/s)
+	//   viz          : output visualization / HUD image
+	static void log_frame(uint64_t frame_id,
+						  const cv::Mat& frame,
+						  const cv::Mat& warped,
+						  const cv::Mat& resized,
+						  const visionpilot::models::InferenceFrameResult& r,
+						  const Plan& plan,
+						  double ego_speed_ms,
+						  const cv::Mat& viz);
 
 	// Flush & close
 	static void shutdown();
