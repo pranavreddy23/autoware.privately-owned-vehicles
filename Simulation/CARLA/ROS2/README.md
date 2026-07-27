@@ -1,4 +1,4 @@
-# VisionPilot ⇄ CARLA (0.9.16 / 0.10) — ROS 2
+# VisionPilot ⇄ CARLA (0.9.16) — ROS 2
 
 In order to connect VisionPilot to CARLA for closed loop simulation and to not introduce carla_bridge dependency, two
 nodes are required, one to publish vehicle speed and one to publish a command message so CARLA can drive the vehicle.
