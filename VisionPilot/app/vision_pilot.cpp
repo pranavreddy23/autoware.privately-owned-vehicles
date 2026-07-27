@@ -182,7 +182,7 @@ int main(int argc, char** argv)
                 }
             }
 
-            // [Atanasko] submit all required logging params to single logger func
+            // Submit all required logging params to single logger func
             if (cfg.logging_on)
                 logging::Rerun::log_frame(r->frame_id, frame, warped, resized, *r, plan, ego_v, viz);
         }
