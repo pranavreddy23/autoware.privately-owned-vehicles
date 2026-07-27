@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22.1)
 
 # Optional Occupancy BEV window (heuristic). OFF → stock HUD only.
-option(VISIONPILOT_ENABLE_OCCUPANCY "Build heuristic Occupancy BEV module" ON)
+option(VISIONPILOT_ENABLE_OCCUPANCY "Build heuristic Occupancy BEV module" OFF)
 
 find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)

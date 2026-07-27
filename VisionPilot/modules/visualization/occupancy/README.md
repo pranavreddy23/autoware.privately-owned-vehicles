@@ -5,6 +5,7 @@ Self-contained optional module for VisionPilot. Designed so it can be copied int
 with a **small glue patch**.
 
 ## What it does
+
 - Separate **Occupancy** window beside the main HUD
 - Foreshortened / orbitable 3D scene:
   - light-gray ground + grid (0–150 m)
@@ -14,7 +15,8 @@ with a **small glue patch**.
 - Mouse: L-drag orbit, R-drag pan, wheel zoom, `R` reset
 
 ## Layout
-```
+
+```text
 occupancy/
   CMakeLists.txt                 → library vp_occupancy
   include/visualization/occupancy/
@@ -24,18 +26,21 @@ occupancy/
     occupancy_view.cpp
     occupancy_bridge.cpp
   README.md
+  UPSTREAM.md                    → merge checklist
 ```
 
 ## Build switch
+
 In `modules/visualization/CMakeLists.txt`:
 
 ```cmake
-option(VISIONPILOT_ENABLE_OCCUPANCY "Build heuristic Occupancy BEV module" ON)
+option(VISIONPILOT_ENABLE_OCCUPANCY "Build heuristic Occupancy BEV module" OFF)
 ```
 
-Disable with: `-DVISIONPILOT_ENABLE_OCCUPANCY=OFF`
+Enable with: `-DVISIONPILOT_ENABLE_OCCUPANCY=ON`
 
 ## Upstream glue (when enabled)
+
 Only one call site in stock HUD code:
 
 ```cpp
@@ -47,9 +52,11 @@ occupancy::publish(visual_interface.get(), result, plan, H_resized);
 ```
 
 Plus generic display support (reusable, not Occupancy-specific):
+
 - `VisualInterface::set_aux_frame()` default no-op
 - `LocalDisplay` shows a second window when aux is non-empty
 
 ## Notes
+
 - Heuristic geometry from detections / path / lane — **not** a neural occupancy network
 - Module depends on `models` + `common` + OpenCV only (not on HUD internals)

@@ -1,17 +1,17 @@
-#ifndef VISIONPILOT_VISUAL_INTERFACE_HPP
-#define VISIONPILOT_VISUAL_INTERFACE_HPP
+#ifndef VISUALIZATION__VISUAL_INTERFACE_HPP_
+#define VISUALIZATION__VISUAL_INTERFACE_HPP_
 #include <opencv2/highgui.hpp>
 
 class VisualInterface
 {
 public:
-    VisualInterface();
-    virtual ~VisualInterface() = default;
+  VisualInterface();
+  virtual ~VisualInterface() = default;
 
-    virtual bool render_frame(const cv::Mat& display_frame) = 0;
-    // Optional second view (e.g. occupancy BEV). Default: ignore.
-    virtual void set_aux_frame(const cv::Mat& /*aux*/) {}
-    virtual bool stop() = 0;
+  virtual bool render_frame(const cv::Mat & display_frame) = 0;
+  // Optional second view (e.g. occupancy BEV). Default: ignore.
+  virtual void set_aux_frame(const cv::Mat & /*aux*/) {}
+  virtual bool stop() = 0;
 };
 
-#endif //VISIONPILOT_VISUAL_INTERFACE_HPP
+#endif  // VISUALIZATION__VISUAL_INTERFACE_HPP_
