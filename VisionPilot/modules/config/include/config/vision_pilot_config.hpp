@@ -45,6 +45,11 @@ struct Config {
     bool visualization_on = false;
     bool webrtc_on = false;
     int webrtc_port;
+
+    // Rerun logging: when enabled, per-frame data is streamed directly to an
+    // .rrd recording ready to open in Rerun viewer.
+    bool        logging_on  = false;
+    std::string logging_rrd = "visionpilot.rrd";
 };
 
 static std::string find_config(const std::string& filename) {
