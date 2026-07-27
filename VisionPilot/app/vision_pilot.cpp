@@ -77,7 +77,7 @@ int main(int argc, char** argv)
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
     Planner planner(cfg.speed_limit, cfg.Lf);
-    logging::Rerun::init("rerun_logs");
+    if (cfg.logging_on) logging::Rerun::init(cfg.logging_rrd);
 
     // ── Init visualization assets once based on mode ──────────────────────────
     if (debug_viz)
@@ -165,25 +165,34 @@ int main(int argc, char** argv)
             vehicle_interface->write(
                 plan.steering.empty() ? 0.0 : plan.steering[1],
                 plan.acceleration);
-            logging::Rerun::log_frame_images(r->frame_id, frame, warped, resized);
-            logging::Rerun::log_inference(r->frame_id, *r);
-            logging::Rerun::log_plan(r->frame_id, plan);
-            logging::Rerun::log_ego_speed(r->frame_id, ego_v);
-
+            cv::Mat viz;  // output visualization image (empty when viz is off)
             if (cfg.visualization_on)
             {
                 if (debug_viz)
-                    vd::visualize(resized, *r, source_label(cfg.source), cfg.wheel_dir, pipeline.H_world2resized());
+                {
+                    // annotate_frame() draws inplace
+                    viz = cfg.logging_on ? resized.clone() : resized;
+                    vd::visualize(viz, *r, source_label(cfg.source), cfg.wheel_dir, pipeline.H_world2resized());
+                    display_frame = viz;
+                }
                 else
+                {
                     display_frame = visualization.build_frame(resized, *r, plan, ego_v, pipeline.H_resized(), cfg.speed_limit);
-                logging::Rerun::log_visualization(r->frame_id, display_frame);
+                    viz = display_frame;
+                }
             }
+
+            // [Atanasko] submit all required logging params to single logger func
+            if (cfg.logging_on)
+                logging::Rerun::log_frame(r->frame_id, frame, warped, resized, *r, plan, ego_v, viz);
         }
         if (cfg.visualization_on)
         {
             visualization.render_frame(display_frame);
         }
     }
+
+    if (cfg.logging_on) logging::Rerun::shutdown();  // flush & close .rrd
 
     // stop() returns true on a clean shutdown; translate that to a 0 exit code
     // so VisionPilot can be supervised as a batch/oneshot job (a successful run
