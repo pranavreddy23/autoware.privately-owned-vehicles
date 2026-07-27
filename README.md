@@ -300,6 +300,20 @@ Change the file path below to where CARLA is downloaded and run
 ```
 To run with ROS2 native interface, add `--ros2` at the end
 
+#### Update VisionPilot config
+
+Update `vision_pilot.conf` set `source.mode`
+
+```bash
+ source.mode = ros2 
+```
+
+and also `vision_pilot_ros2.conf` set `ource.input_camera_topic`
+
+```bash
+  source.input_camera_topic = /carla/hero/main_cam/image
+```
+
 #### Build VisionPilot 
 
 Build VisionPilot with ROS2 support
