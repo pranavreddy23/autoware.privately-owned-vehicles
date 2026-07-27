@@ -1,6 +1,11 @@
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <visualization/local_display.hpp>
 #include <visualization/visualization.hpp>
+
+#if defined(VISIONPILOT_ENABLE_OCCUPANCY)
+#include <visualization/occupancy/occupancy_view.hpp>
+#endif
 
 namespace visualization
 {
@@ -16,19 +21,85 @@ namespace visualization
         cv::destroyAllWindows();
     }
 
+    void LocalDisplay::set_aux_frame(const cv::Mat& aux)
+    {
+        if (aux.empty()) {
+            aux_frame_.release();
+            return;
+        }
+        aux.copyTo(aux_frame_);
+    }
+
     bool LocalDisplay::render_frame(const cv::Mat& display_frame)
     {
         if (!show_window_)
             return true;
+
+        constexpr int kOriginX = 40;
+        constexpr int kOriginY = 40;
+        constexpr int kGap = 8;
+
+        cv::Mat occ_show;
+        if (!aux_frame_.empty()) {
+            if (aux_frame_.rows != display_frame.rows && aux_frame_.rows > 0) {
+                const double s = static_cast<double>(display_frame.rows) /
+                                 static_cast<double>(aux_frame_.rows);
+                cv::resize(aux_frame_, occ_show, cv::Size(), s, s, cv::INTER_AREA);
+            } else {
+                occ_show = aux_frame_;
+            }
+        }
+
         cv::resizeWindow("VisionPilot", display_frame.cols, display_frame.rows);
         cv::imshow("VisionPilot", display_frame);
-        cv::waitKey(1);
+
+        if (!occ_show.empty()) {
+            if (!aux_window_ready_) {
+                cv::namedWindow("Occupancy", cv::WINDOW_NORMAL);
+#if defined(VISIONPILOT_ENABLE_OCCUPANCY)
+                cv::setMouseCallback("Occupancy", occupancy::on_mouse, nullptr);
+#endif
+                aux_window_ready_ = true;
+                layout_done_ = false;
+            }
+
+            cv::resizeWindow("Occupancy", occ_show.cols, occ_show.rows);
+            cv::imshow("Occupancy", occ_show);
+
+            const bool size_changed =
+                display_frame.cols != last_main_w_ ||
+                display_frame.rows != last_main_h_ ||
+                occ_show.cols != last_aux_w_ ||
+                occ_show.rows != last_aux_h_;
+
+            if (!layout_done_ || size_changed) {
+                cv::moveWindow("VisionPilot", kOriginX, kOriginY);
+                cv::moveWindow("Occupancy",
+                               kOriginX + display_frame.cols + kGap,
+                               kOriginY);
+                layout_done_ = true;
+                last_main_w_ = display_frame.cols;
+                last_main_h_ = display_frame.rows;
+                last_aux_w_ = occ_show.cols;
+                last_aux_h_ = occ_show.rows;
+            }
+        }
+
+        const int key = cv::waitKey(1);
+#if defined(VISIONPILOT_ENABLE_OCCUPANCY)
+        if (key >= 0)
+            occupancy::on_key(key);
+#else
+        (void)key;
+#endif
         return true;
     }
 
     bool LocalDisplay::stop()
     {
         cv::destroyAllWindows();
+        aux_window_ready_ = false;
+        layout_done_ = false;
         return true;
     }
 }

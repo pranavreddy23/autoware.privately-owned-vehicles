@@ -9,6 +9,8 @@ public:
     virtual ~VisualInterface() = default;
 
     virtual bool render_frame(const cv::Mat& display_frame) = 0;
+    // Optional second view (e.g. occupancy BEV). Default: ignore.
+    virtual void set_aux_frame(const cv::Mat& /*aux*/) {}
     virtual bool stop() = 0;
 };
 
