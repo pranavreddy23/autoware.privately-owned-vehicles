@@ -3,8 +3,8 @@
 #include <visualization/local_display.hpp>
 #include <visualization/visualization.hpp>
 
-#if defined(VISIONPILOT_ENABLE_OCCUPANCY)
-#include <visualization/occupancy/occupancy_view.hpp>
+#if defined(ENABLE_OCCUPANCY)
+#include <visualization/occupancy_view.hpp>
 #endif
 
 namespace visualization
@@ -53,7 +53,7 @@ bool LocalDisplay::render_frame(const cv::Mat & display_frame)
   if (!occ_show.empty()) {
     if (!aux_window_ready_) {
       cv::namedWindow("Occupancy", cv::WINDOW_NORMAL);
-#if defined(VISIONPILOT_ENABLE_OCCUPANCY)
+#if defined(ENABLE_OCCUPANCY)
       cv::setMouseCallback("Occupancy", occupancy::on_mouse, nullptr);
 #endif
       aux_window_ready_ = true;
@@ -79,7 +79,7 @@ bool LocalDisplay::render_frame(const cv::Mat & display_frame)
   }
 
   const int key = cv::waitKey(1);
-#if defined(VISIONPILOT_ENABLE_OCCUPANCY)
+#if defined(ENABLE_OCCUPANCY)
   if (key >= 0) occupancy::on_key(key);
 #else
   (void)key;

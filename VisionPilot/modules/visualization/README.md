@@ -134,11 +134,40 @@ visualization/
 ├── include/
 │   └── visualization/
 │       ├── visualization.hpp           (visualization header)
-│       └── visualization_to_webrtc.hpp (WebRTC header)
+│       ├── visualization_to_webrtc.hpp (WebRTC header)
+│       ├── occupancy_view.hpp          (optional Occupancy BEV panel)
+│       └── occupancy_bridge.hpp        (pipeline → Occupancy Scene)
 └── src/
     ├── visualization.cpp               (visualization drawing, OpenCV window management)
-    └── visualization_to_webrtc.cpp     (WebRTC implementation)
+    ├── visualization_to_webrtc.cpp     (WebRTC implementation)
+    ├── occupancy_view.cpp              (optional; ENABLE_OCCUPANCY=ON)
+    └── occupancy_bridge.cpp            (optional; ENABLE_OCCUPANCY=ON)
 ```
+
+
+## II-b. Optional Occupancy BEV window
+
+Heuristic 3D / bird's-eye Occupancy panel shown beside the main HUD. It is **not** a neural occupancy network — geometry is built from AutoSpeed detections, fused path, AutoSteer lanes, and lateral CTE.
+
+**Build** (default OFF — stock HUD only):
+
+```bash
+cmake .. -DENABLE_OCCUPANCY=ON ...
+```
+
+Docker GPU image:
+
+```bash
+docker build -f docker/Dockerfile --build-arg ENABLE_OCCUPANCY=ON ...
+```
+
+When enabled, a second OpenCV window named **Occupancy** appears:
+
+- light-gray ground + grid (0–150 m), green fused-path corridor
+- AutoSpeed objects as extruded boxes (blue traffic, red CIPO, white ego)
+- Mouse: L-drag orbit, R-drag pan, wheel zoom; key `R` resets the camera
+
+Files: `occupancy_view.hpp` / `.cpp` (render + interaction), `occupancy_bridge.hpp` / `.cpp` (scene from pipeline outputs). Hook: one `occupancy::publish(...)` call in `Visualization::build_frame`.
 
 
 ## III. Build

@@ -9,14 +9,14 @@
 ARG CUDA_TAG=13.0.0-devel-ubuntu24.04
 ARG ONNXRUNTIME_VERSION=1.26.0
 ARG ENABLE_ROS2=OFF
-ARG VISIONPILOT_ENABLE_OCCUPANCY=OFF
+ARG ENABLE_OCCUPANCY=OFF
 
 
 # build
 FROM nvcr.io/nvidia/cuda:${CUDA_TAG} AS builder
 ARG ONNXRUNTIME_VERSION
 ARG ENABLE_ROS2
-ARG VISIONPILOT_ENABLE_OCCUPANCY
+ARG ENABLE_OCCUPANCY
 ENV DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-c"]
 
@@ -97,7 +97,7 @@ RUN mkdir build && cd build \
     && if [ "$ENABLE_ROS2" = "ON" ]; then . /opt/ros/jazzy/setup.bash; fi \
     && cmake -DONNXRUNTIME_ROOT=/usr/share/visionpilot/onnxruntime -DGPU=ON \
              -DENABLE_ROS2_INTERFACE=${ENABLE_ROS2} \
-             -DVISIONPILOT_ENABLE_OCCUPANCY=${VISIONPILOT_ENABLE_OCCUPANCY} \
+             -DENABLE_OCCUPANCY=${ENABLE_OCCUPANCY} \
              -DCMAKE_CXX_STANDARD_LIBRARIES="-lcppad_lib" .. \
     && make -j"$(nproc)" VisionPilot
 

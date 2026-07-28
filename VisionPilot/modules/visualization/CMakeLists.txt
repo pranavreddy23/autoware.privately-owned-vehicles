@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22.1)
 
 # Optional Occupancy BEV window (heuristic). OFF → stock HUD only.
-option(VISIONPILOT_ENABLE_OCCUPANCY "Build heuristic Occupancy BEV module" OFF)
+option(ENABLE_OCCUPANCY "Build heuristic Occupancy BEV module" OFF)
 
 find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)
@@ -34,10 +34,12 @@ add_library(visualization
         ${VIS_SOURCES}
 )
 
-if (VISIONPILOT_ENABLE_OCCUPANCY)
-    add_subdirectory(occupancy)
-    target_link_libraries(visualization PUBLIC vp_occupancy)
-    target_compile_definitions(visualization PUBLIC VISIONPILOT_ENABLE_OCCUPANCY=1)
+if (ENABLE_OCCUPANCY)
+    target_sources(visualization PRIVATE
+        src/occupancy_view.cpp
+        src/occupancy_bridge.cpp
+    )
+    target_compile_definitions(visualization PUBLIC ENABLE_OCCUPANCY=1)
 endif ()
 
 if (WEBRTC_DEPS_FOUND)

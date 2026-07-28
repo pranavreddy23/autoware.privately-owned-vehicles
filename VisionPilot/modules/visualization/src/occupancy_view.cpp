@@ -1,6 +1,6 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
-#include <visualization/occupancy/occupancy_view.hpp>
+#include <visualization/occupancy_view.hpp>
 
 #include <algorithm>
 #include <array>

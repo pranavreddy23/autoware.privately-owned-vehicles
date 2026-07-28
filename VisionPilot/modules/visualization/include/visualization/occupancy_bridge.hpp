@@ -1,10 +1,10 @@
-#ifndef VISUALIZATION__OCCUPANCY__OCCUPANCY_BRIDGE_HPP_
-#define VISUALIZATION__OCCUPANCY__OCCUPANCY_BRIDGE_HPP_
+#ifndef VISUALIZATION__OCCUPANCY_BRIDGE_HPP_
+#define VISUALIZATION__OCCUPANCY_BRIDGE_HPP_
 
 #include <common/types.hpp>
 #include <models/inference.hpp>
 #include <opencv2/core.hpp>
-#include <visualization/occupancy/occupancy_view.hpp>
+#include <visualization/occupancy_view.hpp>
 
 class VisualInterface;
 
@@ -32,4 +32,4 @@ void publish(
 }  // namespace occupancy
 }  // namespace visualization
 
-#endif  // VISUALIZATION__OCCUPANCY__OCCUPANCY_BRIDGE_HPP_
+#endif  // VISUALIZATION__OCCUPANCY_BRIDGE_HPP_

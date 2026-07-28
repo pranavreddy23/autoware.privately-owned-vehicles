@@ -1,4 +1,4 @@
-#include <visualization/occupancy/occupancy_bridge.hpp>
+#include <visualization/occupancy_bridge.hpp>
 #include <visualization/visual_interface.hpp>
 
 #include <cmath>

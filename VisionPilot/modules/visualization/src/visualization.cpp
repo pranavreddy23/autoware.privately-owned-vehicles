@@ -1,7 +1,7 @@
 #include <visualization/visualization.hpp>
 
-#if defined(VISIONPILOT_ENABLE_OCCUPANCY)
-#include <visualization/occupancy/occupancy_bridge.hpp>
+#if defined(ENABLE_OCCUPANCY)
+#include <visualization/occupancy_bridge.hpp>
 #endif
 
 #include "visualization/local_display.hpp"
@@ -648,7 +648,7 @@ cv::Mat Visualization::build_frame(
 {
   cv::Mat out =
     ProductionView::from(result, plan, ego_speed_ms, H_resized, speed_limit_ms).render(frame);
-#if defined(VISIONPILOT_ENABLE_OCCUPANCY)
+#if defined(ENABLE_OCCUPANCY)
   // Single upstream hook — Occupancy module owns scene build + rendering.
   occupancy::publish(visual_interface.get(), result, plan, H_resized);
 #endif

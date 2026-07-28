@@ -1,5 +1,5 @@
-#ifndef VISUALIZATION__OCCUPANCY__OCCUPANCY_VIEW_HPP_
-#define VISUALIZATION__OCCUPANCY__OCCUPANCY_VIEW_HPP_
+#ifndef VISUALIZATION__OCCUPANCY_VIEW_HPP_
+#define VISUALIZATION__OCCUPANCY_VIEW_HPP_
 
 #include <opencv2/core.hpp>
 
@@ -58,4 +58,4 @@ void on_key(int key);
 }  // namespace occupancy
 }  // namespace visualization
 
-#endif  // VISUALIZATION__OCCUPANCY__OCCUPANCY_VIEW_HPP_
+#endif  // VISUALIZATION__OCCUPANCY_VIEW_HPP_
