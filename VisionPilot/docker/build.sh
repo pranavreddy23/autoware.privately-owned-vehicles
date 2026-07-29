@@ -17,6 +17,7 @@ set -euo pipefail
 
 VARIANT="gpu"
 ENABLE_ROS2="OFF"
+ENABLE_OCCUPANCY="OFF"
 NO_CACHE=""
 TAG=""
 
@@ -37,6 +38,10 @@ while [ $# -gt 0 ]; do
             ;;
         --ros2)
             ENABLE_ROS2="ON"
+            shift
+            ;;
+        --occupancy)
+            ENABLE_OCCUPANCY="ON"
             shift
             ;;
         --no-cache)
@@ -88,6 +93,7 @@ echo " VisionPilot Docker build"
 echo "=================================================="
 echo " Variant:      $VARIANT"
 echo " ROS2 support: $ENABLE_ROS2"
+echo " Occupancy support: $ENABLE_OCCUPANCY"
 echo " Dockerfile:   $DOCKERFILE"
 echo " Image tag:    $TAG"
 echo " No cache:     $([ -n "$NO_CACHE" ] && echo yes || echo no)"
@@ -97,6 +103,7 @@ docker build $NO_CACHE \
     -t "$TAG" \
     -f "$DOCKERFILE" \
     --build-arg ENABLE_ROS2="$ENABLE_ROS2" \
+    --build-arg ENABLE_OCCUPANCY="$ENABLE_OCCUPANCY" \
     ..
 
 echo
