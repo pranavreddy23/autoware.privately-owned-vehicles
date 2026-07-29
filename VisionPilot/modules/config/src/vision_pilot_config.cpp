@@ -142,6 +142,9 @@ Config load_vision_pilot_config()
     cfg.webrtc_on = parse_bool(optional(kv, "webrtc_on", "false"), "webrtc_on");
     cfg.webrtc_port =  parse_int(optional(kv, "webrtc_port", "8080"), "webrtc_port");
 
+    cfg.logging_on  = parse_bool(optional(kv, "logging_on", "false"), "logging_on");
+    cfg.logging_rrd = optional(kv, "logging_rrd", "visionpilot.rrd");
+
     { const std::string raw = optional(kv, "debug.wheel_dir", "");
       cfg.wheel_dir = raw.empty() ? "" : expand_home(raw); }
 
