@@ -52,10 +52,6 @@ while [ $# -gt 0 ]; do
             ENABLE_ROS2="ON"
             shift
             ;;
-        --no-ros2)
-            ENABLE_ROS2="OFF"
-            shift
-            ;;
         --data)
             [ $# -ge 2 ] || { echo "Error: --data requires a value" >&2; exit 1; }
             DATA_DIR="$2"
