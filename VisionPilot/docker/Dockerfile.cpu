@@ -101,6 +101,7 @@ RUN mkdir build && cd build \
 
 # runtime
 FROM ubuntu:${UBUNTU_VERSION} AS runtime
+ARG ENABLE_ROS2
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -124,6 +125,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libblas3 \
         libcppad-lib1456.0t64 \
     && rm -rf /var/lib/apt/lists/*
+
+# ROS2 Jazzy runtime libs — only needed when built with ROS2 support (ENABLE_ROS2=ON).
+# Mirrors the builder-stage install so all transitive apt dependencies (fastrtps,
+# tinyxml2, python3, etc.) are present here too, not just in the builder image.
+RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+            curl \
+        && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+            -o /usr/share/keyrings/ros-archive-keyring.gpg \
+        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
+            > /etc/apt/sources.list.d/ros2.list \
+        && apt-get update && apt-get install -y --no-install-recommends \
+            ros-jazzy-ros-base \
+            ros-jazzy-cv-bridge \
+            ros-jazzy-image-transport \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# ROS2 apt packages don't register /opt/ros/jazzy/lib with ldconfig — normally
+# `setup.bash` sets LD_LIBRARY_PATH for you, but ENTRYPOINT runs the binary
+# directly with no shell in between to source it. Set it explicitly instead.
+ENV LD_LIBRARY_PATH="/opt/ros/jazzy/lib:${LD_LIBRARY_PATH}"
 
 RUN mkdir -p /usr/share/visionpilot
 
