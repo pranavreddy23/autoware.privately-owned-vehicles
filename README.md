@@ -121,11 +121,18 @@ or with ROS2 support
   cmake -DONNXRUNTIME_ROOT=<ONNX_RUNTIME_ROOT_PATH> -DENABLE_ROS2_INTERFACE=ON ../
 ```
 
+or with the optional Occupancy BEV window (heuristic 3D / bird's-eye panel beside the HUD; default is OFF):
+
+```bash
+  cmake -DONNXRUNTIME_ROOT=<ONNX_RUNTIME_ROOT_PATH> -DENABLE_OCCUPANCY=ON ../
+```
+
 ```bash
   make
 ```
 
 This will build the project and create VisionPilot executable inside the build directory.
+See `VisionPilot/modules/visualization/README.md` for Occupancy controls (orbit / pan / zoom).
 
 #### Run Vision Pilot on test data and visualize outputs
 
@@ -249,7 +256,7 @@ VisionPilot
 
 To run Vision Pilot inside a Docker container, build the container using the Dockerfiles provided in the docker
 directory of the repository.
-Docker containers can be built with GPU/CPU support, and NO_ROS2/ROS2 support.
+Docker containers can be built with GPU/CPU support, NO_ROS2/ROS2 support, and optional Occupancy BEV support.
 
 To build the container, go to the docker subdirectory and run the following commands:
 
@@ -263,6 +270,12 @@ to build with CPU support
 
 ```bash
   ./build.sh --cpu
+```
+
+to enable the optional Occupancy BEV window (pass alongside `--gpu` or `--cpu`):
+
+```bash
+  ./build.sh --gpu --occupancy
 ```
 
 To run the container use the `run.sh` script. For example to run the container with CPU support
