@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 #
 # Build the VisionPilot Docker image, choosing GPU or CPU variant and
-# optionally enabling ROS2 support.
+# optionally enabling ROS2 and/or Occupancy BEV support.
 #
 # Usage:
-#   ./build.sh [--gpu|--cpu] [--ros2] [--no-cache] [--tag <name>]
+#   ./build.sh [--gpu|--cpu] [--ros2] [--occupancy] [--no-cache] [--tag <name>]
 #
 # Examples:
-#   ./build.sh                    # CPU build, ROS2 off (defaults)
-#   ./build.sh --gpu              # GPU build, ROS2 off
-#   ./build.sh --gpu --ros2       # GPU build, ROS2 on
-#   ./build.sh --cpu --no-cache   # CPU build, force a clean rebuild
+#   ./build.sh                         # CPU build, ROS2 off, Occupancy off (defaults)
+#   ./build.sh --gpu                   # GPU build, ROS2 off
+#   ./build.sh --gpu --ros2            # GPU build, ROS2 on
+#   ./build.sh --gpu --occupancy       # GPU build with Occupancy BEV window
+#   ./build.sh --cpu --no-cache        # CPU build, force a clean rebuild
 #   ./build.sh --gpu --tag myimg:latest   # custom tag instead of the default
 
 set -euo pipefail
