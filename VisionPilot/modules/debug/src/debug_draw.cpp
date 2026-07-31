@@ -540,9 +540,11 @@ static void draw_hud_panel(cv::Mat& img, const DebugView& v, const OverlayLayout
     y = py + 16;
     text(c3x, y, "FUSED LATERAL", kClrFusedLat); y += lineH;
     if (v.lateral.valid) {
-        text(c3x, y, "CTE       " + fd(v.lateral.cte_m, 2) + " m",
+        text(c3x, y, "CTE       " + fd(v.lateral.cte_m, 2) + " m  "
+                     + fd(v.lateral.cte_rate_mps, 2) + " m/s",
              kClrFusedLat, kNorm, kBold); y += lineH;
-        text(c3x, y, "yaw       " + fd(v.lateral.yaw_rad, 3) + " rad",
+        text(c3x, y, "yaw       " + fd(v.lateral.yaw_rad, 3) + " rad  "
+                     + fd(v.lateral.yaw_rate_rps, 3) + " rad/s",
              kClrFusedLat, kNorm, kBold); y += lineH;
         text(c3x, y, "curvature " + fd(v.lateral.curvature, 4) + " 1/m",
              kClrFusedLat, kNorm, kBold);
