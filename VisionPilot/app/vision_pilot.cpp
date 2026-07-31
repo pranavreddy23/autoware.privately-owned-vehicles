@@ -153,11 +153,14 @@ int main(int argc, char** argv)
                 cte, epsi, kappa, ego_v, has_cipo, cipo_v, cipo_dist);
 
             VP_INFO(
-                "plan: tyre=%.4f rad  accel=%.3f m/s²  |  cte=%.2fm(raw=%.2fm)  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s",
+                "plan: tyre=%.4f rad  accel=%.3f m/s²  |  cte=%.2fm(raw=%.2fm) cte_dot=%+.2fm/s  epsi=%.3f epsi_dot=%+.3frad/s  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s",
                 plan.steering.empty() ? 0.0 : plan.steering[1],
                 plan.acceleration,
                 cte,
                 raw_cte,
+                r->lateral.cte_rate_mps,
+                epsi,
+                r->lateral.yaw_rate_rps,
                 has_cipo ? "true" : "false",
                 cipo_dist,
                 r->cipo.velocity_ms);
