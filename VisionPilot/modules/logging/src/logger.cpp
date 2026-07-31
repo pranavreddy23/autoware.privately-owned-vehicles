@@ -114,9 +114,11 @@ void log_inference(const visionpilot::models::InferenceFrameResult& r) {
 	// Fusion / Safety Guardian
 	log_scalar("fusion/cipo/distance_m",   r.cipo.distance_m);    // in-path object distance
 	log_scalar("fusion/cipo/velocity_ms",  r.cipo.velocity_ms);   // in-path object speed
-	log_scalar("fusion/lateral/cte_m",     r.lateral.cte_m);      // cross-track error
-	log_scalar("fusion/lateral/yaw_rad",   r.lateral.yaw_rad);    // yaw error
-	log_scalar("fusion/lateral/curvature", r.lateral.curvature);  // curvature
+	log_scalar("fusion/lateral/cte_m",       r.lateral.cte_m);        // cross-track error
+	log_scalar("fusion/lateral/cte_rate_mps", r.lateral.cte_rate_mps); // cte rate
+	log_scalar("fusion/lateral/yaw_rad",     r.lateral.yaw_rad);      // yaw error
+	log_scalar("fusion/lateral/yaw_rate_rps", r.lateral.yaw_rate_rps); // yaw-error rate
+	log_scalar("fusion/lateral/curvature",   r.lateral.curvature);    // curvature
 
 	// BEV coords of filtered path, sampled from y = ax^2 + bx + c in
 	// world/BEV frame (x = forward (m), y = lateral (m, left as +)).
