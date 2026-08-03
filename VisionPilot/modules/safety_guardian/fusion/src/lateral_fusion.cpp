@@ -103,10 +103,12 @@ LateralFusionEstimate LateralFusion::update(
     // ── Step 6: Extract posterior means ──────────────────────────────────────
     if (cy_init_ && !cy_.empty()) {
         const auto w = linear_weights(cy_);
-        float mean_cte = 0.f, mean_yaw = 0.f;
+        float mean_cte = 0.f, mean_cte_dot = 0.f, mean_yaw = 0.f, mean_yaw_dot = 0.f;
         for (std::size_t i = 0; i < cy_.size(); ++i) {
-            mean_cte += w[i] * cy_[i].cte;
-            mean_yaw += w[i] * cy_[i].yaw;
+            mean_cte     += w[i] * cy_[i].cte;
+            mean_cte_dot += w[i] * cy_[i].cte_dot;
+            mean_yaw     += w[i] * cy_[i].yaw;
+            mean_yaw_dot += w[i] * cy_[i].yaw_dot;
         }
         float var_cte = 0.f, var_yaw = 0.f;
         for (std::size_t i = 0; i < cy_.size(); ++i) {
@@ -116,7 +118,9 @@ LateralFusionEstimate LateralFusion::update(
             var_yaw += w[i] * dy * dy;
         }
         est.cte_m          = mean_cte;
+        est.cte_rate_mps   = mean_cte_dot;
         est.yaw_rad        = mean_yaw;
+        est.yaw_rate_rps   = mean_yaw_dot;
         est.cte_stddev_m   = std::sqrt(std::max(0.f, var_cte));
         est.yaw_stddev_rad = std::sqrt(std::max(0.f, var_yaw));
         est.valid          = true;
@@ -154,9 +158,9 @@ LateralFusionEstimate LateralFusion::update(
         else
             std::snprintf(ad_buf, sizeof(ad_buf), "(none)");
 
-        VP_INFO("[Lateral] Path: %s | AD-κ=%s | Fused CTE=%.2fm yaw=%.3frad κ=%.4f",
+        VP_INFO("[Lateral] Path: %s | AD-κ=%s | Fused CTE=%.2fm (%.2fm/s) yaw=%.3frad (%.3frad/s) κ=%.4f",
                 path_buf, ad_buf,
-                est.cte_m, est.yaw_rad, est.curvature);
+                est.cte_m, est.cte_rate_mps, est.yaw_rad, est.yaw_rate_rps, est.curvature);
     }
 
     return est;
@@ -348,15 +352,29 @@ void LateralFusion::cy_init(float cte, float yaw)
     cy_.resize(static_cast<std::size_t>(N));
     std::normal_distribution<float> nc(cte, cfg_.meas_noise_cte_m);
     std::normal_distribution<float> ny(yaw, cfg_.meas_noise_yaw_rad);
-    for (auto& p : cy_) { p.cte = nc(rng_); p.yaw = ny(rng_); p.log_w = 0.f; }
+    std::normal_distribution<float> ncd(0.f, cfg_.proc_noise_cte_rate_mps);
+    std::normal_distribution<float> nyd(0.f, cfg_.proc_noise_yaw_rate_rps);
+    for (auto& p : cy_) {
+        p.cte = nc(rng_); p.cte_dot = ncd(rng_);
+        p.yaw = ny(rng_); p.yaw_dot = nyd(rng_);
+        p.log_w = 0.f;
+    }
     cy_init_ = true;
 }
 
 void LateralFusion::cy_predict(float dt)
 {
-    std::normal_distribution<float> nc(0.f, cfg_.proc_noise_cte_m  * std::sqrt(dt / cfg_.dt_s));
-    std::normal_distribution<float> ny(0.f, cfg_.proc_noise_yaw_rad * std::sqrt(dt / cfg_.dt_s));
-    for (auto& p : cy_) { p.cte += nc(rng_); p.yaw += ny(rng_); }
+    const float s = std::sqrt(dt / cfg_.dt_s);
+    std::normal_distribution<float> nc(0.f, cfg_.proc_noise_cte_m * s);
+    std::normal_distribution<float> ncd(0.f, cfg_.proc_noise_cte_rate_mps * s);
+    std::normal_distribution<float> ny(0.f, cfg_.proc_noise_yaw_rad * s);
+    std::normal_distribution<float> nyd(0.f, cfg_.proc_noise_yaw_rate_rps * s);
+    for (auto& p : cy_) {
+        p.cte     += p.cte_dot * dt + nc(rng_);
+        p.cte_dot += ncd(rng_);
+        p.yaw     += p.yaw_dot * dt + ny(rng_);
+        p.yaw_dot += nyd(rng_);
+    }
 }
 
 void LateralFusion::cy_update(float meas_cte, float noise_cte,

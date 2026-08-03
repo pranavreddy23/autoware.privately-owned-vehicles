@@ -20,7 +20,9 @@ struct LateralFusionEstimate {
 
     // ── Particle-filter tracked outputs (ready for planning) ──────────────────
     float cte_m          = 0.f;   // cross-track error [m]; +ve = ego right of path
+    float cte_rate_mps   = 0.f;   // d(cte)/dt [m/s]
     float yaw_rad        = 0.f;   // yaw error [rad];  +ve = path heading left
+    float yaw_rate_rps   = 0.f;   // d(yaw)/dt [rad/s]
     float cte_stddev_m   = 0.f;
     float yaw_stddev_rad = 0.f;
 
@@ -51,8 +53,8 @@ struct LateralFusionEstimate {
 //    2. 2nd-order polynomial RANSAC on world points:
 //         y_lateral = a·x² + b·x + c
 //       → CTE = c, Yaw = atan(b), Curvature = median κ(x) at waypoint x in [curv_x_min, curv_x_max]
-//    3. CTE/Yaw particle filter: state [cte, yaw], random-walk process,
-//       Gaussian update from step-2 when path is valid.
+//    3. CTE/Yaw particle filter: state [cte, cte_dot, epsi, epsi_dot],
+//       constant-velocity predict; measure cte/epsi when path is valid.
 //    4. Curvature particle filter: state [curv], fuses
 //       a) path curvature from step-2  (when path_valid)
 //       b) AutoDrive curvature_raw * ad_curvature_scale  (when drive.valid)
@@ -63,10 +65,12 @@ public:
         int   n_particles            = 300;
         float dt_s                   = 0.10f;   // nominal dt; overridden per-call
 
-        // Process noise (random-walk, scaled by dt internally)
-        float proc_noise_cte_m       = 0.05f;   // allows ~0.05m/s RMS drift for smooth tracking
-        float proc_noise_yaw_rad     = 0.01f;
-        float proc_noise_curv        = 0.002f;
+        // Process noise (scaled by dt internally)
+        float proc_noise_cte_m         = 0.02f;   // small position walk on top of CV model
+        float proc_noise_cte_rate_mps  = 0.15f;   // cte_dot random-walk [m/s²-ish]
+        float proc_noise_yaw_rad       = 0.005f;
+        float proc_noise_yaw_rate_rps  = 0.05f;   // epsi_dot random-walk
+        float proc_noise_curv          = 0.002f;
 
         // Camera mounting offset compensation.  Set to the observed steady-state
         // CTE on a straight road (camera not at vehicle centreline).
@@ -147,8 +151,8 @@ private:
     // Project a single image point (u,v) → (x_forward [m], y_lateral [m])
     static std::pair<float, float> project_world(const cv::Mat& H, float u, float v);
 
-    // ── CTE / Yaw particle filter  [state: cte, yaw] ─────────────────────────
-    struct CYParticle { float cte, yaw, log_w; };
+    // ── CTE / Yaw particle filter  [cte, cte_dot, epsi, epsi_dot] ─────────────
+    struct CYParticle { float cte, cte_dot, yaw, yaw_dot, log_w; };
     void  cy_predict(float dt);
     void  cy_update(float meas_cte, float noise_cte,
                     float meas_yaw, float noise_yaw);
