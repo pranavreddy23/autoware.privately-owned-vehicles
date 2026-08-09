@@ -41,7 +41,7 @@ public:
         double cipo_distance);
 
 private:
-    double Lf_;            // Front-axle to CoG (m)
+    double L_;            // Front-axle to CoG (m)
 
     // LongitudinalPlanner::Config cfg_;
     LongitudinalPlanner         longitudinal_planner;

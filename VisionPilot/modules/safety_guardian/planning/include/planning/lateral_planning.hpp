@@ -25,7 +25,7 @@ public:
     //                    constraints smooth.
     //
     // Returns [delta_0, delta_0, delta_1, ..., delta_{N-2}]
-    std::vector<double> compute_steering(double Lf,
+    std::vector<double> compute_steering(double L,
                                         const Eigen::VectorXd& state,
                                         const Eigen::VectorXd& v_schedule,
                                         const Eigen::VectorXd& kappa_schedule);

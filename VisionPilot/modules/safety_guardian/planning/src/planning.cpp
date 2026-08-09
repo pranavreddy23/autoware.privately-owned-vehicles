@@ -6,7 +6,7 @@
 constexpr double DS = 0.5;
 
 Planner::Planner(const double speed_limit, const double Lf)
-    : Lf_(Lf)
+    : L_(Lf)
       , longitudinal_planner([&]
       {
           LongitudinalPlanner::Config c;
@@ -31,7 +31,7 @@ Plan Planner::compute_plan(
     constexpr double RATE_ALPHA = 0.6; // EMA smoothing factor for dkappa_ds
     constexpr double RATE_MAX = 0.15;   // Clamp on |d(kappa)/ds| (1/m^2)
 
-    const double KAPPA_MAX = std::tan(0.436332) / Lf_; // Maximum achievable curvature (~0.175 /m)
+    const double KAPPA_MAX = std::tan(0.436332) / L_; // Maximum achievable curvature (~0.175 /m)
 
     // Compute spatial derivative d(kappa)/ds using vehicle displacement between loop cycles
     double dkappa_ds = 0.0;
@@ -95,7 +95,7 @@ Plan Planner::compute_plan(
     Eigen::VectorXd state(3);
     state << cte, epsi, kappa;
 
-    auto steering = lateral_planner.compute_steering(Lf_, state, v_schedule, kappa_schedule);
+    auto steering = lateral_planner.compute_steering(L_, state, v_schedule, kappa_schedule);
 
     // Safety Warnings
     std::vector<Warning> warnings;
