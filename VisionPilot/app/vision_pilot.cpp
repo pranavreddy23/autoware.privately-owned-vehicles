@@ -77,7 +77,7 @@ int main(int argc, char** argv)
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
     Planner planner(cfg.speed_limit, cfg.L);
-    if (cfg.logging_on) logging::Rerun::init(cfg.logging_rrd);
+    if (cfg.rrd_on) logging::Rerun::init(cfg.rrd_log);
 
     // ── Init visualization assets once based on mode ──────────────────────────
     if (debug_viz)
@@ -175,7 +175,7 @@ int main(int argc, char** argv)
                 if (debug_viz)
                 {
                     // annotate_frame() draws inplace
-                    viz = cfg.logging_on ? resized.clone() : resized;
+                    viz = cfg.rrd_on ? resized.clone() : resized;
                     vd::visualize(viz, *r, source_label(cfg.source), cfg.wheel_dir, pipeline.H_world2resized());
                     display_frame = viz;
                 }
@@ -187,7 +187,7 @@ int main(int argc, char** argv)
             }
 
             // Submit all required logging params to single logger func
-            if (cfg.logging_on)
+            if (cfg.rrd_on)
                 logging::Rerun::log_frame(r->frame_id, frame, warped, resized, *r, plan, ego_v, viz);
         }
         if (cfg.visualization_on)
@@ -196,7 +196,7 @@ int main(int argc, char** argv)
         }
     }
 
-    if (cfg.logging_on) logging::Rerun::shutdown();  // flush & close .rrd
+    if (cfg.rrd_on) logging::Rerun::shutdown();  // flush & close .rrd
 
     // stop() returns true on a clean shutdown; translate that to a 0 exit code
     // so VisionPilot can be supervised as a batch/oneshot job (a successful run

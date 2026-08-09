@@ -19,6 +19,15 @@ option(GPU "Enable GPU support" ON)
 # ROS2 packages
 option(ENABLE_ROS2_INTERFACE "Enable ROS2 support" OFF)
 
+# Build testing code
+option(BUILD_TESTING "Build the testing tree" OFF)
+
+# Rerun C++ SDK
+# Disabled by default
+# Resolved either from a local checkout pointed to by RERUN_SDK_ROOT (env or cache var),
+# or downloaded via FetchContent.
+option(ENABLE_RERUN "Log directly to a Rerun .rrd via the Rerun C++ SDK" OFF)
+
 set(Python3_EXECUTABLE /usr/bin/python3 CACHE FILEPATH "" FORCE)
 find_package(Python3 REQUIRED)
 
@@ -56,7 +65,9 @@ add_subdirectory(modules/visualization)
 add_subdirectory(modules/debug)
 
 # Tests
-add_subdirectory(tests)
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
 
 # config
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config

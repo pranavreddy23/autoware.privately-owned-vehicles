@@ -48,8 +48,8 @@ struct Config {
 
     // Rerun logging: when enabled, per-frame data is streamed directly to an
     // .rrd recording ready to open in Rerun viewer.
-    bool        logging_on  = false;
-    std::string logging_rrd = "visionpilot.rrd";
+    bool        rrd_on  = false;
+    std::string rrd_log = "visionpilot.rrd";
 };
 
 static std::string find_config(const std::string& filename) {
