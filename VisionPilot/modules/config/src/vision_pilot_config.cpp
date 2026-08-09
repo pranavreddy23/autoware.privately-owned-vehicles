@@ -136,7 +136,7 @@ Config load_vision_pilot_config()
     cfg.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
 
     cfg.speed_limit = parse_double(optional(kv, "speed_limit", ""), "speed_limit");
-    cfg.Lf = parse_double(optional(kv, "Lf", ""), "Lf");
+    cfg.L = parse_double(optional(kv, "L", ""), "L");
 
     cfg.visualization_on = parse_bool(optional(kv, "visualization_on", "false"), "visualization_on");
     cfg.webrtc_on = parse_bool(optional(kv, "webrtc_on", "false"), "webrtc_on");

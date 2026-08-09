@@ -111,7 +111,7 @@ int main(int argc, char** argv)
     ImagePreprocessor preprocessor;
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
-    Planner planner(cfg.speed_limit, cfg.Lf);
+    Planner planner(cfg.speed_limit, cfg.L);
 
     // ── Init visualization assets once based on mode ──────────────────────────
     if (debug_viz)

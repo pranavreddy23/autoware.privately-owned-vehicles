@@ -40,7 +40,7 @@ struct Config {
     std::string vehicle_acceleration_topic;
 
     double speed_limit;
-    double Lf;
+    double L;
 
     bool visualization_on = false;
     bool webrtc_on = false;
