@@ -4,6 +4,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import Imu
 
 
 class CarlaVehicleSpeedPublisherNode(Node):
@@ -12,7 +13,8 @@ class CarlaVehicleSpeedPublisherNode(Node):
 
         self.declare_parameter('host', 'localhost')
         self.declare_parameter('port', 2000)
-        self.image_sub_ = self.create_subscription(Image, '/carla/hero/main_cam/image', self.image_callback, 1)
+        # self.image_sub_ = self.create_subscription(Image, '/carla/hero/main_cam/image', self.image_callback, 1)
+        self.imu_sub_ = self.create_subscription(Imu, '/carla/hero/imu', self.imu_callback, 1)
         self.speed_pub_ = self.create_publisher(Float64, '/vehicle/speed', 1)
 
         host = self.get_parameter('host').get_parameter_value().string_value
@@ -39,18 +41,42 @@ class CarlaVehicleSpeedPublisherNode(Node):
             self.get_logger().info(f'hero_actor found (id={self.hero_actor.id}), ready.')
             self.actor_search_timer.cancel()
 
-    def image_callback(self, msg):
+    # def image_callback(self, msg):
+    #     if self.hero_actor is None:
+    #         self.get_logger().warn('hero_actor not found yet, skipping frame', throttle_duration_sec=2.0)
+    #         return
+    #
+    #     velocity = self.hero_actor.get_velocity()
+    #     # speed_kmh = 3.6 * math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
+    #     speed_kmh = math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
+    #
+    #     out = Float64()
+    #     out.data = speed_kmh
+    #     self.speed_pub_.publish(out)
+    #     self.get_logger().info(f'Velocity published: {speed_kmh:.2f} km/h')
+
+    # def image_callback(self, msg):
+    #     self.get_logger().info("img stamp=%d.%09d" % (msg.header.stamp.sec, msg.header.stamp.nanosec))
+
+    def imu_callback(self, msg: Imu):
         if self.hero_actor is None:
-            self.get_logger().warn('hero_actor not found yet, skipping frame', throttle_duration_sec=2.0)
+            self.get_logger().warn('hero_actor not found yet, skipping', throttle_duration_sec=2.0)
             return
 
-        velocity = self.hero_actor.get_velocity()
-        speed_kmh = 3.6 * math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
+        # 2. Get local non-blocking snapshot matching the latest server tick (No world.tick()!)
+        world_snapshot = self.world.get_snapshot()
+        hero_snapshot = world_snapshot.find(self.hero_actor.id)
 
-        out = Float64()
-        out.data = speed_kmh
-        self.speed_pub_.publish(out)
-        self.get_logger().info(f'Velocity published: {speed_kmh:.2f} km/h')
+        if hero_snapshot:
+            # 3. Retrieve exact velocity recorded for this frame
+            velocity = hero_snapshot.get_velocity()
+            speed_m_s = math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
+
+            # 4. Publish result
+            out = Float64()
+            out.data = speed_m_s
+            self.speed_pub_.publish(out)
+            # self.get_logger().info(f'Velocity published: {speed_m_s:.2f} m/s')
 
 
 def main(args=None):
