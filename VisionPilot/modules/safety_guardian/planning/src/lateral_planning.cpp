@@ -19,13 +19,13 @@ size_t delta_start      = kappa_road_start + N;
 class FG_eval
 {
 public:
-    double Lf_;
+    double L_;
     double ds_;
     VectorXd v_schedule;
     VectorXd kappa_schedule;
 
-    FG_eval(double Lf, double ds, VectorXd v_sched, VectorXd kappa_sched)
-        : Lf_(Lf), ds_(ds), v_schedule(std::move(v_sched)), kappa_schedule(std::move(kappa_sched))
+    FG_eval(double L, double ds, VectorXd v_sched, VectorXd kappa_sched)
+        : L_(L), ds_(ds), v_schedule(std::move(v_sched)), kappa_schedule(std::move(kappa_sched))
     {
     }
 
@@ -78,7 +78,7 @@ public:
         {
             double k = kappa_schedule[s];
             // Feedforward steering = Ackermann angle + Understeer slip angle compensation
-            double delta_ff = std::atan(Lf_ * k) + (K_us * v2 * k);
+            double delta_ff = std::atan(L_ * k) + (K_us * v2 * k);
 
             fg[0] += delta_weight * CppAD::pow(vars[delta_start + s] - delta_ff, 2);
         }
@@ -103,7 +103,7 @@ public:
             AD<double> delta0 = vars[delta_start + s - 1];
 
             AD<double> kappa_road0 = kappa_schedule[s - 1];
-            AD<double> kappa_cmd   = CppAD::tan(delta0) / Lf_;
+            AD<double> kappa_cmd   = CppAD::tan(delta0) / L_;
 
             fg[1 + cte_start + s] = vars[cte_start + s]
                 - (cte0 + CppAD::sin(epsi0) * ds_);
@@ -120,7 +120,7 @@ public:
 LateralPlanner::LateralPlanner() = default;
 LateralPlanner::~LateralPlanner() = default;
 
-std::vector<double> LateralPlanner::compute_steering(const double Lf,
+std::vector<double> LateralPlanner::compute_steering(const double L,
                                                      const VectorXd& state,
                                                      const VectorXd& v_schedule,
                                                      const VectorXd& kappa_schedule)
@@ -144,8 +144,8 @@ std::vector<double> LateralPlanner::compute_steering(const double Lf,
     // FIX LATENCY COMPENSATION:
     // When turning into a curve (kappa_road > 0), heading relative to road tangent
     // INCREASES by (kappa_cmd - kappa_road)*ds. Using raw feedforward angle delta_ff_0:
-    const double delta_ff_0 = std::atan(Lf * kappa_road);
-    const double kappa_cmd_0 = std::tan(delta_ff_0) / Lf;
+    const double delta_ff_0 = std::atan(L * kappa_road);
+    const double kappa_cmd_0 = std::tan(delta_ff_0) / L;
 
     const double cte  = cte_raw + std::sin(epsi_raw) * ds;
     const double epsi = epsi_raw + (kappa_cmd_0 - kappa_road) * ds;
@@ -173,7 +173,7 @@ std::vector<double> LateralPlanner::compute_steering(const double Lf,
     for (size_t i = 0; i < N - 1; ++i)
     {
         double k = kappa_schedule[i];
-        double delta_ff = std::atan(Lf * k) + (K_us * v2 * k);
+        double delta_ff = std::atan(L * k) + (K_us * v2 * k);
         vars[delta_start + i] = delta_ff;
     }
 
@@ -197,7 +197,7 @@ std::vector<double> LateralPlanner::compute_steering(const double Lf,
     con_lb[epsi_start]       = con_ub[epsi_start]       = epsi;
     con_lb[kappa_road_start] = con_ub[kappa_road_start] = kappa_road;
 
-    FG_eval fg_eval(Lf, ds, v_schedule, kappa_schedule);
+    FG_eval fg_eval(L, ds, v_schedule, kappa_schedule);
 
     std::string options;
     options += "Integer print_level 0\n";

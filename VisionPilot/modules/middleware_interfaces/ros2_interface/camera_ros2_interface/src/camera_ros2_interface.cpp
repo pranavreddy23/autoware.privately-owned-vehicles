@@ -34,7 +34,7 @@ CameraRos2Interface::CameraRos2Interface(
     //      - https://docs.ros2.org/foxy/api/rclcpp/classrclcpp_1_1QoS.html
 
     auto qos_profile = rclcpp::QoS(rclcpp::KeepLast(qos_history_depth))
-                       .best_effort()
+                       .reliable()
                        .durability_volatile();
 
     image_subscription = node->create_subscription<sensor_msgs::msg::Image>(
@@ -71,6 +71,12 @@ void CameraRos2Interface::image_callback(
         stats.frames_received++;
         stats.last_encoding = msg->encoding;
     };
+
+    // const double stamp_sec =
+    // static_cast<double>(msg->header.stamp.sec) +
+    // static_cast<double>(msg->header.stamp.nanosec) * 1e-9;
+    //
+    // RCLCPP_INFO(node->get_logger(), "img stamp=%.9f", stamp_sec);
 
     // Convert ROS2 msg => OpenCV img
     cv::Mat cv_image = convert_ros2_image_to_opencv(msg);

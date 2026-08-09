@@ -136,14 +136,14 @@ Config load_vision_pilot_config()
     cfg.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
 
     cfg.speed_limit = parse_double(optional(kv, "speed_limit", ""), "speed_limit");
-    cfg.Lf = parse_double(optional(kv, "Lf", ""), "Lf");
+    cfg.L = parse_double(optional(kv, "L", ""), "L");
 
     cfg.visualization_on = parse_bool(optional(kv, "visualization_on", "false"), "visualization_on");
     cfg.webrtc_on = parse_bool(optional(kv, "webrtc_on", "false"), "webrtc_on");
     cfg.webrtc_port =  parse_int(optional(kv, "webrtc_port", "8080"), "webrtc_port");
 
-    cfg.logging_on  = parse_bool(optional(kv, "logging_on", "false"), "logging_on");
-    cfg.logging_rrd = optional(kv, "logging_rrd", "visionpilot.rrd");
+    cfg.rrd_on  = parse_bool(optional(kv, "rrd_on", "false"), "rrd_on");
+    cfg.rrd_log = optional(kv, "rrd_log", "visionpilot.rrd");
 
     { const std::string raw = optional(kv, "debug.wheel_dir", "");
       cfg.wheel_dir = raw.empty() ? "" : expand_home(raw); }

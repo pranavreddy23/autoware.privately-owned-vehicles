@@ -32,11 +32,7 @@ target_link_libraries(logging
         ${OpenCV_LIBS}
 )
 
-# Rerun C++ SDK
-# Enabled by default
-# Resolved either from a local checkout pointed to by RERUN_SDK_ROOT (env or cache var), 
-# or downloaded via FetchContent.
-option(ENABLE_RERUN "Log directly to a Rerun .rrd via the Rerun C++ SDK" ON)
+
 if(ENABLE_RERUN)
         if(DEFINED ENV{RERUN_SDK_ROOT} AND NOT DEFINED RERUN_SDK_ROOT)
                 set(RERUN_SDK_ROOT $ENV{RERUN_SDK_ROOT} CACHE PATH "Path to rerun_cpp_sdk")

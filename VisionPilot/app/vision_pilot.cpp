@@ -76,8 +76,8 @@ int main(int argc, char** argv)
     ImagePreprocessor preprocessor;
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
-    Planner planner(cfg.speed_limit, cfg.Lf);
-    if (cfg.logging_on) logging::Rerun::init(cfg.logging_rrd);
+    Planner planner(cfg.speed_limit, cfg.L);
+    if (cfg.rrd_on) logging::Rerun::init(cfg.rrd_log);
 
     // ── Init visualization assets once based on mode ──────────────────────────
     if (debug_viz)
@@ -132,7 +132,7 @@ int main(int argc, char** argv)
 
         if (const auto r = pipeline.process(warped, resized))
         {
-            pipeline.latency().print();
+            // pipeline.latency().print();
 
             const double ego_v = vehicle_interface->read();
             const double cte = r->lateral.cte_m;
@@ -153,7 +153,7 @@ int main(int argc, char** argv)
                 cte, epsi, kappa, ego_v, has_cipo, cipo_v, cipo_dist);
 
             VP_INFO(
-                "plan: tyre=%.4f rad  accel=%.3f m/s²  |  cte=%.2fm(raw=%.2fm) cte_dot=%+.2fm/s  epsi=%.3f epsi_dot=%+.3frad/s  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s",
+                "plan: tyre=%.4f rad  accel=%.3f m/s²  |  cte=%.2fm(raw=%.2fm) cte_dot=%+.2fm/s  epsi=%.3f epsi_dot=%+.3frad/s  kappa=%.4f  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s",
                 plan.steering.empty() ? 0.0 : plan.steering[1],
                 plan.acceleration,
                 cte,
@@ -161,6 +161,7 @@ int main(int argc, char** argv)
                 r->lateral.cte_rate_mps,
                 epsi,
                 r->lateral.yaw_rate_rps,
+                kappa,
                 has_cipo ? "true" : "false",
                 cipo_dist,
                 r->cipo.velocity_ms);
@@ -174,7 +175,7 @@ int main(int argc, char** argv)
                 if (debug_viz)
                 {
                     // annotate_frame() draws inplace
-                    viz = cfg.logging_on ? resized.clone() : resized;
+                    viz = cfg.rrd_on ? resized.clone() : resized;
                     vd::visualize(viz, *r, source_label(cfg.source), cfg.wheel_dir, pipeline.H_world2resized());
                     display_frame = viz;
                 }
@@ -186,7 +187,7 @@ int main(int argc, char** argv)
             }
 
             // Submit all required logging params to single logger func
-            if (cfg.logging_on)
+            if (cfg.rrd_on)
                 logging::Rerun::log_frame(r->frame_id, frame, warped, resized, *r, plan, ego_v, viz);
         }
         if (cfg.visualization_on)
@@ -195,7 +196,7 @@ int main(int argc, char** argv)
         }
     }
 
-    if (cfg.logging_on) logging::Rerun::shutdown();  // flush & close .rrd
+    if (cfg.rrd_on) logging::Rerun::shutdown();  // flush & close .rrd
 
     // stop() returns true on a clean shutdown; translate that to a 0 exit code
     // so VisionPilot can be supervised as a batch/oneshot job (a successful run
