@@ -51,10 +51,10 @@ public:
         }
 
         // Scale CTE weight aggressively when previewing sharp curves (> 0.05 /m)
-        const double curve_factor = 1.0 + 20.0 * max_kappa;
+        const double curve_factor = 1.0 + 100.0 * max_kappa;
         // const double cte_weight   = 40.0 * curve_factor;
-        const double cte_weight   = 20.0 * curve_factor;
-        const double epsi_weight  = 10.0 * curve_factor;
+        const double cte_weight   = 10.0 * curve_factor;
+        const double epsi_weight  = 30.0 * curve_factor;
 
         // 2. REASONABLE SLEW PENALTY:
         // Capped slew penalty so the solver isn't penalized too heavily for fast turn-in on curve entry.
