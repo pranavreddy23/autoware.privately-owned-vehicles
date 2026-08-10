@@ -180,7 +180,7 @@ static cv::Scalar vehicle_paint(int class_id, bool is_truck)
   // Ego (class_id 0) stays pearl white; other traffic is #0000FF.
   if (class_id == 0) return cv::Scalar(215, 212, 208);
   (void)is_truck;
-  return cv::Scalar(255, 0, 0);  // BGR for #0000FF
+  return cv::Scalar(220, 200, 0);  // BGR for #0000FF
 }
 
 static float wall_shade_pts(cv::Point a, cv::Point b)
@@ -399,7 +399,9 @@ cv::Mat render(const Scene & scene)
     float d = 40.f;
     cv::Point unused;
     project_xyz(basis, x_fwd, y_lat, 0.f, unused, &d);
-    return std::clamp(1.f - 0.012f * d, 0.35f, 1.f);
+    // Fade past the camera's own standoff distance, not from zero.
+    const float rel = std::max(0.f, d - g_occ_cam.dist * 0.75f);
+    return std::clamp(1.f - 0.006f * rel, 0.55f, 1.f);
   };
 
   auto scale_bgr = [](cv::Scalar c, float s) -> cv::Scalar {
@@ -407,10 +409,10 @@ cv::Mat render(const Scene & scene)
       std::min(255.0, c[0] * s), std::min(255.0, c[1] * s), std::min(255.0, c[2] * s));
   };
 
-  const cv::Scalar kSkyFar(168, 166, 164);
-  const cv::Scalar kGroundNear(188, 186, 184);
-  const cv::Scalar kGridMaj(140, 138, 136);
-  const cv::Scalar kGridMin(155, 153, 151);
+  const cv::Scalar kSkyFar(34, 27, 22);
+  const cv::Scalar kGroundNear(52, 43, 36);
+  const cv::Scalar kGridMaj(92, 83, 72);
+  const cv::Scalar kGridMin(72, 63, 54);
   const cv::Scalar kPathFill(120, 190, 55);
   const cv::Scalar kPathEdge(180, 240, 110);
   const cv::Scalar kLane(90, 88, 86);
@@ -441,7 +443,7 @@ cv::Mat render(const Scene & scene)
       if (project_xyz(basis, x, y, 0.f, p)) ground.push_back(p);
     }
     if (ground.size() == 4)
-      cv::fillConvexPoly(panel, ground, cv::Scalar(198, 196, 194), cv::LINE_AA);
+      cv::fillConvexPoly(panel, ground, cv::Scalar(58, 48, 40), cv::LINE_AA);
   }
 
   // Grid
@@ -465,7 +467,7 @@ cv::Mat render(const Scene & scene)
       if (project_xyz(basis, x, -kYMax + 0.6f, 0.f, p))
         cv::putText(
           panel, lbl, p + cv::Point(3, -3), cv::FONT_HERSHEY_SIMPLEX, 0.33,
-          scale_bgr(cv::Scalar(110, 108, 106), fade), 1, cv::LINE_AA);
+          scale_bgr(cv::Scalar(140, 138, 134), fade), 1, cv::LINE_AA);
     }
   }
   for (float x : {20.f, 40.f, 60.f, 80.f, 100.f, 120.f, 150.f}) {
@@ -473,7 +475,7 @@ cv::Mat render(const Scene & scene)
     cv::Point a, b;
     if (!project_xyz(basis, x, -kYMax, 0.f, a)) continue;
     if (!project_xyz(basis, x, kYMax, 0.f, b)) continue;
-    cv::line(panel, a, b, scale_bgr(cv::Scalar(150, 148, 146), fade), 1, cv::LINE_AA);
+    cv::line(panel, a, b, scale_bgr(cv::Scalar(82, 74, 64), fade), 1, cv::LINE_AA);
   }
 
   // Green path corridor — always extend to kXMax when path is valid
