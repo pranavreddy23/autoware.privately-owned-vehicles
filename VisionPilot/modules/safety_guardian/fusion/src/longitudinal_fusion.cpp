@@ -15,6 +15,16 @@ constexpr float kPi     = 3.14159265f;
 
 float path_y(const PathPoly& p, float x) { return p.a * x * x + p.b * x + p.c; }
 
+// Same ±1 m world-metre corridor as production path fill. Not pixels.
+bool in_path_corridor(const RadarPoint& p, const PathPoly& path, float buf, float max_r)
+{
+    if (!path.valid || p.range_m <= 0.f || p.range_m > max_r) return false;
+    const float x = p.range_m * std::cos(p.azimuth_rad);
+    const float y = p.range_m * std::sin(p.azimuth_rad);
+    if (x < 0.5f || x > path.x_max_m) return false;
+    return std::abs(y - path_y(path, x)) <= buf;
+}
+
 float bbox_u_to_radar_az(float u, const LongitudinalFusion::Config& cfg)
 {
     const float h_deg = ((u - kModelW * 0.5f) / (kModelW * 0.5f)) * (cfg.radar_hfov_deg * 0.5f);
@@ -30,13 +40,16 @@ float bbox_u_to_radar_az(float u, const LongitudinalFusion::Config& cfg)
 }
 
 int nearest_on_ray(const std::vector<RadarPoint>& pts, float az_rad,
-                   float lat_buf, float max_r)
+                   float lat_buf, float max_r,
+                   const PathPoly* path, float path_buf)
 {
     int best = -1;
     float best_r = max_r;
     for (int i = 0; i < static_cast<int>(pts.size()); ++i) {
         const auto& p = pts[i];
         if (p.range_m <= 0.f || p.range_m > max_r) continue;
+        if (path && path->valid && !in_path_corridor(p, *path, path_buf, max_r))
+            continue;
         const float daz = std::atan2(std::sin(p.azimuth_rad - az_rad),
                                      std::cos(p.azimuth_rad - az_rad));
         if (p.range_m * std::abs(std::sin(daz)) > lat_buf) continue;
@@ -52,13 +65,8 @@ int nearest_on_path(const std::vector<RadarPoint>& pts, const PathPoly& path,
     int best = -1;
     float best_r = max_r;
     for (int i = 0; i < static_cast<int>(pts.size()); ++i) {
-        const auto& p = pts[i];
-        if (p.range_m <= 0.f || p.range_m > max_r) continue;
-        const float x = p.range_m * std::cos(p.azimuth_rad);
-        const float y = p.range_m * std::sin(p.azimuth_rad);
-        if (x < 0.5f || x > path.x_max_m) continue;
-        if (std::abs(y - path_y(path, x)) > path_buf) continue;
-        if (p.range_m < best_r) { best_r = p.range_m; best = i; }
+        if (!in_path_corridor(pts[i], path, path_buf, max_r)) continue;
+        if (pts[i].range_m < best_r) { best_r = pts[i].range_m; best = i; }
     }
     return best;
 }
@@ -338,7 +346,8 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
         const float az = bbox_u_to_radar_az((d.x1 + d.x2) * 0.5f, cfg_);
         if (d.class_id == 1 && !have_az_l1) { az_l1 = az; have_az_l1 = true; }
         if (d.class_id == 2 && !have_az_l2) { az_l2 = az; have_az_l2 = true; }
-        const int i = nearest_on_ray(radar, az, cfg_.radar_lat_buffer_m, cfg_.radar_max_range_m);
+        const int i = nearest_on_ray(radar, az, cfg_.radar_lat_buffer_m,
+                                     cfg_.radar_max_range_m, path, cfg_.radar_path_buffer_m);
         if (i < 0) continue;
         if (d.class_id == 1 && (i_l1 < 0 || radar[i].range_m < radar[i_l1].range_m)) {
             i_l1 = i; az_l1 = az; have_az_l1 = true;
