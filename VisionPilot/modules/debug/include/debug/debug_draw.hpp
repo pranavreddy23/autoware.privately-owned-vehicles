@@ -58,12 +58,10 @@ inline DebugView debug_view_from(
 void init_wheel_assets(const std::string& wheel_dir);
 void init_homography();
 
-// Draws onto a 1024×512 BGR frame with fixed layout zones (radar off):
+// Draws onto a 1024×512 BGR frame with fixed layout zones:
 //   • Green = AutoSteer waypoints; yellow = fused path (image + BEV inset)
 //   • Top-left legend; bottom-right BEV; bottom strip = 3-column telemetry
-//
-// When radar is enabled, visualize() shows a 2×2 labelling-style grid instead:
-//   TL clustered BEV | TR path+match | BL FOV ray | BR AutoSpeed boxes
+//   • Radar on: same BEV also shows returns; matched cluster is highlighted
 //
 // H_world_to_px: world → display-pixel homography for projecting the fused
 //   path onto the frame.  When supplied (resized-frame mode) it replaces the
