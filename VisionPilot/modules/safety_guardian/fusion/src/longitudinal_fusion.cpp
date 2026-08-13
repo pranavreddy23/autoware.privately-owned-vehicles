@@ -15,10 +15,18 @@ constexpr float kPi     = 3.14159265f;
 
 float path_y(const PathPoly& p, float x) { return p.a * x * x + p.b * x + p.c; }
 
-float u_to_radar_az(float u, float hfov_deg, float yaw_offset_deg)
+float bbox_u_to_radar_az(float u, const LongitudinalFusion::Config& cfg)
 {
-    const float h_deg = ((u - kModelW * 0.5f) / (kModelW * 0.5f)) * (hfov_deg * 0.5f);
-    return (h_deg + yaw_offset_deg) * (kPi / 180.f);
+    const float h_deg = ((u - kModelW * 0.5f) / (kModelW * 0.5f)) * (cfg.radar_hfov_deg * 0.5f);
+    const float h = h_deg * (kPi / 180.f);
+    const cv::Matx33d R_cam(cfg.cam_T(0,0), cfg.cam_T(0,1), cfg.cam_T(0,2),
+                            cfg.cam_T(1,0), cfg.cam_T(1,1), cfg.cam_T(1,2),
+                            cfg.cam_T(2,0), cfg.cam_T(2,1), cfg.cam_T(2,2));
+    const cv::Matx33d R_radar(cfg.radar_T(0,0), cfg.radar_T(0,1), cfg.radar_T(0,2),
+                              cfg.radar_T(1,0), cfg.radar_T(1,1), cfg.radar_T(1,2),
+                              cfg.radar_T(2,0), cfg.radar_T(2,1), cfg.radar_T(2,2));
+    const cv::Vec3d dir_radar = R_radar.t() * (R_cam * cv::Vec3d(std::sin(h), 0.0, std::cos(h)));
+    return static_cast<float>(std::atan2(dir_radar[1], dir_radar[0]));
 }
 
 bool nearest_on_ray(const std::vector<RadarPoint>& pts, float az_rad,
@@ -306,8 +314,7 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
     bool have_l1 = false, have_l2 = false;
     for (const auto& d : dets) {
         if (d.class_id != 1 && d.class_id != 2) continue;
-        const float az = u_to_radar_az((d.x1 + d.x2) * 0.5f,
-                                       cfg_.radar_hfov_deg, cfg_.radar_yaw_offset_deg);
+        const float az = bbox_u_to_radar_az((d.x1 + d.x2) * 0.5f, cfg_);
         RadarPoint hit;
         if (!nearest_on_ray(radar, az, cfg_.radar_lat_buffer_m, cfg_.radar_max_range_m, hit))
             continue;
