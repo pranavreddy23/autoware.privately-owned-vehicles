@@ -559,6 +559,240 @@ static void draw_hud_panel(cv::Mat& img, const DebugView& v, const OverlayLayout
     }
 }
 
+// ─── 1V1R labelling-style 2×2 (debug_zod_grid.py) ─────────────────────────────
+static constexpr float kRadarBevScale = 4.f;
+static constexpr float kRadarBevX0 = 0.f,  kRadarBevX1 = 150.f;
+static constexpr float kRadarBevY0 = -40.f, kRadarBevY1 = 40.f;
+static constexpr int   kRadarCell  = 640;
+static constexpr int   kRadarBannerH = 40;
+
+static cv::Point radar_to_px(float x_fwd, float y_lat, int w, int h)
+{
+    const float col = (kRadarBevY1 - y_lat) * kRadarBevScale;
+    const float row = (kRadarBevX1 - x_fwd) * kRadarBevScale;
+    return {
+        std::clamp(static_cast<int>(std::lround(col)), 0, w - 1),
+        std::clamp(static_cast<int>(std::lround(row)), 0, h - 1)
+    };
+}
+
+static cv::Mat make_radar_bev()
+{
+    const int w = static_cast<int>((kRadarBevY1 - kRadarBevY0) * kRadarBevScale);
+    const int h = static_cast<int>((kRadarBevX1 - kRadarBevX0) * kRadarBevScale);
+    cv::Mat bev(h, w, CV_8UC3, cv::Scalar(28, 28, 28));
+    for (int x = 0; x <= static_cast<int>(kRadarBevX1); x += 25) {
+        const auto p = radar_to_px(static_cast<float>(x), kRadarBevY0, w, h);
+        cv::line(bev, p, cv::Point(w - 1, p.y), cv::Scalar(55, 55, 55), 1);
+        cv::putText(bev, std::to_string(x) + "m", cv::Point(5, p.y + 4),
+                    kFont, 0.40, cv::Scalar(130, 130, 130), 1);
+    }
+    for (int y = static_cast<int>(kRadarBevY0); y <= static_cast<int>(kRadarBevY1); y += 20) {
+        const auto p = radar_to_px(kRadarBevX0, static_cast<float>(y), w, h);
+        cv::line(bev, cv::Point(p.x, 0), cv::Point(p.x, h - 1), cv::Scalar(55, 55, 55), 1);
+    }
+    return bev;
+}
+
+static void bev_draw_path(cv::Mat& bev, const fusion::PathPoly& path)
+{
+    if (!path.valid) return;
+    const int w = bev.cols, h = bev.rows;
+    std::vector<cv::Point> poly;
+    for (float x = 0.f; x <= kRadarBevX1; x += 1.f) {
+        const float y = path.a * x * x + path.b * x + path.c;
+        if (std::abs(y) > 40.f) continue;
+        poly.push_back(radar_to_px(x, y, w, h));
+    }
+    if (poly.size() < 2) return;
+    cv::polylines(bev, poly, false, cv::Scalar(0, 45, 0), 4, cv::LINE_AA);
+    cv::polylines(bev, poly, false, cv::Scalar(0, 230, 0), 2, cv::LINE_AA);
+}
+
+static void bev_draw_fov(cv::Mat& bev, float az_rad)
+{
+    const int w = bev.cols, h = bev.rows;
+    const cv::Point a = radar_to_px(0.f, 0.f, w, h);
+    const cv::Point b = radar_to_px(120.f * std::cos(az_rad), 120.f * std::sin(az_rad), w, h);
+    cv::line(bev, a, b, cv::Scalar(0, 80, 120), 6, cv::LINE_AA);
+    cv::line(bev, a, b, cv::Scalar(0, 220, 255), 3, cv::LINE_AA);
+}
+
+static void bev_draw_ego(cv::Mat& bev)
+{
+    const cv::Point e = radar_to_px(0.f, 0.f, bev.cols, bev.rows);
+    cv::circle(bev, e, 8, cv::Scalar(0, 255, 255), -1, cv::LINE_AA);
+    cv::circle(bev, e, 10, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+}
+
+static float polar_vel_dist(const fusion::RadarPoint& a, const fusion::RadarPoint& b)
+{
+    const float dr = std::abs(a.range_m - b.range_m);
+    const float r_avg = 0.5f * (a.range_m + b.range_m);
+    const float daz = std::atan2(std::sin(a.azimuth_rad - b.azimuth_rad),
+                                 std::cos(a.azimuth_rad - b.azimuth_rad));
+    const float dlat = r_avg * std::abs(std::sin(daz));
+    const float dv = std::abs(a.range_rate - b.range_rate);
+    const float xr = dr / 4.f, yl = dlat / 0.5f, zv = dv / 1.5f;
+    return std::sqrt(xr * xr + yl * yl + zv * zv);
+}
+
+// Labelling DBSCAN (eps=1, min_samples=2, polar+vel). Viz only — fusion stays raw-point.
+static std::vector<int> cluster_radar(const std::vector<fusion::RadarPoint>& pts)
+{
+    const int n = static_cast<int>(pts.size());
+    std::vector<int> lab(n, -2);  // -2 unvisited, -1 noise
+    int cid = 0;
+    auto region = [&](int i) {
+        std::vector<int> nbs;
+        for (int j = 0; j < n; ++j)
+            if (polar_vel_dist(pts[i], pts[j]) <= 1.f) nbs.push_back(j);
+        return nbs;
+    };
+    for (int i = 0; i < n; ++i) {
+        if (lab[i] != -2) continue;
+        const auto nbs = region(i);
+        if (static_cast<int>(nbs.size()) < 2) { lab[i] = -1; continue; }
+        lab[i] = cid;
+        std::vector<int> seeds = nbs;
+        for (std::size_t s = 0; s < seeds.size(); ++s) {
+            const int j = seeds[s];
+            if (lab[j] == -1) lab[j] = cid;
+            if (lab[j] != -2) continue;
+            lab[j] = cid;
+            const auto nbs2 = region(j);
+            if (static_cast<int>(nbs2.size()) >= 2)
+                seeds.insert(seeds.end(), nbs2.begin(), nbs2.end());
+        }
+        ++cid;
+    }
+    for (int i = 0; i < n; ++i) {
+        if (lab[i] < 0 && std::abs(pts[i].range_rate) > 0.5f)
+            lab[i] = cid++;
+    }
+    return lab;
+}
+
+static cv::Scalar cluster_bgr(int lab)
+{
+    if (lab < 0) return {110, 110, 110};
+    cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar((lab * 37) % 180, 200, 230));
+    cv::Mat bgr;
+    cv::cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
+    const auto p = bgr.at<cv::Vec3b>(0, 0);
+    return cv::Scalar(p[0], p[1], p[2]);
+}
+
+static void bev_draw_points(cv::Mat& bev, const std::vector<fusion::RadarPoint>& pts,
+                            const std::vector<int>& labels, int radius)
+{
+    const int w = bev.cols, h = bev.rows;
+    for (std::size_t i = 0; i < pts.size(); ++i) {
+        const float x = pts[i].range_m * std::cos(pts[i].azimuth_rad);
+        const float y = pts[i].range_m * std::sin(pts[i].azimuth_rad);
+        const int lab = (i < labels.size()) ? labels[i] : -1;
+        cv::circle(bev, radar_to_px(x, y, w, h), radius, cluster_bgr(lab), -1, cv::LINE_AA);
+    }
+}
+
+static void bev_draw_match(cv::Mat& bev, const fusion::RadarPoint& p, const cv::Scalar& fill)
+{
+    const float x = p.range_m * std::cos(p.azimuth_rad);
+    const float y = p.range_m * std::sin(p.azimuth_rad);
+    const cv::Point c = radar_to_px(x, y, bev.cols, bev.rows);
+    cv::circle(bev, c, 16, cv::Scalar(0, 0, 0), -1, cv::LINE_AA);
+    cv::circle(bev, c, 14, fill, -1, cv::LINE_AA);
+    cv::circle(bev, c, 18, cv::Scalar(255, 255, 255), 3, cv::LINE_AA);
+}
+
+static cv::Mat fit_cell(const cv::Mat& src, int cw, int ch)
+{
+    cv::Mat cell(ch, cw, CV_8UC3, cv::Scalar(28, 28, 28));
+    if (src.empty()) return cell;
+    const double s = std::min(cw / static_cast<double>(src.cols),
+                              ch / static_cast<double>(src.rows));
+    const int nw = std::max(1, static_cast<int>(std::lround(src.cols * s)));
+    const int nh = std::max(1, static_cast<int>(std::lround(src.rows * s)));
+    cv::Mat rs;
+    cv::resize(src, rs, {nw, nh}, 0, 0, cv::INTER_AREA);
+    rs.copyTo(cell(cv::Rect((cw - nw) / 2, (ch - nh) / 2, nw, nh)));
+    return cell;
+}
+
+static cv::Mat draw_radar_assoc_grid(const cv::Mat& cam,
+                                     const models::InferenceFrameResult& r)
+{
+    const auto& dbg = r.cipo.radar;
+    const auto labels = cluster_radar(dbg.points);
+    const bool have_match = dbg.match_i >= 0 &&
+        dbg.match_i < static_cast<int>(dbg.points.size());
+    const cv::Scalar match_fill = (dbg.hit == fusion::RadarHit::Path)
+        ? cv::Scalar(0, 220, 255) : cv::Scalar(60, 220, 80);
+
+    auto title = [](cv::Mat& m, const char* t) {
+        cv::putText(m, t, cv::Point(5, 18), kFont, 0.48, cv::Scalar(200, 200, 200), 1, cv::LINE_AA);
+    };
+
+    cv::Mat tl = make_radar_bev();
+    bev_draw_points(tl, dbg.points, labels, 3);
+    bev_draw_ego(tl);
+    title(tl, "Raw radar + clusters");
+
+    cv::Mat tr = make_radar_bev();
+    bev_draw_path(tr, dbg.path);
+    bev_draw_points(tr, dbg.points, std::vector<int>(dbg.points.size(), -1), 3);
+    if (have_match) bev_draw_match(tr, dbg.points[static_cast<std::size_t>(dbg.match_i)], match_fill);
+    bev_draw_ego(tr);
+    title(tr, "Path + detected");
+
+    cv::Mat bl = make_radar_bev();
+    bev_draw_path(bl, dbg.path);
+    if (dbg.fov_valid && dbg.hit != fusion::RadarHit::Path)
+        bev_draw_fov(bl, dbg.fov_az_rad);
+    bev_draw_points(bl, dbg.points, std::vector<int>(dbg.points.size(), -1), 3);
+    if (have_match) bev_draw_match(bl, dbg.points[static_cast<std::size_t>(dbg.match_i)], match_fill);
+    bev_draw_ego(bl);
+    if (dbg.hit == fusion::RadarHit::Path)
+        title(bl, "Path search (no FOV hit)");
+    else
+        title(bl, "FOV search (BEV)");
+    if (dbg.fov_valid) {
+        char az[48];
+        std::snprintf(az, sizeof(az), "az %.1f deg", dbg.fov_az_rad * 180.f / 3.14159265f);
+        cv::putText(bl, az, cv::Point(5, 40), kFont, 0.38, cv::Scalar(0, 220, 255), 1, cv::LINE_AA);
+    }
+
+    cv::Mat br = cam.clone();
+    draw_autospeed_detections(br, r.auto_speed);
+    cv::putText(br, "AutoSpeed — all boxes", cv::Point(10, 28),
+                kFont, 0.65, cv::Scalar(240, 240, 240), 2, cv::LINE_AA);
+
+    const cv::Mat ctl = fit_cell(tl, kRadarCell, kRadarCell);
+    const cv::Mat ctr = fit_cell(tr, kRadarCell, kRadarCell);
+    const cv::Mat cbl = fit_cell(bl, kRadarCell, kRadarCell);
+    const cv::Mat cbr = fit_cell(br, kRadarCell, kRadarCell);
+
+    cv::Mat top, bot, canvas;
+    cv::hconcat(ctl, ctr, top);
+    cv::hconcat(cbl, cbr, bot);
+    cv::vconcat(top, bot, canvas);
+
+    cv::Mat banner(kRadarBannerH, canvas.cols, CV_8UC3, cv::Scalar(32, 32, 32));
+    const char* hit = "MISS";
+    if (dbg.hit == fusion::RadarHit::Fov) hit = "FOV";
+    else if (dbg.hit == fusion::RadarHit::Path) hit = "PATH";
+    int ncl = 0;
+    for (int lab : labels) if (lab >= 0) ncl = std::max(ncl, lab + 1);
+    char line[256];
+    std::snprintf(line, sizeof(line),
+        "1V1R  %s  D=%.1fm  V=%+.2fm/s  pts=%zu  clusters=%d  | TL clusters  TR path  BL FOV  BR boxes",
+        hit, r.cipo.distance_m, r.cipo.velocity_ms, dbg.points.size(), ncl);
+    cv::putText(banner, line, cv::Point(12, 28), kFont, 0.55, cv::Scalar(220, 220, 220), 1, cv::LINE_AA);
+    cv::Mat out;
+    cv::vconcat(banner, canvas, out);
+    return out;
+}
+
 // ─── Public ───────────────────────────────────────────────────────────────────
 
 void annotate_frame(cv::Mat& frame, const DebugView& view,
@@ -599,8 +833,12 @@ bool visualize(cv::Mat& frame,
                const cv::Mat& H_world_to_px)
 {
     if (frame.empty()) return false;
-    auto dv = debug_view_from(result, src_label, wheel_dir);
-    annotate_frame(frame, dv, H_world_to_px);
+    if (result.cipo.radar.enabled)
+        frame = draw_radar_assoc_grid(frame, result);
+    else {
+        auto dv = debug_view_from(result, src_label, wheel_dir);
+        annotate_frame(frame, dv, H_world_to_px);
+    }
     cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
     cv::resizeWindow("VisionPilot", frame.cols, frame.rows);
     cv::imshow("VisionPilot", frame);
