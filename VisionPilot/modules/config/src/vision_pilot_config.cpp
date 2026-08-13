@@ -124,6 +124,17 @@ Config load_vision_pilot_config()
     cfg.inference.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
     cfg.inference.cte_bias_m   = static_cast<float>(
         parse_double(optional(kv, "fusion.cte_bias_m", "0.0"), "fusion.cte_bias_m"));
+    cfg.inference.radar.enabled = parse_bool(optional(kv, "radar.enabled", "false"), "radar.enabled");
+    cfg.inference.radar.hfov_deg = static_cast<float>(
+        parse_double(optional(kv, "radar.hfov_deg", "50"), "radar.hfov_deg"));
+    cfg.inference.radar.yaw_offset_deg = static_cast<float>(
+        parse_double(optional(kv, "radar.yaw_offset_deg", "0"), "radar.yaw_offset_deg"));
+    cfg.inference.radar.lat_buffer_m = static_cast<float>(
+        parse_double(optional(kv, "radar.lat_buffer_m", "0.5"), "radar.lat_buffer_m"));
+    cfg.inference.radar.path_buffer_m = static_cast<float>(
+        parse_double(optional(kv, "radar.path_buffer_m", "1.0"), "radar.path_buffer_m"));
+    cfg.inference.radar.max_range_m = static_cast<float>(
+        parse_double(optional(kv, "radar.max_range_m", "150"), "radar.max_range_m"));
 
     cfg.source.mode          = parse_source_mode(optional(kv, "source.mode", "video"));
 
