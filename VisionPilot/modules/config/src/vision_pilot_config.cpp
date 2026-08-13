@@ -133,6 +133,8 @@ Config load_vision_pilot_config()
         parse_double(optional(kv, "radar.path_buffer_m", "1.0"), "radar.path_buffer_m"));
     cfg.inference.long_fusion.radar_max_range_m = static_cast<float>(
         parse_double(optional(kv, "radar.max_range_m", "150"), "radar.max_range_m"));
+    cfg.source.input_radar_topic = optional(kv, "radar.topic", "/radar/points");
+    cfg.source.radar_sync_slop_ms = parse_int(optional(kv, "radar.sync_slop_ms", "80"), "radar.sync_slop_ms");
     const std::string radar_calib = optional(kv, "radar.calib_file", "");
     if (!radar_calib.empty()) {
         cv::FileStorage fs(find_config(radar_calib), cv::FileStorage::READ);
@@ -175,6 +177,10 @@ Config load_vision_pilot_config()
 #ifdef ENABLE_ROS2_INTERFACE
     kv = parse_conf(find_config("vision_pilot_ros2.conf"));
     cfg.source.input_camera_topic = optional(kv, "source.input_camera_topic",  "/camera/image");
+    cfg.source.input_radar_topic = optional(kv, "radar.topic", cfg.source.input_radar_topic);
+    cfg.source.radar_sync_slop_ms = parse_int(
+        optional(kv, "radar.sync_slop_ms", std::to_string(cfg.source.radar_sync_slop_ms)),
+        "radar.sync_slop_ms");
     cfg.vehicle_speed_topic = optional(kv, "vehicle_speed_topic", "/vehicle/speed");
     cfg.vehicle_steering_topic = optional(kv, "vehicle_steering_topic", "/vehicle/steering_cmd");
     cfg.vehicle_acceleration_topic = optional(kv, "vehicle_acceleration_topic", "/vehicle/throttle_cmd");
