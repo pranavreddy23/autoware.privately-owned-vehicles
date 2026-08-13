@@ -84,16 +84,9 @@ InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Config& c
     : auto_drive_(engine, find_model("autodrive_" + cfg.precision + ".onnx"))
     , auto_steer_(engine, find_model("autosteer_" + cfg.precision + ".onnx"))
     , auto_speed_(engine, find_model("autospeed_" + cfg.precision + ".onnx"))
-    , radar_enabled_(cfg.radar.enabled)
 {
-    fusion::LongitudinalFusion::Config lc;
-    lc.debug                 = cfg.fusion_debug;
-    lc.radar_enabled         = cfg.radar.enabled;
-    lc.radar_hfov_deg        = cfg.radar.hfov_deg;
-    lc.radar_yaw_offset_deg  = cfg.radar.yaw_offset_deg;
-    lc.radar_lat_buffer_m    = cfg.radar.lat_buffer_m;
-    lc.radar_path_buffer_m   = cfg.radar.path_buffer_m;
-    lc.radar_max_range_m     = cfg.radar.max_range_m;
+    fusion::LongitudinalFusion::Config lc = cfg.long_fusion;
+    lc.debug = cfg.fusion_debug;
     long_fusion_ = fusion::LongitudinalFusion{lc};
 
     fusion::LateralFusion::Config latc;
@@ -199,17 +192,18 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& wa
 
     out.lateral = lat_fusion_.update(res_steer, res_drive);
 
+    const bool radar_on = long_fusion_.config().radar_enabled;
     fusion::PathPoly path;
-    if (radar_enabled_ && out.lateral.path_valid) {
+    if (radar_on && out.lateral.path_valid) {
         path.valid = true;
         path.a = out.lateral.path_a;
         path.b = out.lateral.path_b;
         path.c = out.lateral.path_c;
     }
     const std::vector<fusion::RadarPoint>* radar_ptr =
-        radar_enabled_ ? &radar_points_ : nullptr;
+        radar_on ? &radar_points_ : nullptr;
     const fusion::PathPoly* path_ptr =
-        (radar_enabled_ && path.valid) ? &path : nullptr;
+        (radar_on && path.valid) ? &path : nullptr;
     out.cipo = long_fusion_.update(res_drive, res_speed, warped, 0.f, radar_ptr, path_ptr);
 
     stats_.update(ms_pre, ms_drive, ms_steer, ms_speed, ms_wall);

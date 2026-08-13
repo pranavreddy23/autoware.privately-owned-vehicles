@@ -19,20 +19,11 @@ class OnnxEngine;
 
 namespace visionpilot::models {
 
-struct RadarConfig {
-    bool  enabled        = false;
-    float hfov_deg       = 50.f;
-    float yaw_offset_deg = 0.f;
-    float lat_buffer_m   = 0.5f;
-    float path_buffer_m  = 1.0f;
-    float max_range_m    = 150.f;
-};
-
 struct Config {
     std::string precision    = "fp32";
     bool        fusion_debug = false;
     float       cte_bias_m   = 0.0f;  // camera mounting offset [m] — subtracted from raw CTE before filter
-    RadarConfig radar;
+    fusion::LongitudinalFusion::Config long_fusion;
 };
 
 struct LatencyStats {
@@ -101,7 +92,6 @@ private:
     fusion::LateralFusion      lat_fusion_;
     LatencyStats       stats_;
     uint64_t           frame_count_ = 0;
-    bool               radar_enabled_ = false;
     std::vector<fusion::RadarPoint> radar_points_;
 
     cv::Mat prev_frame_;
