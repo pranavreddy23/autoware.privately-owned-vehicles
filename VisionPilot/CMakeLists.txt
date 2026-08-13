@@ -31,9 +31,26 @@ option(ENABLE_RERUN "Log directly to a Rerun .rrd via the Rerun C++ SDK" OFF)
 set(Python3_EXECUTABLE /usr/bin/python3 CACHE FILEPATH "" FORCE)
 find_package(Python3 REQUIRED)
 
+# Dataset ground homography used to generate preprocess C and runtime H.yaml.
+# Rebuild with -DDATASET=zod to run the same video tests on ZOD instead of OpenLane.
+set(DATASET "open_lane" CACHE STRING "Ground-H dataset for C/H: open_lane or zod")
+set_property(CACHE DATASET PROPERTY STRINGS open_lane zod)
+
+if(DATASET STREQUAL "zod")
+    set(VISIONPILOT_GROUND_H "${CMAKE_SOURCE_DIR}/config/H_zod.yaml")
+elseif(DATASET STREQUAL "open_lane")
+    set(VISIONPILOT_GROUND_H "${CMAKE_SOURCE_DIR}/config/H_openlane.yaml")
+else()
+    message(FATAL_ERROR "DATASET must be open_lane or zod (got '${DATASET}')")
+endif()
+message(STATUS "VisionPilot dataset='${DATASET}' ground H='${VISIONPILOT_GROUND_H}'")
+
 add_custom_target(generate_config ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/config
+        COMMAND ${CMAKE_COMMAND} -E copy ${VISIONPILOT_GROUND_H} ${CMAKE_BINARY_DIR}/config/H.yaml
         COMMAND Python3::Interpreter
         ${CMAKE_SOURCE_DIR}/scripts/find_homography_C_matrix.py
+        --ground-h ${VISIONPILOT_GROUND_H}
         --output ${CMAKE_BINARY_DIR}/config/homography_C_matrix.yaml
 )
 

@@ -45,7 +45,9 @@ install(TARGETS VisionPilot
 )
 
 set(VISIONPILOT_CONF_FILES
-        ${CMAKE_SOURCE_DIR}/config/H.yaml
+        ${CMAKE_BINARY_DIR}/config/H.yaml
+        ${CMAKE_SOURCE_DIR}/config/H_openlane.yaml
+        ${CMAKE_SOURCE_DIR}/config/H_zod.yaml
         ${CMAKE_BINARY_DIR}/config/homography_C_matrix.yaml
         ${CMAKE_SOURCE_DIR}/config/vision_pilot.conf
         ${CMAKE_SOURCE_DIR}/config/vision_pilot_test.conf
