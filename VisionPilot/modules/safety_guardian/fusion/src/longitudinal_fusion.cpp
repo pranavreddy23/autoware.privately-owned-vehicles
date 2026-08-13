@@ -56,7 +56,7 @@ int nearest_on_path(const std::vector<RadarPoint>& pts, const PathPoly& path,
         if (p.range_m <= 0.f || p.range_m > max_r) continue;
         const float x = p.range_m * std::cos(p.azimuth_rad);
         const float y = p.range_m * std::sin(p.azimuth_rad);
-        if (x < 0.5f) continue;
+        if (x < 0.5f || x > path.x_max_m) continue;
         if (std::abs(y - path_y(path, x)) > path_buf) continue;
         if (p.range_m < best_r) { best_r = p.range_m; best = i; }
     }

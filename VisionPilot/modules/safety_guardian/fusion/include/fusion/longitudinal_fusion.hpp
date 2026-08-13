@@ -18,12 +18,13 @@ struct RadarPoint {
 struct PathPoly {  // y = a·x² + b·x + c, same frame as radar
     bool  valid = false;
     float a = 0.f, b = 0.f, c = 0.f;
+    float x_max_m = 0.f;
 };
 
 // ─── Output ────────────────────────────────────────────────────────────────────
 enum class RadarHit { None, Fov, Path };
 
-// Snapshot for --debug-viz 2×2 (labelling-style). Association is still raw points.
+// Snapshot for --debug-viz BEV (association is still raw points).
 struct RadarAssocDebug {
     bool enabled = false;
     std::vector<RadarPoint> points;

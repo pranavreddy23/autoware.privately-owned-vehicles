@@ -381,8 +381,9 @@ static void draw_bev_fused_ego_path(cv::Mat& img,
         ? std::min((ph - 16.f) / 150.f, (pw * 0.5f) / 40.f)
         : 4.5f;
     const float lat_max = radar.enabled ? 40.f : 7.f;
-    const float x_end = radar.enabled ? 150.f
-        : ((lat.path_x_max_m > lat.path_x_min_m + 1.f) ? lat.path_x_max_m : 0.f);
+    // Never extrapolate the poly past the inlier span — same as original VisionPilot.
+    const float x_end = (lat.path_x_max_m > lat.path_x_min_m + 1.f)
+        ? lat.path_x_max_m : 0.f;
 
     auto to_px = [&](float x, float y) {
         return world_to_bev_px(x, y, pw, ph, px_per_m);

@@ -199,6 +199,7 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& wa
         path.a = out.lateral.path_a;
         path.b = out.lateral.path_b;
         path.c = out.lateral.path_c;
+        path.x_max_m = out.lateral.path_x_max_m;
     }
     const std::vector<fusion::RadarPoint>* radar_ptr =
         radar_on ? &radar_points_ : nullptr;
