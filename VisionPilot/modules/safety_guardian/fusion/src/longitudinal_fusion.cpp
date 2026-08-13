@@ -4,11 +4,56 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <fstream>
-#include <sstream>
+#include <limits>
 #include <stdexcept>
 
 namespace visionpilot::fusion {
+namespace {
+
+constexpr float kModelW = 1024.f;
+constexpr float kPi     = 3.14159265f;
+
+float path_y(const PathPoly& p, float x) { return p.a * x * x + p.b * x + p.c; }
+
+float u_to_radar_az(float u, float hfov_deg, float yaw_offset_deg)
+{
+    const float h_deg = ((u - kModelW * 0.5f) / (kModelW * 0.5f)) * (hfov_deg * 0.5f);
+    return (h_deg + yaw_offset_deg) * (kPi / 180.f);
+}
+
+bool nearest_on_ray(const std::vector<RadarPoint>& pts, float az_rad,
+                    float lat_buf, float max_r, RadarPoint& out)
+{
+    bool found = false;
+    float best_r = max_r;
+    for (const auto& p : pts) {
+        if (p.range_m <= 0.f || p.range_m > max_r) continue;
+        const float daz = std::atan2(std::sin(p.azimuth_rad - az_rad),
+                                     std::cos(p.azimuth_rad - az_rad));
+        if (p.range_m * std::abs(std::sin(daz)) > lat_buf) continue;
+        if (p.range_m < best_r) { best_r = p.range_m; out = p; found = true; }
+    }
+    return found;
+}
+
+bool nearest_on_path(const std::vector<RadarPoint>& pts, const PathPoly& path,
+                     float path_buf, float max_r, RadarPoint& out)
+{
+    if (!path.valid) return false;
+    bool found = false;
+    float best_r = max_r;
+    for (const auto& p : pts) {
+        if (p.range_m <= 0.f || p.range_m > max_r) continue;
+        const float x = p.range_m * std::cos(p.azimuth_rad);
+        const float y = p.range_m * std::sin(p.azimuth_rad);
+        if (x < 0.5f) continue;
+        if (std::abs(y - path_y(path, x)) > path_buf) continue;
+        if (p.range_m < best_r) { best_r = p.range_m; out = p; found = true; }
+    }
+    return found;
+}
+
+}  // namespace
 
 // ─── Construction ─────────────────────────────────────────────────────────────
 
@@ -37,12 +82,33 @@ CIPOFusionEstimate LongitudinalFusion::update(
     const models::AutoDriveOutput& autodrive,
     const models::AutoSpeedOutput& autospeed,
     const cv::Mat& /*preprocessed_frame*/,
-    float dt_s)
+    float dt_s,
+    const std::vector<RadarPoint>* radar,
+    const PathPoly* path)
 {
-    // ── Step 2: AutoSpeed → world distance via homography ────────────────────
     CIPOFusionEstimate est;
     Meas cipo_raw;
-    if (autospeed.valid) {
+    if (cfg_.radar_enabled && radar) {
+        if (autospeed.valid) {
+            const auto sel = select_cipo_radar(autospeed.detections, *radar, path);
+            cipo_raw            = sel.meas;
+            est.cut_in_detected = sel.cut_in;
+        } else if (path) {
+            RadarPoint hit;
+            if (nearest_on_path(*radar, *path, cfg_.radar_path_buffer_m, cfg_.radar_max_range_m, hit)) {
+                cipo_raw.distance_m   = hit.range_m;
+                cipo_raw.velocity_ms  = hit.range_rate;
+                cipo_raw.stddev_m     = cfg_.cipo_noise_m;
+                cipo_raw.stddev_v     = cfg_.cipo_vel_noise_ms;
+                cipo_raw.valid        = true;
+                cipo_raw.has_velocity = true;
+            }
+        }
+        if (cipo_raw.valid) {
+            est.cipo_raw_found  = true;
+            est.cipo_raw_dist_m = cipo_raw.distance_m;
+        }
+    } else if (autospeed.valid) {
         const auto sel = select_cipo(autospeed.detections);
         cipo_raw            = sel.meas;
         est.cut_in_detected = sel.cut_in;
@@ -89,7 +155,9 @@ CIPOFusionEstimate LongitudinalFusion::update(
         if (ad_meas.valid) {
             init_from(ad_meas.distance_m, ad_meas.stddev_m);
         } else if (cipo_raw.valid) {
-            init_from(cipo_raw.distance_m, cfg_.cipo_noise_m);
+            init_from(cipo_raw.distance_m, cfg_.cipo_noise_m,
+                      cipo_raw.has_velocity ? cipo_raw.velocity_ms : 0.f,
+                      cipo_raw.has_velocity ? cipo_raw.stddev_v : 2.f);
         } else {
             return est;
         }
@@ -107,7 +175,9 @@ CIPOFusionEstimate LongitudinalFusion::update(
             std::abs(cipo_raw.distance_m - cloud_mean) > gate) {
             VP_INFO("[Fusion] Target change — reinit %.1f→%.1f m (CIPO)  gate=%.1f",
                     cloud_mean, cipo_raw.distance_m, gate);
-            init_from(cipo_raw.distance_m, cfg_.cipo_noise_m);
+            init_from(cipo_raw.distance_m, cfg_.cipo_noise_m,
+                      cipo_raw.has_velocity ? cipo_raw.velocity_ms : 0.f,
+                      cipo_raw.has_velocity ? cipo_raw.stddev_v : 2.f);
         } else if (ad_meas.valid &&
                    (ad_meas.distance_m - cloud_mean) > gate) {
             VP_INFO("[Fusion] Cut-out — reinit %.1f→%.1f m (AD)  gate=%.1f",
@@ -215,13 +285,56 @@ LongitudinalFusion::select_cipo(const std::vector<models::Detection>& dets) cons
     return sel;
 }
 
+LongitudinalFusion::CIPOSelection
+LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets,
+                                      const std::vector<RadarPoint>& radar,
+                                      const PathPoly* path) const
+{
+    auto fill = [&](const RadarPoint& hit, bool cut_in) {
+        CIPOSelection sel;
+        sel.meas.distance_m   = hit.range_m;
+        sel.meas.velocity_ms  = hit.range_rate;
+        sel.meas.stddev_m     = cfg_.cipo_noise_m;
+        sel.meas.stddev_v     = cfg_.cipo_vel_noise_ms;
+        sel.meas.valid        = true;
+        sel.meas.has_velocity = true;
+        sel.cut_in            = cut_in;
+        return sel;
+    };
+
+    RadarPoint best_l1, best_l2;
+    bool have_l1 = false, have_l2 = false;
+    for (const auto& d : dets) {
+        if (d.class_id != 1 && d.class_id != 2) continue;
+        const float az = u_to_radar_az((d.x1 + d.x2) * 0.5f,
+                                       cfg_.radar_hfov_deg, cfg_.radar_yaw_offset_deg);
+        RadarPoint hit;
+        if (!nearest_on_ray(radar, az, cfg_.radar_lat_buffer_m, cfg_.radar_max_range_m, hit))
+            continue;
+        if (d.class_id == 1 && (!have_l1 || hit.range_m < best_l1.range_m)) {
+            best_l1 = hit; have_l1 = true;
+        }
+        if (d.class_id == 2 && (!have_l2 || hit.range_m < best_l2.range_m)) {
+            best_l2 = hit; have_l2 = true;
+        }
+    }
+    if (have_l2 && have_l1 && best_l2.range_m < best_l1.range_m) return fill(best_l2, true);
+    if (have_l1) return fill(best_l1, false);
+    if (have_l2) return fill(best_l2, true);
+
+    RadarPoint path_hit;
+    if (path && nearest_on_path(radar, *path, cfg_.radar_path_buffer_m, cfg_.radar_max_range_m, path_hit))
+        return fill(path_hit, false);
+    return {};
+}
+
 // ─── Particle filter internals ────────────────────────────────────────────────
 
-void LongitudinalFusion::init_from(float dist_m, float stddev_m)
+void LongitudinalFusion::init_from(float dist_m, float stddev_m, float vel_ms, float vel_std)
 {
     particles_.resize(static_cast<std::size_t>(cfg_.n_particles));
     std::normal_distribution<float> nd(dist_m, stddev_m);
-    std::normal_distribution<float> nv(0.f, 2.f);
+    std::normal_distribution<float> nv(vel_ms, vel_std);
     for (auto& p : particles_) {
         p.distance_m  = std::clamp(nd(rng_), 0.f, cfg_.d_max_m);
         p.velocity_ms = nv(rng_);
@@ -250,6 +363,8 @@ void LongitudinalFusion::weight_update(const Meas& ad, const Meas& cipo_raw)
     for (auto& p : particles_) {
         if (ad.valid)       p.log_w += gaussian_loglik(ad.distance_m,       p.distance_m, ad.stddev_m);
         if (cipo_raw.valid) p.log_w += gaussian_loglik(cipo_raw.distance_m, p.distance_m, cipo_raw.stddev_m);
+        if (cipo_raw.valid && cipo_raw.has_velocity)
+            p.log_w += gaussian_loglik(cipo_raw.velocity_ms, p.velocity_ms, cipo_raw.stddev_v);
     }
 }
 
