@@ -24,6 +24,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <camera_ros2_interface/camera_ros2_interface.hpp>
 #include <vehicle_ros2_interface/vehicle_ros2_interface.hpp>
+#include <radar_ros2_interface/radar_ros2_interface.hpp>
 #endif
 
 namespace ve = visionpilot::engine;
@@ -53,12 +54,32 @@ int main(int argc, char** argv)
     std::shared_ptr<CameraInterface> camera_interface;
     std::shared_ptr<VehicleInterface> vehicle_interface;
 #if ENABLE_ROS2_INTERFACE
+    std::shared_ptr<CameraRos2Interface> camera_ros2;
+    std::shared_ptr<RadarRos2Interface> radar_ros2;
+#endif
+    const bool radar_on = cfg.inference.long_fusion.radar_enabled;
+#if ENABLE_ROS2_INTERFACE
     rclcpp::init(argc, argv);
-    camera_interface = std::make_unique<CameraRos2Interface>(cfg.source.input_camera_topic);
+    camera_ros2 = std::make_shared<CameraRos2Interface>(cfg.source.input_camera_topic);
+    camera_interface = camera_ros2;
     vehicle_interface = std::make_shared<VehicleRos2Interface>(cfg.vehicle_speed_topic,
                                                                cfg.vehicle_steering_topic,
                                                                cfg.vehicle_acceleration_topic);
+    if (radar_on)
+    {
+        if (cfg.source.input_radar_topic.empty())
+        {
+            VP_ERROR("radar.enabled requires radar.topic");
+            return 1;
+        }
+        radar_ros2 = std::make_shared<RadarRos2Interface>(cfg.source.input_radar_topic);
+    }
 #else
+    if (radar_on)
+    {
+        VP_ERROR("radar.enabled requires a ROS2 build (ENABLE_ROS2_INTERFACE)");
+        return 1;
+    }
     if (cfg.source.mode == SourceMode::Video)
     {
         camera_interface = std::make_unique<camera_interface::FileInterface>(
@@ -115,6 +136,17 @@ int main(int argc, char** argv)
             if (cfg.source.mode == SourceMode::Video && !cfg.source.video_loop) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             continue;
+        }
+
+        if (radar_on)
+        {
+#if ENABLE_ROS2_INTERFACE
+            std::vector<visionpilot::fusion::RadarPoint> pts;
+            for (const auto& p : radar_ros2->take_closest(
+                     camera_ros2->last_frame_stamp_ns(), cfg.source.radar_sync_slop_ms))
+                pts.push_back({p.range_m, p.azimuth_rad, p.range_rate});
+            pipeline.set_radar_points(std::move(pts));
+#endif
         }
 
         preprocessor.preprocess(frame, warped, resized, net_size);
