@@ -127,14 +127,26 @@ Config load_vision_pilot_config()
     cfg.inference.long_fusion.radar_enabled = parse_bool(optional(kv, "radar.enabled", "false"), "radar.enabled");
     cfg.inference.long_fusion.radar_hfov_deg = static_cast<float>(
         parse_double(optional(kv, "radar.hfov_deg", "50"), "radar.hfov_deg"));
-    cfg.inference.long_fusion.radar_yaw_offset_deg = static_cast<float>(
-        parse_double(optional(kv, "radar.yaw_offset_deg", "0"), "radar.yaw_offset_deg"));
     cfg.inference.long_fusion.radar_lat_buffer_m = static_cast<float>(
         parse_double(optional(kv, "radar.lat_buffer_m", "0.5"), "radar.lat_buffer_m"));
     cfg.inference.long_fusion.radar_path_buffer_m = static_cast<float>(
         parse_double(optional(kv, "radar.path_buffer_m", "1.0"), "radar.path_buffer_m"));
     cfg.inference.long_fusion.radar_max_range_m = static_cast<float>(
         parse_double(optional(kv, "radar.max_range_m", "150"), "radar.max_range_m"));
+    const std::string radar_calib = optional(kv, "radar.calib_file", "");
+    if (!radar_calib.empty()) {
+        cv::FileStorage fs(find_config(radar_calib), cv::FileStorage::READ);
+        cv::Mat cam, radar;
+        fs["extrinsics"] >> cam;
+        fs["radar_extrinsics"] >> radar;
+        cam.convertTo(cam, CV_64F);
+        radar.convertTo(radar, CV_64F);
+        for (int r = 0; r < 4; ++r)
+            for (int c = 0; c < 4; ++c) {
+                cfg.inference.long_fusion.cam_T(r, c)   = cam.at<double>(r, c);
+                cfg.inference.long_fusion.radar_T(r, c) = radar.at<double>(r, c);
+            }
+    }
 
     cfg.source.mode          = parse_source_mode(optional(kv, "source.mode", "video"));
 
