@@ -9,6 +9,17 @@
 
 namespace visionpilot::fusion {
 
+struct RadarPoint {
+    float range_m     = 0.f;
+    float azimuth_rad = 0.f;
+    float range_rate  = 0.f;  // relative; negative = closing
+};
+
+struct PathPoly {  // y = a·x² + b·x + c, same frame as radar
+    bool  valid = false;
+    float a = 0.f, b = 0.f, c = 0.f;
+};
+
 // ─── Output ────────────────────────────────────────────────────────────────────
 struct CIPOFusionEstimate {
     bool  valid             = false;
@@ -46,11 +57,19 @@ public:
         // at p=0.40 → stddev = autodrive_noise_m       (CIPO can dominate)
         float autodrive_noise_min_m = 1.5f;   // noise floor when AD is fully confident
         float autodrive_noise_m     = 8.f;    // noise ceiling at minimum AD confidence
-        float cipo_noise_m          = 3.f;    // CIPO bbox-projected distance noise
+        float cipo_noise_m          = 3.f;    // CIPO bbox / radar range noise
+        float cipo_vel_noise_ms     = 1.5f;   // radar range-rate noise
         // Reinitialise filter when a measurement jumps this far from the
         // particle cloud (genuine cut-in / cut-out only).
         float reset_gate_m          = 25.f;
         bool  debug                = false;
+
+        bool  radar_enabled        = false;
+        float radar_hfov_deg       = 50.f;
+        float radar_yaw_offset_deg = 0.f;
+        float radar_lat_buffer_m   = 0.5f;
+        float radar_path_buffer_m  = 1.0f;
+        float radar_max_range_m    = 150.f;
     };
 
     LongitudinalFusion();
@@ -60,7 +79,9 @@ public:
         const models::AutoDriveOutput& autodrive,
         const models::AutoSpeedOutput& autospeed,
         const cv::Mat& preprocessed_frame,
-        float dt_s = 0.f);
+        float dt_s = 0.f,
+        const std::vector<RadarPoint>* radar = nullptr,
+        const PathPoly* path = nullptr);
 
     void reset();
     const Config& config() const { return cfg_; }
@@ -71,13 +92,23 @@ public:
 
 private:
     struct Particle { float distance_m, velocity_ms, log_w; };
-    struct Meas     { float distance_m = 0.f; float stddev_m = 15.f; bool valid = false; };
+    struct Meas {
+        float distance_m = 0.f;
+        float velocity_ms = 0.f;
+        float stddev_m = 15.f;
+        float stddev_v = 1.5f;
+        bool  valid = false;
+        bool  has_velocity = false;
+    };
 
     struct CIPOSelection { Meas meas; bool cut_in = false; };
     CIPOSelection select_cipo(const std::vector<models::Detection>& dets) const;
+    CIPOSelection select_cipo_radar(const std::vector<models::Detection>& dets,
+                                    const std::vector<RadarPoint>& radar,
+                                    const PathPoly* path) const;
     static float project_dist(const cv::Mat& H, float ux, float uy);
 
-    void  init_from(float dist_m, float stddev_m);
+    void  init_from(float dist_m, float stddev_m, float vel_ms = 0.f, float vel_std = 2.f);
     void  predict(float dt_s);
     void  weight_update(const Meas& ad, const Meas& cipo_raw);
     std::vector<float> linear_weights() const;
