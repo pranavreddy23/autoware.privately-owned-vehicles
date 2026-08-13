@@ -8,9 +8,10 @@
 #include <opencv2/core.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
-#include <filesystem>
+#include <vector>
 
 namespace visionpilot::engine {
 class OnnxEngine;
@@ -18,10 +19,20 @@ class OnnxEngine;
 
 namespace visionpilot::models {
 
+struct RadarConfig {
+    bool  enabled        = false;
+    float hfov_deg       = 50.f;
+    float yaw_offset_deg = 0.f;
+    float lat_buffer_m   = 0.5f;
+    float path_buffer_m  = 1.0f;
+    float max_range_m    = 150.f;
+};
+
 struct Config {
     std::string precision    = "fp32";
     bool        fusion_debug = false;
     float       cte_bias_m   = 0.0f;  // camera mounting offset [m] — subtracted from raw CTE before filter
+    RadarConfig radar;
 };
 
 struct LatencyStats {
@@ -78,6 +89,8 @@ public:
     void reset();
     const LatencyStats& latency() const { return stats_; }
 
+    void set_radar_points(std::vector<fusion::RadarPoint> pts) { radar_points_ = std::move(pts); }
+
 private:
     cv::Mat H_resized_;
     cv::Mat H_world2resized_;
@@ -88,6 +101,8 @@ private:
     fusion::LateralFusion      lat_fusion_;
     LatencyStats       stats_;
     uint64_t           frame_count_ = 0;
+    bool               radar_enabled_ = false;
+    std::vector<fusion::RadarPoint> radar_points_;
 
     cv::Mat prev_frame_;
     cv::Mat curr_frame_;
