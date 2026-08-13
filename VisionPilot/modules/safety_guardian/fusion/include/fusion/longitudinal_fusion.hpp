@@ -65,11 +65,20 @@ public:
         bool  debug                = false;
 
         bool  radar_enabled        = false;
-        float radar_hfov_deg       = 50.f;
-        float radar_yaw_offset_deg = 0.f;
+        float radar_hfov_deg       = 50.f;   // AutoSpeed crop HFOV (not ZOD's ~120° full cam)
         float radar_lat_buffer_m   = 0.5f;
         float radar_path_buffer_m  = 1.0f;
         float radar_max_range_m    = 150.f;
+        // T_sensor→ego 4×4. Ego = ISO-8855 (X fwd, Y left, Z up). Same as ZOD.
+        // Default cam: OpenCV optical (X right, Y down, Z fwd) → ego. Default radar: identity.
+        cv::Matx44d cam_T{0, 0, 1, 0,
+                         -1, 0, 0, 0,
+                          0,-1, 0, 0,
+                          0, 0, 0, 1};
+        cv::Matx44d radar_T{1, 0, 0, 0,
+                            0, 1, 0, 0,
+                            0, 0, 1, 0,
+                            0, 0, 0, 1};
     };
 
     LongitudinalFusion();
