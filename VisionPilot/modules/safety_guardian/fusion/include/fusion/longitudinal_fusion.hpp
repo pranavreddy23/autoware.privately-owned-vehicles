@@ -21,6 +21,19 @@ struct PathPoly {  // y = a·x² + b·x + c, same frame as radar
 };
 
 // ─── Output ────────────────────────────────────────────────────────────────────
+enum class RadarHit { None, Fov, Path };
+
+// Snapshot for --debug-viz 2×2 (labelling-style). Association is still raw points.
+struct RadarAssocDebug {
+    bool enabled = false;
+    std::vector<RadarPoint> points;
+    PathPoly path;
+    bool  fov_valid   = false;
+    float fov_az_rad  = 0.f;
+    RadarHit hit      = RadarHit::None;
+    int   match_i     = -1;
+};
+
 struct CIPOFusionEstimate {
     bool  valid             = false;
 
@@ -33,6 +46,8 @@ struct CIPOFusionEstimate {
     bool  cipo_raw_found    = false;
     float cipo_raw_dist_m   = 0.f;
     bool  cut_in_detected   = false; // Level 2 is closer than Level 1
+
+    RadarAssocDebug radar;
 };
 
 // ─── LongitudinalFusion ────────────────────────────────────────────────────────
@@ -110,7 +125,14 @@ private:
         bool  has_velocity = false;
     };
 
-    struct CIPOSelection { Meas meas; bool cut_in = false; };
+    struct CIPOSelection {
+        Meas meas;
+        bool cut_in = false;
+        bool from_path = false;
+        bool fov_valid = false;
+        float fov_az_rad = 0.f;
+        int match_i = -1;
+    };
     CIPOSelection select_cipo(const std::vector<models::Detection>& dets) const;
     CIPOSelection select_cipo_radar(const std::vector<models::Detection>& dets,
                                     const std::vector<RadarPoint>& radar,
