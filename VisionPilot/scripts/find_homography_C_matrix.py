@@ -44,18 +44,10 @@ def find_homography_C_matrix(H: np.ndarray) -> np.ndarray:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build C from --ground-h and fixed VP model V")
-    parser.add_argument(
-        "--ground-h",
-        type=Path,
-        default=Path(__file__).resolve().parent.parent / "config" / "H.yaml",
-        help="Dataset ground homography YAML (OpenLane or ZOD)",
-    )
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
 
-    H = load_homography_H_matrix(args.ground_h)
-    if H is None:
-        raise FileNotFoundError(f"Could not read H from {args.ground_h}")
+    H = load_homography_H_matrix(Path('../config/H.yaml'))
     C = find_homography_C_matrix(H)
 
     out = args.output
@@ -63,7 +55,7 @@ def main() -> None:
     fs = cv2.FileStorage(str(out.resolve()), cv2.FILE_STORAGE_WRITE)
     fs.write("C", C.astype(np.float32))
     fs.release()
-    print(f"Transformation C matrix saved to {out.resolve()} (ground H={args.ground_h.resolve()})")
+    print(f"Transformation C matrix saved to {out.resolve()}")
 
 
 if __name__ == "__main__":

@@ -4,8 +4,6 @@ add_executable(test_vision_pilot
         test_vision_pilot.cpp
 )
 
-add_dependencies(test_vision_pilot generate_config)
-
 if (ENABLE_ROS2_INTERFACE)
     find_package(rclcpp REQUIRED)
     find_package(std_msgs REQUIRED)

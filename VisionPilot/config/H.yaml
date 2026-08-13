@@ -1,8 +1,7 @@
 %YAML:1.0
 ---
-# Camera homography transform matrix (source default = OpenLane).
-# cmake -DDATASET=open_lane|zod copies H_openlane.yaml or H_zod.yaml over
-# build/config/H.yaml and regenerates homography_C_matrix.yaml.
+# Camera homography transform matrix
+# This example is for OpenLane 1920×1080 pixel space to BEV
 # MODIFY THIS MATRIX FOR DIFFERENT INPUT CAMERA!!!
 H: !!opencv-matrix
   rows: 3
