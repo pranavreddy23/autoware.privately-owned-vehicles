@@ -15,14 +15,110 @@ constexpr float kPi     = 3.14159265f;
 
 float path_y(const PathPoly& p, float x) { return p.a * x * x + p.b * x + p.c; }
 
-// Same ±1 m world-metre corridor as production path fill. Not pixels.
-bool in_path_corridor(const RadarPoint& p, const PathPoly& path, float buf, float max_r)
+struct RadarCluster {
+    float range_m = 0.f;
+    float azimuth_rad = 0.f;
+    float range_rate = 0.f;
+    int representative_i = -1;
+};
+
+float polar_vel_dist(const RadarPoint& a, const RadarPoint& b)
 {
-    if (!path.valid || p.range_m <= 0.f || p.range_m > max_r) return false;
-    const float x = p.range_m * std::cos(p.azimuth_rad);
-    const float y = p.range_m * std::sin(p.azimuth_rad);
-    if (x < 0.5f || x > path.x_max_m) return false;
-    return std::abs(y - path_y(path, x)) <= buf;
+    const float dr = std::abs(a.range_m - b.range_m);
+    const float r_avg = 0.5f * (a.range_m + b.range_m);
+    const float daz = std::atan2(std::sin(a.azimuth_rad - b.azimuth_rad),
+                                 std::cos(a.azimuth_rad - b.azimuth_rad));
+    const float dlat = r_avg * std::abs(std::sin(daz));
+    const float dv = std::abs(a.range_rate - b.range_rate);
+    const float xr = dr / 4.f;
+    const float yl = dlat / 0.5f;
+    const float zv = dv / 1.5f;
+    return std::sqrt(xr * xr + yl * yl + zv * zv);
+}
+
+std::vector<RadarCluster> cluster_radar(const std::vector<RadarPoint>& pts, float max_r)
+{
+    const int n = static_cast<int>(pts.size());
+    std::vector<int> labels(static_cast<std::size_t>(n), -3);
+    int cluster_id = 0;
+
+    auto region = [&](int i) {
+        std::vector<int> neighbors;
+        if (pts[static_cast<std::size_t>(i)].range_m <= 0.f ||
+            pts[static_cast<std::size_t>(i)].range_m > max_r)
+            return neighbors;
+        for (int j = 0; j < n; ++j) {
+            if (pts[static_cast<std::size_t>(j)].range_m <= 0.f ||
+                pts[static_cast<std::size_t>(j)].range_m > max_r)
+                continue;
+            if (polar_vel_dist(pts[static_cast<std::size_t>(i)],
+                               pts[static_cast<std::size_t>(j)]) <= 1.f)
+                neighbors.push_back(j);
+        }
+        return neighbors;
+    };
+
+    for (int i = 0; i < n; ++i) {
+        if (labels[static_cast<std::size_t>(i)] != -3) continue;
+        const auto neighbors = region(i);
+        if (neighbors.empty()) {
+            labels[static_cast<std::size_t>(i)] = -2;
+            continue;
+        }
+        if (neighbors.size() < 2) {
+            labels[static_cast<std::size_t>(i)] = -1;
+            continue;
+        }
+
+        labels[static_cast<std::size_t>(i)] = cluster_id;
+        std::vector<int> seeds = neighbors;
+        for (std::size_t s = 0; s < seeds.size(); ++s) {
+            const int j = seeds[s];
+            int& label = labels[static_cast<std::size_t>(j)];
+            if (label == -1) label = cluster_id;
+            if (label != -3) continue;
+            label = cluster_id;
+            const auto expanded = region(j);
+            if (expanded.size() >= 2)
+                seeds.insert(seeds.end(), expanded.begin(), expanded.end());
+        }
+        ++cluster_id;
+    }
+
+    std::vector<RadarCluster> clusters;
+    clusters.reserve(static_cast<std::size_t>(cluster_id) + pts.size());
+    for (int id = 0; id < cluster_id; ++id) {
+        float range_sum = 0.f;
+        float rate_sum = 0.f;
+        float sin_sum = 0.f;
+        float cos_sum = 0.f;
+        int count = 0;
+        int representative = -1;
+        for (int i = 0; i < n; ++i) {
+            if (labels[static_cast<std::size_t>(i)] != id) continue;
+            const auto& p = pts[static_cast<std::size_t>(i)];
+            range_sum += p.range_m;
+            rate_sum += p.range_rate;
+            sin_sum += std::sin(p.azimuth_rad);
+            cos_sum += std::cos(p.azimuth_rad);
+            if (representative < 0) representative = i;
+            ++count;
+        }
+        if (count > 0) {
+            const float inv_n = 1.f / static_cast<float>(count);
+            clusters.push_back({range_sum * inv_n, std::atan2(sin_sum, cos_sum),
+                                rate_sum * inv_n, representative});
+        }
+    }
+
+    // Match ZOD: a moving DBSCAN noise point remains a valid one-point cluster.
+    for (int i = 0; i < n; ++i) {
+        const auto& p = pts[static_cast<std::size_t>(i)];
+        if (labels[static_cast<std::size_t>(i)] == -1 &&
+            p.range_m > 0.f && p.range_m <= max_r && std::abs(p.range_rate) > 0.5f)
+            clusters.push_back({p.range_m, p.azimuth_rad, p.range_rate, i});
+    }
+    return clusters;
 }
 
 float bbox_u_to_radar_az(float u, const LongitudinalFusion::Config& cfg)
@@ -39,34 +135,40 @@ float bbox_u_to_radar_az(float u, const LongitudinalFusion::Config& cfg)
     return static_cast<float>(std::atan2(dir_radar[1], dir_radar[0]));
 }
 
-int nearest_on_ray(const std::vector<RadarPoint>& pts, float az_rad,
-                   float lat_buf, float max_r,
-                   const PathPoly* path, float path_buf)
+int nearest_on_ray(const std::vector<RadarCluster>& clusters, float az_rad,
+                   float lat_buf)
 {
     int best = -1;
-    float best_r = max_r;
-    for (int i = 0; i < static_cast<int>(pts.size()); ++i) {
-        const auto& p = pts[i];
-        if (p.range_m <= 0.f || p.range_m > max_r) continue;
-        if (path && path->valid && !in_path_corridor(p, *path, path_buf, max_r))
-            continue;
-        const float daz = std::atan2(std::sin(p.azimuth_rad - az_rad),
-                                     std::cos(p.azimuth_rad - az_rad));
-        if (p.range_m * std::abs(std::sin(daz)) > lat_buf) continue;
-        if (p.range_m < best_r) { best_r = p.range_m; best = i; }
+    float best_r = std::numeric_limits<float>::max();
+    for (int i = 0; i < static_cast<int>(clusters.size()); ++i) {
+        const auto& c = clusters[static_cast<std::size_t>(i)];
+        const float daz = std::atan2(std::sin(c.azimuth_rad - az_rad),
+                                     std::cos(c.azimuth_rad - az_rad));
+        if (c.range_m * std::abs(std::sin(daz)) > lat_buf) continue;
+        if (c.range_m < best_r) { best_r = c.range_m; best = i; }
     }
     return best;
 }
 
-int nearest_on_path(const std::vector<RadarPoint>& pts, const PathPoly& path,
-                    float path_buf, float max_r)
+int nearest_on_path(const std::vector<RadarCluster>& clusters, const PathPoly& path,
+                    float path_buf)
 {
     if (!path.valid) return -1;
     int best = -1;
-    float best_r = max_r;
-    for (int i = 0; i < static_cast<int>(pts.size()); ++i) {
-        if (!in_path_corridor(pts[i], path, path_buf, max_r)) continue;
-        if (pts[i].range_m < best_r) { best_r = pts[i].range_m; best = i; }
+    float best_dev = std::numeric_limits<float>::max();
+    float best_r = std::numeric_limits<float>::max();
+    for (int i = 0; i < static_cast<int>(clusters.size()); ++i) {
+        const auto& c = clusters[static_cast<std::size_t>(i)];
+        const float x = c.range_m * std::cos(c.azimuth_rad);
+        const float y = c.range_m * std::sin(c.azimuth_rad);
+        if (x < 0.5f || x > path.x_max_m) continue;
+        const float dev = std::abs(y - path_y(path, x));
+        if (dev > path_buf) continue;
+        if (dev < best_dev || (dev == best_dev && c.range_m < best_r)) {
+            best_dev = dev;
+            best_r = c.range_m;
+            best = i;
+        }
     }
     return best;
 }
@@ -121,10 +223,10 @@ CIPOFusionEstimate LongitudinalFusion::update(
             if (sel.meas.valid)
                 est.radar.hit = sel.from_path ? RadarHit::Path : RadarHit::Fov;
         } else if (path) {
-            const int i = nearest_on_path(*radar, *path, cfg_.radar_path_buffer_m,
-                                          cfg_.radar_max_range_m);
+            const auto clusters = cluster_radar(*radar, cfg_.radar_max_range_m);
+            const int i = nearest_on_path(clusters, *path, cfg_.radar_path_buffer_m);
             if (i >= 0) {
-                const auto& hit = (*radar)[static_cast<std::size_t>(i)];
+                const auto& hit = clusters[static_cast<std::size_t>(i)];
                 cipo_raw.distance_m   = hit.range_m;
                 cipo_raw.velocity_ms  = hit.range_rate;
                 cipo_raw.stddev_m     = cfg_.cipo_noise_m;
@@ -132,7 +234,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
                 cipo_raw.valid        = true;
                 cipo_raw.has_velocity = true;
                 est.radar.hit     = RadarHit::Path;
-                est.radar.match_i = i;
+                est.radar.match_i = hit.representative_i;
             }
         }
         if (cipo_raw.valid) {
@@ -321,9 +423,11 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
                                       const std::vector<RadarPoint>& radar,
                                       const PathPoly* path) const
 {
+    const auto clusters = cluster_radar(radar, cfg_.radar_max_range_m);
+
     auto fill = [&](int i, bool cut_in, bool from_path, bool fov_ok, float fov_az) {
         CIPOSelection sel;
-        const auto& hit = radar[static_cast<std::size_t>(i)];
+        const auto& hit = clusters[static_cast<std::size_t>(i)];
         sel.meas.distance_m   = hit.range_m;
         sel.meas.velocity_ms  = hit.range_rate;
         sel.meas.stddev_m     = cfg_.cipo_noise_m;
@@ -334,7 +438,7 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
         sel.from_path         = from_path;
         sel.fov_valid         = fov_ok;
         sel.fov_az_rad        = fov_az;
-        sel.match_i           = i;
+        sel.match_i           = hit.representative_i;
         return sel;
     };
 
@@ -346,25 +450,30 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
         const float az = bbox_u_to_radar_az((d.x1 + d.x2) * 0.5f, cfg_);
         if (d.class_id == 1 && !have_az_l1) { az_l1 = az; have_az_l1 = true; }
         if (d.class_id == 2 && !have_az_l2) { az_l2 = az; have_az_l2 = true; }
-        const int i = nearest_on_ray(radar, az, cfg_.radar_lat_buffer_m,
-                                     cfg_.radar_max_range_m, path, cfg_.radar_path_buffer_m);
+        const int i = nearest_on_ray(clusters, az, cfg_.radar_lat_buffer_m);
         if (i < 0) continue;
-        if (d.class_id == 1 && (i_l1 < 0 || radar[i].range_m < radar[i_l1].range_m)) {
+        if (d.class_id == 1 &&
+            (i_l1 < 0 || clusters[static_cast<std::size_t>(i)].range_m <
+                           clusters[static_cast<std::size_t>(i_l1)].range_m)) {
             i_l1 = i; az_l1 = az; have_az_l1 = true;
         }
-        if (d.class_id == 2 && (i_l2 < 0 || radar[i].range_m < radar[i_l2].range_m)) {
+        if (d.class_id == 2 &&
+            (i_l2 < 0 || clusters[static_cast<std::size_t>(i)].range_m <
+                           clusters[static_cast<std::size_t>(i_l2)].range_m)) {
             i_l2 = i; az_l2 = az; have_az_l2 = true;
         }
     }
     const bool fov_ok = have_az_l1 || have_az_l2;
     const float fov_fallback = have_az_l1 ? az_l1 : az_l2;
-    if (i_l2 >= 0 && i_l1 >= 0 && radar[i_l2].range_m < radar[i_l1].range_m)
+    if (i_l2 >= 0 && i_l1 >= 0 &&
+        clusters[static_cast<std::size_t>(i_l2)].range_m <
+        clusters[static_cast<std::size_t>(i_l1)].range_m)
         return fill(i_l2, true, false, true, az_l2);
     if (i_l1 >= 0) return fill(i_l1, false, false, true, az_l1);
     if (i_l2 >= 0) return fill(i_l2, true, false, true, az_l2);
 
     const int i_path = path
-        ? nearest_on_path(radar, *path, cfg_.radar_path_buffer_m, cfg_.radar_max_range_m)
+        ? nearest_on_path(clusters, *path, cfg_.radar_path_buffer_m)
         : -1;
     if (i_path >= 0) return fill(i_path, false, true, fov_ok, fov_fallback);
 
