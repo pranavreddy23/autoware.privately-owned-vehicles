@@ -133,7 +133,9 @@ void InferencePipeline::set_H_resized(const cv::Mat& H, cv::Size raw_size)
 }
 
 std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& warped,
-                                                               const cv::Mat& resized)
+                                                               const cv::Mat& resized,
+                                                               float ego_speed_ms,
+                                                               bool has_ego_speed)
 {
     using Clock = std::chrono::steady_clock;
     using Ms    = std::chrono::duration<double, std::milli>;
@@ -205,7 +207,8 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& wa
         radar_on ? &radar_points_ : nullptr;
     const fusion::PathPoly* path_ptr =
         (radar_on && path.valid) ? &path : nullptr;
-    out.cipo = long_fusion_.update(res_drive, res_speed, warped, 0.f, radar_ptr, path_ptr);
+    const float* ego_ptr = has_ego_speed ? &ego_speed_ms : nullptr;
+    out.cipo = long_fusion_.update(res_drive, res_speed, warped, 0.f, radar_ptr, path_ptr, ego_ptr);
 
     stats_.update(ms_pre, ms_drive, ms_steer, ms_speed, ms_wall);
     return out;
