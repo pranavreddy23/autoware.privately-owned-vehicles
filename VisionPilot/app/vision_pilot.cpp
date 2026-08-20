@@ -162,11 +162,10 @@ int main(int argc, char** argv)
         // ── Default frame no inference ────────────────────────────────────────────
         cv::Mat display_frame = resized;
 
-        if (const auto r = pipeline.process(warped, resized))
+        const double ego_v = vehicle_interface->read();
+        if (const auto r = pipeline.process(warped, resized,
+                                            static_cast<float>(ego_v), true))
         {
-            // pipeline.latency().print();
-
-            const double ego_v = vehicle_interface->read();
             const double cte = r->lateral.cte_m;
             const double epsi = r->lateral.yaw_rad;
             const double kappa = r->lateral.curvature;
