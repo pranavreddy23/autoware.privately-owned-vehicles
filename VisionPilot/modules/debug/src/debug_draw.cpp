@@ -43,7 +43,7 @@ static const cv::Scalar kClrAdWheel   {240, 240, 240};
 
 // Layout (1024×512): corners reserved so paths/HUD do not overlap
 static constexpr int kTopBarH   = 22;
-static constexpr int kHudH      = 104;
+static constexpr int kHudH      = 128;
 static constexpr int kLegendW   = 212;
 static constexpr int kLegendH   = 100;
 static constexpr int kBevW      = 200;
@@ -588,20 +588,41 @@ static void draw_hud_panel(cv::Mat& img, const DebugView& v, const OverlayLayout
     static constexpr float D_MAX = 150.f;
     const auto& veh = v.vehicle;
 
-    // ── Column 1: neural network outputs ─────────────────────────────────────
+    // ── Column 1: per-source longitudinal ────────────────────────────────────
     int y = py + 16;
-    text(c1x, y, "NEURAL NET OUTPUTS", kClrHeader); y += lineH;
+    text(c1x, y, "LONG MEASUREMENTS", kClrHeader); y += lineH;
 
     if (v.auto_drive.valid) {
-        const float d_m = D_MAX * (1.f - v.auto_drive.dist_normalized);
-        const float curv = v.auto_drive.curvature_raw * veh.curv_scale;
-        text(c1x, y, "AutoDrive  dist " + fd(d_m, 1) + " m", kClrNormal); y += lineH;
-        text(c1x, y, "           curv " + fd(curv, 4) + " 1/m", kClrNormal); y += lineH;
-        const int flag = (v.auto_drive.flag_prob >= veh.flag_threshold) ? 1 : 0;
-        text(c1x, y, "           CIPO flag " + std::to_string(flag)
-             + " p=" + fd(v.auto_drive.flag_prob, 2), kClrNormal);
+        const float d_m = v.cipo.ad_meas_valid ? v.cipo.ad_dist_m
+                        : D_MAX * (1.f - v.auto_drive.dist_normalized);
+        text(c1x, y, "AD     " + fd(d_m, 1) + " m  p=" + fd(v.auto_drive.flag_prob, 2),
+             v.cipo.ad_meas_valid ? kClrFusedLong : kClrNormal); y += lineH;
     } else {
-        text(c1x, y, "AutoDrive  (no output)", kClrNormal);
+        text(c1x, y, "AD     (none)", kClrNormal); y += lineH;
+    }
+    if (v.cipo.as_h_valid)
+        text(c1x, y, "AS+H   " + fd(v.cipo.as_h_dist_m, 1) + " m", kClrFusedLong);
+    else
+        text(c1x, y, "AS+H   (none)", kClrNormal);
+    y += lineH;
+    if (v.cipo.radar_meas_valid) {
+        char rad[64];
+        std::snprintf(rad, sizeof(rad), "Radar  %.1f m  v=%+.2f  S%d",
+                      static_cast<double>(v.cipo.radar_dist_m),
+                      static_cast<double>(v.cipo.radar_vel_ms),
+                      v.cipo.radar_scenario);
+        text(c1x, y, rad, kClrFusedLong);
+    } else if (v.cipo.radar.enabled) {
+        text(c1x, y, "Radar  (no match)", kClrNormal);
+    } else {
+        text(c1x, y, "Radar  (off)", kClrNormal);
+    }
+    y += lineH;
+    if (v.auto_drive.valid) {
+        const float curv = v.auto_drive.curvature_raw * veh.curv_scale;
+        const int flag = (v.auto_drive.flag_prob >= veh.flag_threshold) ? 1 : 0;
+        text(c1x, y, "CIPO flag " + std::to_string(flag)
+             + "  curv " + fd(curv, 4), kClrNormal);
     }
 
     // ── Column 2: fused longitudinal ─────────────────────────────────────────
@@ -614,8 +635,14 @@ static void draw_hud_panel(cv::Mat& img, const DebugView& v, const OverlayLayout
              kClrFusedLong, kNorm, kBold); y += lineH;
         text(c2x, y, "uncert.   +/-" + fd(v.cipo.distance_stddev_m, 1) + " m",
              kClrNormal);
-        if (v.cipo.cut_in_detected)
+        if (v.cipo.cut_in_detected && v.cipo.radar_scenario == 1)
             text(c2x, py + kHudH - 10, "CUT-IN", kClrL2, kSmall, kBold);
+        else if (v.cipo.radar_scenario == 2)
+            text(c2x, py + kHudH - 10, "S2 L3 ON PATH", kClrL3, kSmall, kBold);
+        else if (v.cipo.radar_scenario == 3)
+            text(c2x, py + kHudH - 10, "S3 PATH MOVING", kClrNormal, kSmall, kBold);
+        else if (v.cipo.radar_scenario == 1)
+            text(c2x, py + kHudH - 10, "S1 L1/L2 RADAR", kClrFusedLong, kSmall, kBold);
     } else {
         text(c2x, y, "(waiting for tracker)", kClrNormal);
     }
