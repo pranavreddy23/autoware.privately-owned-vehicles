@@ -59,7 +59,9 @@ public:
     // resized : plain-resized 1024×512 image → AutoSteer + AutoSpeed.
     //           If empty, falls back to warped for all networks (legacy behaviour).
     std::optional<InferenceFrameResult> process(const cv::Mat& warped,
-                                                const cv::Mat& resized = {});
+                                                const cv::Mat& resized = {},
+                                                float ego_speed_ms = 0.f,
+                                                bool has_ego_speed = false);
 
     // Compute and apply H_resized to both fusion modules so that AutoSteer /
     // AutoSpeed outputs are projected correctly when they run on a resized
