@@ -22,7 +22,7 @@ struct PathPoly {  // y = a·x² + b·x + c, same frame as radar
 };
 
 // ─── Output ────────────────────────────────────────────────────────────────────
-enum class RadarHit { None, Fov, Path };
+enum class RadarHit { None, Fov, Path, L3 };
 
 // Snapshot for --debug-viz BEV (association is still raw points).
 struct RadarAssocDebug {
@@ -47,6 +47,16 @@ struct CIPOFusionEstimate {
     bool  cipo_raw_found    = false;
     float cipo_raw_dist_m   = 0.f;
     bool  cut_in_detected   = false; // Level 2 is closer than Level 1
+
+    // Per-source longitudinal measurements (debug + particle-filter inputs)
+    bool  ad_meas_valid     = false;
+    float ad_dist_m         = 0.f;
+    bool  as_h_valid        = false;
+    float as_h_dist_m       = 0.f;
+    bool  radar_meas_valid  = false;
+    float radar_dist_m      = 0.f;
+    float radar_vel_ms      = 0.f;
+    int   radar_scenario    = 0;  // 0 none, 1 L1/L2+radar, 2 path, 3 L3+radar on path
 
     RadarAssocDebug radar;
 };
@@ -106,7 +116,8 @@ public:
         const cv::Mat& preprocessed_frame,
         float dt_s = 0.f,
         const std::vector<RadarPoint>* radar = nullptr,
-        const PathPoly* path = nullptr);
+        const PathPoly* path = nullptr,
+        const float* ego_speed_ms = nullptr);
 
     void reset();
     const Config& config() const { return cfg_; }
@@ -133,16 +144,20 @@ private:
         bool fov_valid = false;
         float fov_az_rad = 0.f;
         int match_i = -1;
+        int scenario = 0;
+        RadarHit hit = RadarHit::None;
     };
     CIPOSelection select_cipo(const std::vector<models::Detection>& dets) const;
     CIPOSelection select_cipo_radar(const std::vector<models::Detection>& dets,
                                     const std::vector<RadarPoint>& radar,
-                                    const PathPoly* path) const;
+                                    const PathPoly* path,
+                                    float dt_s,
+                                    const float* ego_speed_ms) const;
     static float project_dist(const cv::Mat& H, float ux, float uy);
 
     void  init_from(float dist_m, float stddev_m, float vel_ms = 0.f, float vel_std = 2.f);
     void  predict(float dt_s);
-    void  weight_update(const Meas& ad, const Meas& cipo_raw);
+    void  weight_update(const Meas& ad, const Meas& as_h, const Meas& radar);
     std::vector<float> linear_weights() const;
     float effective_n() const;
     void  resample();
@@ -152,6 +167,8 @@ private:
     std::vector<Particle> particles_;
     bool   initialised_ = false;
     std::mt19937 rng_;
+    struct RadarHist { bool ok = false; float az_rad = 0.f, range_m = 0.f, range_rate = 0.f; };
+    std::vector<RadarHist> radar_hist_;
     // DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world). Zenseact Open Dataset
     cv::Mat H_ = (cv::Mat_<double>(3, 3) <<
                        0.00209514907, -0.000941721466, -9.24906396,
