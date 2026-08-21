@@ -394,7 +394,7 @@ static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
     cv::Mat panel = img(panel_rect);
 
     static constexpr float kFwdMax = 120.f;   // m of range shown
-    static constexpr float kLatMax = 10.f;    // m either side shown
+    static constexpr float kLatMax = 14.f;    // m either side shown
     const int   y_ego  = ph - 16;
     const int   cx     = pw / 2;
     const float ppm_x  = static_cast<float>(y_ego - 30) / kFwdMax;
@@ -408,7 +408,7 @@ static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
         return p.x >= 1 && p.x < pw - 1 && p.y >= 22 && p.y < ph - 1;
     };
 
-    cv::putText(panel, "x 0-120m  y +/-10m (stretched)", cv::Point(6, 27),
+    cv::putText(panel, "x 0-120m  y +/-14m (stretched)", cv::Point(6, 27),
                 kFont, 0.30, cv::Scalar(120, 120, 120), 1, cv::LINE_AA);
 
     // Range rings every 20 m, lane-ish lateral guides at +/-2 and +/-4 m.
@@ -420,7 +420,7 @@ static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
         cv::putText(panel, std::to_string(r), cv::Point(3, y - 2),
                     kFont, 0.28, cv::Scalar(90, 90, 90), 1, cv::LINE_AA);
     }
-    for (float y_off : {-8.f, -4.f, -2.f, 0.f, 2.f, 4.f, 8.f}) {
+    for (float y_off : {-12.f, -8.f, -4.f, 0.f, 4.f, 8.f, 12.f}) {
         const int x = to_px(0.f, y_off).x;
         if (x < 2 || x >= pw - 2) continue;
         const cv::Scalar c = (y_off == 0.f) ? cv::Scalar(60, 60, 60)
@@ -448,32 +448,6 @@ static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
         }
         if (mid.size() >= 2)
             cv::polylines(panel, mid, false, kClrFusedLat, 1, cv::LINE_AA);
-    }
-
-    // FOV ray from the CIPO bbox, with the 0.5 m and 1.0 m tube walls.
-    if (radar.fov_valid) {
-        const float az = radar.fov_az_rad;
-        const float ca = std::cos(az), sa = std::sin(az);
-        std::vector<cv::Point> ray, t05a, t05b, t10a, t10b;
-        for (float r = 2.f; r <= kFwdMax; r += 2.f) {
-            const float x = r * ca, y = r * sa;
-            const cv::Point p = to_px(x, y);
-            if (in_panel(p)) ray.push_back(p);
-            auto off = [&](float d, std::vector<cv::Point>& dst) {
-                const cv::Point q = to_px(x - d * sa, y + d * ca);
-                if (in_panel(q)) dst.push_back(q);
-            };
-            off(+0.5f, t05a); off(-0.5f, t05b);
-            off(+1.0f, t10a); off(-1.0f, t10b);
-        }
-        const cv::Scalar c_tube(70, 70, 160);
-        for (const auto* v : {&t10a, &t10b})
-            if (v->size() >= 2) cv::polylines(panel, *v, false, c_tube, 1, cv::LINE_AA);
-        for (const auto* v : {&t05a, &t05b})
-            if (v->size() >= 2)
-                cv::polylines(panel, *v, false, cv::Scalar(90, 90, 220), 1, cv::LINE_AA);
-        if (ray.size() >= 2)
-            cv::polylines(panel, ray, false, cv::Scalar(140, 140, 255), 1, cv::LINE_AA);
     }
 
     // Vision distances as ticks on the path, so radar vs camera is one glance.
