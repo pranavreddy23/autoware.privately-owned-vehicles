@@ -20,6 +20,9 @@ struct RadarCluster {
     float azimuth_rad = 0.f;
     float range_rate = 0.f;
     int representative_i = -1;
+    // Indices of the returns this cluster is made of. Published to the debug view
+    // so the BEV paints the set association actually used, not a second opinion.
+    std::vector<int> members;
 };
 
 // Neighbourhood sized to a road vehicle: the lateral tolerance has to exceed a
@@ -98,8 +101,8 @@ std::vector<RadarCluster> cluster_radar(const std::vector<RadarPoint>& pts, floa
         float rate_sum = 0.f;
         float sin_sum = 0.f;
         float cos_sum = 0.f;
-        int count = 0;
         int representative = -1;
+        std::vector<int> members;
         for (int i = 0; i < n; ++i) {
             if (labels[static_cast<std::size_t>(i)] != id) continue;
             const auto& p = pts[static_cast<std::size_t>(i)];
@@ -108,12 +111,12 @@ std::vector<RadarCluster> cluster_radar(const std::vector<RadarPoint>& pts, floa
             sin_sum += std::sin(p.azimuth_rad);
             cos_sum += std::cos(p.azimuth_rad);
             if (representative < 0) representative = i;
-            ++count;
+            members.push_back(i);
         }
-        if (count > 0) {
-            const float inv_n = 1.f / static_cast<float>(count);
+        if (!members.empty()) {
+            const float inv_n = 1.f / static_cast<float>(members.size());
             clusters.push_back({range_sum * inv_n, std::atan2(sin_sum, cos_sum),
-                                rate_sum * inv_n, representative});
+                                rate_sum * inv_n, representative, std::move(members)});
         }
     }
 
@@ -122,7 +125,7 @@ std::vector<RadarCluster> cluster_radar(const std::vector<RadarPoint>& pts, floa
         const auto& p = pts[static_cast<std::size_t>(i)];
         if (labels[static_cast<std::size_t>(i)] == -1 &&
             p.range_m > 0.f && p.range_m <= max_r && std::abs(p.range_rate) > 0.5f)
-            clusters.push_back({p.range_m, p.azimuth_rad, p.range_rate, i});
+            clusters.push_back({p.range_m, p.azimuth_rad, p.range_rate, i, {i}});
     }
     return clusters;
 }
@@ -190,15 +193,36 @@ int cluster_in_window(const std::vector<RadarPoint>& pts,
                       float az_min, float az_max, float r_min, float r_max,
                       float vel_scale, RadarCluster& out)
 {
+    // One object has one Doppler. Without this band the region-grow chains
+    // through the velocity dimension in small steps and walks off a co-speed
+    // vehicle onto the static world, averaging the two into a range-rate that
+    // describes neither.
+    constexpr float kRateBandMs = 2.f;
+
     const int n = static_cast<int>(pts.size());
     std::vector<char> member(static_cast<std::size_t>(n), 0);
-    bool any = false;
+    std::vector<float> seed_rates;
     for (int i = 0; i < n; ++i) {
         const auto& p = pts[static_cast<std::size_t>(i)];
         if (p.range_m < r_min || p.range_m > r_max) continue;
         if (p.azimuth_rad < az_min || p.azimuth_rad > az_max) continue;
         member[static_cast<std::size_t>(i)] = 1;
-        any = true;
+        seed_rates.push_back(p.range_rate);
+    }
+    if (seed_rates.empty()) return -1;
+
+    std::nth_element(seed_rates.begin(),
+                     seed_rates.begin() + static_cast<long>(seed_rates.size() / 2),
+                     seed_rates.end());
+    const float rate_ref = seed_rates[seed_rates.size() / 2];
+
+    bool any = false;
+    for (int i = 0; i < n; ++i) {
+        if (!member[static_cast<std::size_t>(i)]) continue;
+        if (std::abs(pts[static_cast<std::size_t>(i)].range_rate - rate_ref) > kRateBandMs)
+            member[static_cast<std::size_t>(i)] = 0;
+        else
+            any = true;
     }
     if (!any) return -1;
 
@@ -207,16 +231,18 @@ int cluster_in_window(const std::vector<RadarPoint>& pts,
         if (!seeds[static_cast<std::size_t>(i)]) continue;
         for (int j = 0; j < n; ++j) {
             if (member[static_cast<std::size_t>(j)]) continue;
-            if (pts[static_cast<std::size_t>(j)].range_m <= 0.f) continue;
-            if (polar_vel_dist(pts[static_cast<std::size_t>(i)],
-                               pts[static_cast<std::size_t>(j)], vel_scale) <= 1.f)
+            const auto& q = pts[static_cast<std::size_t>(j)];
+            if (q.range_m <= 0.f) continue;
+            if (std::abs(q.range_rate - rate_ref) > kRateBandMs) continue;
+            if (polar_vel_dist(pts[static_cast<std::size_t>(i)], q, vel_scale) <= 1.f)
                 member[static_cast<std::size_t>(j)] = 1;
         }
     }
 
     float range_sum = 0.f, rate_sum = 0.f, sin_sum = 0.f, cos_sum = 0.f;
     float r_near = std::numeric_limits<float>::max();
-    int count = 0, representative = -1;
+    int representative = -1;
+    std::vector<int> members;
     for (int i = 0; i < n; ++i) {
         if (!member[static_cast<std::size_t>(i)]) continue;
         const auto& p = pts[static_cast<std::size_t>(i)];
@@ -225,11 +251,11 @@ int cluster_in_window(const std::vector<RadarPoint>& pts,
         sin_sum += std::sin(p.azimuth_rad);
         cos_sum += std::cos(p.azimuth_rad);
         if (p.range_m < r_near) { r_near = p.range_m; representative = i; }
-        ++count;
+        members.push_back(i);
     }
-    const float inv_n = 1.f / static_cast<float>(count);
+    const float inv_n = 1.f / static_cast<float>(members.size());
     out = {range_sum * inv_n, std::atan2(sin_sum, cos_sum), rate_sum * inv_n,
-           representative};
+           representative, std::move(members)};
     return representative;
 }
 
@@ -296,7 +322,10 @@ int path_groups_raw(const std::vector<RadarPoint>& pts, const PathPoly& path,
         if (mean_dl < best_dlat || (mean_dl == best_dlat && mean_r < best_r)) {
             best_dlat = mean_dl;
             best_r = mean_r;
-            best = {mean_r, std::atan2(ss, cs), rrs * inv, g[0].i};
+            std::vector<int> members;
+            members.reserve(g.size());
+            for (const auto& h : g) members.push_back(h.i);
+            best = {mean_r, std::atan2(ss, cs), rrs * inv, g[0].i, std::move(members)};
             best_i = g[0].i;
         }
     }
@@ -357,11 +386,26 @@ CIPOFusionEstimate LongitudinalFusion::update(
         }
     }
 
+    // Range prior centring the model-based clustering window. The paper predicts
+    // the window from the tracked object, so prefer the filter's own estimate;
+    // fall back to AutoDrive, which stays sane at range where the bbox
+    // homography does not (it read 114 m for a target AutoDrive put at 66 m).
+    float range_prior = 0.f;
+    if (initialised_ && !particles_.empty()) {
+        for (const auto& p : particles_) range_prior += p.distance_m;
+        range_prior /= static_cast<float>(particles_.size());
+    } else if (autodrive.valid && autodrive.flag_prob >= 0.40f) {
+        range_prior = cfg_.d_max_m * (1.f - autodrive.dist_normalized);
+    }
+    const float* prior_ptr = (range_prior > 1.f) ? &range_prior : nullptr;
+
     Meas radar_meas;
+    std::vector<int> match_members;
     if (cfg_.radar_enabled && radar) {
         if (autospeed.valid) {
             const auto sel = select_cipo_radar(autospeed.detections, *radar, path,
-                                               dt_s, ego_speed_ms);
+                                               dt_s, ego_speed_ms, prior_ptr);
+            match_members       = sel.members;
             radar_meas          = sel.meas;
             est.cut_in_detected = sel.cut_in;
             est.radar.fov_valid = sel.fov_valid;
@@ -381,6 +425,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
                 radar_meas.has_velocity = true;
                 est.radar.hit        = RadarHit::Path;
                 est.radar.match_i    = hit.representative_i;
+                match_members        = hit.members;
                 est.radar_scenario   = 3;
             }
         }
@@ -388,6 +433,12 @@ CIPOFusionEstimate LongitudinalFusion::update(
             est.radar_meas_valid = true;
             est.radar_dist_m     = radar_meas.distance_m;
             est.radar_vel_ms     = radar_meas.velocity_ms;
+            est.radar.match_range_m = radar_meas.distance_m;
+            est.radar.match_rate_ms = radar_meas.velocity_ms;
+            est.radar.in_match.assign(radar->size(), 0);
+            for (const int i : match_members)
+                if (i >= 0 && i < static_cast<int>(radar->size()))
+                    est.radar.in_match[static_cast<std::size_t>(i)] = 1;
             est.cipo_raw_found   = true;
             est.cipo_raw_dist_m  = radar_meas.distance_m;
             RadarHist h;
@@ -593,7 +644,8 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
                                       const std::vector<RadarPoint>& radar,
                                       const PathPoly* path,
                                       float dt_s,
-                                      const float* ego_speed_ms) const
+                                      const float* ego_speed_ms,
+                                      const float* range_prior_m) const
 {
     auto fill_c = [&](const RadarCluster& c, bool cut_in, RadarHit hit,
                       int scenario, bool fov_ok, float fov_az) {
@@ -609,6 +661,7 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
         sel.fov_valid         = fov_ok;
         sel.fov_az_rad        = fov_az;
         sel.match_i           = c.representative_i;
+        sel.members           = c.members;
         sel.scenario          = scenario;
         sel.hit               = hit;
         return sel;
@@ -628,22 +681,23 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
         const float az = bbox_u_to_radar_az((box.x1 + box.x2) * 0.5f, cfg_);
 
         // Window from the box's own contour: bearing spans the bbox edges rather
-        // than a tube on its centre ray, and range is bounded by the homography
-        // distance for the same box, so structure well beyond the object cannot
-        // win on bearing alone.
+        // than a tube on its centre ray, and range is bounded around the best
+        // available prior, so structure well beyond the object cannot win on
+        // bearing alone.
         const float az_a = bbox_u_to_radar_az(box.x1, cfg_);
         const float az_b = bbox_u_to_radar_az(box.x2, cfg_);
         const float az_pad = 0.2f * std::abs(az_a - az_b) + 0.005f;
         const float d_h = project_dist(H_, (box.x1 + box.x2) * 0.5f, box.y2);
-        const bool  d_h_ok = std::isfinite(d_h) && d_h > 1.f &&
-                             d_h < cfg_.radar_max_range_m;
-        const float band = std::max(10.f, 0.3f * d_h);
+        const float prior = range_prior_m ? *range_prior_m : d_h;
+        const bool  prior_ok = std::isfinite(prior) && prior > 1.f &&
+                               prior < cfg_.radar_max_range_m;
+        const float band = std::max(10.f, 0.25f * prior);
         RadarCluster mc;
         if (cluster_in_window(radar,
                               std::min(az_a, az_b) - az_pad,
                               std::max(az_a, az_b) + az_pad,
-                              d_h_ok ? std::max(1.f, d_h - band) : 0.f,
-                              d_h_ok ? d_h + band : cfg_.radar_max_range_m,
+                              prior_ok ? std::max(1.f, prior - band) : 0.f,
+                              prior_ok ? prior + band : cfg_.radar_max_range_m,
                               1.0f, mc) >= 0)
             return fill_c(mc, box.class_id == 2, RadarHit::Fov, 1, true, az);
 
