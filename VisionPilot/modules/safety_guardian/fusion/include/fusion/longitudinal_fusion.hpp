@@ -24,15 +24,19 @@ struct PathPoly {  // y = a·x² + b·x + c, same frame as radar
 // ─── Output ────────────────────────────────────────────────────────────────────
 enum class RadarHit { None, Fov, Path, L3 };
 
-// Snapshot for --debug-viz BEV (association is still raw points).
+// Snapshot for --debug-viz BEV. in_match / match_* are the association result
+// itself, so the panel never has to re-derive (and disagree about) the answer.
 struct RadarAssocDebug {
     bool enabled = false;
     std::vector<RadarPoint> points;
+    std::vector<uint8_t> in_match;   // per point: belongs to the selected cluster
     PathPoly path;
-    bool  fov_valid   = false;
-    float fov_az_rad  = 0.f;
-    RadarHit hit      = RadarHit::None;
-    int   match_i     = -1;
+    bool  fov_valid      = false;
+    float fov_az_rad     = 0.f;
+    RadarHit hit         = RadarHit::None;
+    int   match_i        = -1;
+    float match_range_m  = 0.f;      // exactly what fusion reported
+    float match_rate_ms  = 0.f;
 };
 
 struct CIPOFusionEstimate {
@@ -144,6 +148,7 @@ private:
         bool fov_valid = false;
         float fov_az_rad = 0.f;
         int match_i = -1;
+        std::vector<int> members;
         int scenario = 0;
         RadarHit hit = RadarHit::None;
     };
@@ -152,7 +157,8 @@ private:
                                     const std::vector<RadarPoint>& radar,
                                     const PathPoly* path,
                                     float dt_s,
-                                    const float* ego_speed_ms) const;
+                                    const float* ego_speed_ms,
+                                    const float* range_prior_m = nullptr) const;
     static float project_dist(const cv::Mat& H, float ux, float uy);
 
     void  init_from(float dist_m, float stddev_m, float vel_ms = 0.f, float vel_std = 2.f);
