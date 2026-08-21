@@ -100,8 +100,8 @@ static OverlayLayout layout_for(const cv::Mat& img, bool radar_bev = false)
     OverlayLayout L;
     L.hud_y = img.rows - kHudH;
     L.legend = cv::Rect(6, kTopBarH + 4, kLegendW, kLegendH);
-    const int bw = radar_bev ? 260 : kBevW;
-    const int bh = radar_bev ? 200 : kBevH;
+    const int bw = radar_bev ? 340 : kBevW;
+    const int bh = radar_bev ? 260 : kBevH;
     L.bev    = cv::Rect(img.cols - bw - 8, L.hud_y - bh - 6, bw, bh);
     return L;
 }
@@ -311,7 +311,10 @@ static cv::Point world_to_bev_px(float x_fwd, float y_lat,
         static_cast<int>(std::lround(cy - x_fwd * px_per_m)));
 }
 
-static float polar_vel_dist(const fusion::RadarPoint& a, const fusion::RadarPoint& b)
+// Tolerances must stay identical to fusion::polar_vel_dist, otherwise the BEV
+// paints a different segmentation than the one association actually used.
+static float polar_vel_dist(const fusion::RadarPoint& a, const fusion::RadarPoint& b,
+                            float vel_scale)
 {
     const float dr = std::abs(a.range_m - b.range_m);
     const float r_avg = 0.5f * (a.range_m + b.range_m);
@@ -319,11 +322,26 @@ static float polar_vel_dist(const fusion::RadarPoint& a, const fusion::RadarPoin
                                  std::cos(a.azimuth_rad - b.azimuth_rad));
     const float dlat = r_avg * std::abs(std::sin(daz));
     const float dv = std::abs(a.range_rate - b.range_rate);
-    const float xr = dr / 4.f, yl = dlat / 0.5f, zv = dv / 1.5f;
+    const float xr = dr / 2.5f, yl = dlat / 1.8f, zv = dv / vel_scale;
     return std::sqrt(xr * xr + yl * yl + zv * zv);
 }
 
-static std::vector<int> cluster_radar(const std::vector<fusion::RadarPoint>& pts)
+// A static return's range-rate is -v_ego, and on a highway most returns are
+// static world (ground, barriers, signs).  The median is therefore -v_ego and is
+// robust to the handful of moving targets.
+static float ego_speed_from_radar(const std::vector<fusion::RadarPoint>& pts)
+{
+    std::vector<float> rr;
+    rr.reserve(pts.size());
+    for (const auto& p : pts)
+        if (p.range_m > 2.f) rr.push_back(p.range_rate);
+    if (rr.size() < 8) return 0.f;
+    std::nth_element(rr.begin(), rr.begin() + static_cast<long>(rr.size() / 2), rr.end());
+    return -rr[rr.size() / 2];
+}
+
+static std::vector<int> cluster_radar(const std::vector<fusion::RadarPoint>& pts,
+                                      float vel_scale)
 {
     const int n = static_cast<int>(pts.size());
     std::vector<int> lab(n, -2);
@@ -331,7 +349,7 @@ static std::vector<int> cluster_radar(const std::vector<fusion::RadarPoint>& pts
     auto region = [&](int i) {
         std::vector<int> nbs;
         for (int j = 0; j < n; ++j)
-            if (polar_vel_dist(pts[i], pts[j]) <= 1.f) nbs.push_back(j);
+            if (polar_vel_dist(pts[i], pts[j], vel_scale) <= 1.f) nbs.push_back(j);
         return nbs;
     };
     for (int i = 0; i < n; ++i) {
@@ -358,6 +376,169 @@ static std::vector<int> cluster_radar(const std::vector<fusion::RadarPoint>& pts
     return lab;
 }
 
+// Radar BEV. Forward and lateral use *different* scales: 0-120 m of range has to
+// share a 260 px panel, so a 1 m association gate is ~2 px tall.  Stretching the
+// lateral axis ~8x is the only way the 0.5/1.0 m gates are visible at all.
+static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
+                                 const OverlayLayout& L)
+{
+    const auto& lat   = view.lateral;
+    const auto& radar = view.cipo.radar;
+
+    const cv::Rect panel_rect = L.bev & cv::Rect(0, 0, img.cols, img.rows);
+    if (panel_rect.width < 80 || panel_rect.height < 80) return;
+    draw_panel(img, panel_rect, "RADAR BEV", kClrFusedLat);
+
+    const int pw = panel_rect.width;
+    const int ph = panel_rect.height;
+    cv::Mat panel = img(panel_rect);
+
+    static constexpr float kFwdMax = 120.f;   // m of range shown
+    static constexpr float kLatMax = 10.f;    // m either side shown
+    const int   y_ego  = ph - 16;
+    const int   cx     = pw / 2;
+    const float ppm_x  = static_cast<float>(y_ego - 30) / kFwdMax;
+    const float ppm_y  = (static_cast<float>(pw) * 0.5f - 6.f) / kLatMax;
+
+    auto to_px = [&](float x, float y) {
+        return cv::Point(cx - static_cast<int>(std::lround(y * ppm_y)),
+                         y_ego - static_cast<int>(std::lround(x * ppm_x)));
+    };
+    auto in_panel = [&](const cv::Point& p) {
+        return p.x >= 1 && p.x < pw - 1 && p.y >= 22 && p.y < ph - 1;
+    };
+
+    cv::putText(panel, "x 0-120m  y +/-10m (stretched)", cv::Point(6, 27),
+                kFont, 0.30, cv::Scalar(120, 120, 120), 1, cv::LINE_AA);
+
+    // Range rings every 20 m, lane-ish lateral guides at +/-2 and +/-4 m.
+    for (int r = 20; r <= static_cast<int>(kFwdMax); r += 20) {
+        const int y = to_px(static_cast<float>(r), 0.f).y;
+        if (y < 30) continue;
+        cv::line(panel, cv::Point(2, y), cv::Point(pw - 3, y),
+                 cv::Scalar(45, 45, 45), 1, cv::LINE_AA);
+        cv::putText(panel, std::to_string(r), cv::Point(3, y - 2),
+                    kFont, 0.28, cv::Scalar(90, 90, 90), 1, cv::LINE_AA);
+    }
+    for (float y_off : {-8.f, -4.f, -2.f, 0.f, 2.f, 4.f, 8.f}) {
+        const int x = to_px(0.f, y_off).x;
+        if (x < 2 || x >= pw - 2) continue;
+        const cv::Scalar c = (y_off == 0.f) ? cv::Scalar(60, 60, 60)
+                                            : cv::Scalar(40, 40, 40);
+        for (int y = 30; y < y_ego; y += 6)
+            cv::line(panel, cv::Point(x, y), cv::Point(x, y + 3), c, 1);
+    }
+
+    // Fused path plus the +/-1.0 m association corridor.
+    if (lat.path_valid && lat.path_x_max_m > lat.path_x_min_m + 1.f) {
+        const float x_end = std::min(lat.path_x_max_m, kFwdMax);
+        std::vector<cv::Point> mid, lo, hi;
+        for (float x = 0.f; x <= x_end; x += 1.f) {
+            const float y = lat.path_a * x * x + lat.path_b * x + lat.path_c;
+            if (std::abs(y) > kLatMax) continue;
+            const cv::Point pm = to_px(x, y);
+            if (!in_panel(pm)) continue;
+            mid.push_back(pm);
+            lo.push_back(to_px(x, y - 1.f));
+            hi.push_back(to_px(x, y + 1.f));
+        }
+        if (lo.size() >= 2) {
+            cv::polylines(panel, lo, false, cv::Scalar(0, 110, 130), 1, cv::LINE_AA);
+            cv::polylines(panel, hi, false, cv::Scalar(0, 110, 130), 1, cv::LINE_AA);
+        }
+        if (mid.size() >= 2)
+            cv::polylines(panel, mid, false, kClrFusedLat, 1, cv::LINE_AA);
+    }
+
+    // FOV ray from the CIPO bbox, with the 0.5 m and 1.0 m tube walls.
+    if (radar.fov_valid) {
+        const float az = radar.fov_az_rad;
+        const float ca = std::cos(az), sa = std::sin(az);
+        std::vector<cv::Point> ray, t05a, t05b, t10a, t10b;
+        for (float r = 2.f; r <= kFwdMax; r += 2.f) {
+            const float x = r * ca, y = r * sa;
+            const cv::Point p = to_px(x, y);
+            if (in_panel(p)) ray.push_back(p);
+            auto off = [&](float d, std::vector<cv::Point>& dst) {
+                const cv::Point q = to_px(x - d * sa, y + d * ca);
+                if (in_panel(q)) dst.push_back(q);
+            };
+            off(+0.5f, t05a); off(-0.5f, t05b);
+            off(+1.0f, t10a); off(-1.0f, t10b);
+        }
+        const cv::Scalar c_tube(70, 70, 160);
+        for (const auto* v : {&t10a, &t10b})
+            if (v->size() >= 2) cv::polylines(panel, *v, false, c_tube, 1, cv::LINE_AA);
+        for (const auto* v : {&t05a, &t05b})
+            if (v->size() >= 2)
+                cv::polylines(panel, *v, false, cv::Scalar(90, 90, 220), 1, cv::LINE_AA);
+        if (ray.size() >= 2)
+            cv::polylines(panel, ray, false, cv::Scalar(140, 140, 255), 1, cv::LINE_AA);
+    }
+
+    // Vision distances as ticks on the path, so radar vs camera is one glance.
+    auto path_y_at = [&](float x) {
+        return lat.path_valid ? lat.path_a * x * x + lat.path_b * x + lat.path_c : 0.f;
+    };
+    auto tick = [&](float dist, const cv::Scalar& c, const char* tag) {
+        if (dist <= 0.f || dist > kFwdMax) return;
+        const cv::Point p = to_px(dist, path_y_at(dist));
+        if (!in_panel(p)) return;
+        cv::line(panel, cv::Point(p.x - 9, p.y), cv::Point(p.x + 9, p.y), c, 1, cv::LINE_AA);
+        cv::putText(panel, tag, cv::Point(p.x + 11, p.y + 3), kFont, 0.30, c, 1, cv::LINE_AA);
+    };
+    if (view.cipo.ad_meas_valid) tick(view.cipo.ad_dist_m, cv::Scalar(0, 220, 0), "AD");
+    if (view.cipo.as_h_valid)    tick(view.cipo.as_h_dist_m, cv::Scalar(160, 220, 160), "H");
+
+    // Returns, split by ego-compensated Doppler: static world vs real movers.
+    int n_static = 0, n_moving = 0, n_clustered = 0;
+    const float ego_est = ego_speed_from_radar(radar.points);
+    if (!radar.points.empty()) {
+        const float vel_scale = (view.cipo.radar_scenario == 2) ? 1.5f : 1.0f;
+        const auto labels = cluster_radar(radar.points, vel_scale);
+        const int match = radar.match_i;
+        const int match_lab = (match >= 0 && match < static_cast<int>(labels.size()))
+            ? labels[static_cast<std::size_t>(match)] : -1;
+
+        for (std::size_t i = 0; i < radar.points.size(); ++i) {
+            const auto& rp = radar.points[i];
+            const cv::Point p = to_px(rp.range_m * std::cos(rp.azimuth_rad),
+                                      rp.range_m * std::sin(rp.azimuth_rad));
+            const bool is_static = std::abs(rp.range_rate + ego_est) < 0.5f;
+            const bool clustered = labels[i] >= 0;
+            const bool matched    = match_lab >= 0 && labels[i] == match_lab;
+            if (is_static) ++n_static; else ++n_moving;
+            if (clustered) ++n_clustered;
+            if (!in_panel(p)) continue;
+            cv::Scalar c = is_static ? cv::Scalar(105, 105, 105)   // static world
+                                     : cv::Scalar(0, 170, 255);    // real mover
+            if (matched) c = cv::Scalar(0, 255, 100);
+            cv::circle(panel, p, matched ? 3 : (clustered ? 2 : 1), c, -1, cv::LINE_AA);
+        }
+        if (match >= 0 && match < static_cast<int>(radar.points.size())) {
+            const auto& rp = radar.points[static_cast<std::size_t>(match)];
+            const cv::Point p = to_px(rp.range_m * std::cos(rp.azimuth_rad),
+                                      rp.range_m * std::sin(rp.azimuth_rad));
+            if (in_panel(p)) {
+                cv::circle(panel, p, 7, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+                char buf[64];
+                std::snprintf(buf, sizeof(buf), "%.1fm %+.1f", rp.range_m, rp.range_rate);
+                cv::putText(panel, buf, cv::Point(p.x + 9, p.y - 6),
+                            kFont, 0.30, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+            }
+        }
+    }
+
+    const cv::Point ego = to_px(0.f, 0.f);
+    cv::circle(panel, ego, 3, cv::Scalar(255, 255, 255), -1, cv::LINE_AA);
+
+    char foot[96];
+    std::snprintf(foot, sizeof(foot), "ego~%.1f  pts %zu  cl %d  stat %d  mov %d",
+                  ego_est, radar.points.size(), n_clustered, n_static, n_moving);
+    cv::putText(panel, foot, cv::Point(4, ph - 4), kFont, 0.30,
+                cv::Scalar(150, 150, 150), 1, cv::LINE_AA);
+}
+
 static void draw_bev_fused_ego_path(cv::Mat& img,
                                      const DebugView& view,
                                      const OverlayLayout& L)
@@ -365,6 +546,8 @@ static void draw_bev_fused_ego_path(cv::Mat& img,
     const auto& lat = view.lateral;
     const auto& radar = view.cipo.radar;
     if (!lat.path_valid && !radar.enabled) return;
+
+    if (radar.enabled) { draw_radar_bev_panel(img, view, L); return; }
 
     const cv::Rect panel_rect = L.bev & cv::Rect(0, 0, img.cols, img.rows);
     if (panel_rect.width < 40 || panel_rect.height < 40) return;
@@ -400,31 +583,6 @@ static void draw_bev_fused_ego_path(cv::Mat& img,
         }
         if (poly.size() >= 2)
             cv::polylines(panel, poly, false, kClrFusedLat, 2, cv::LINE_AA);
-    }
-
-    if (radar.enabled && !radar.points.empty()) {
-        const auto labels = cluster_radar(radar.points);
-        const int match = radar.match_i;
-        const int match_lab = (match >= 0 && match < static_cast<int>(labels.size()))
-            ? labels[static_cast<std::size_t>(match)] : -1;
-
-        for (std::size_t i = 0; i < radar.points.size(); ++i) {
-            const auto& rp = radar.points[i];
-            const float x = rp.range_m * std::cos(rp.azimuth_rad);
-            const float y = rp.range_m * std::sin(rp.azimuth_rad);
-            const cv::Point p = to_px(x, y);
-            if (p.x < 2 || p.x >= pw - 2 || p.y < 16 || p.y >= ph - 2) continue;
-            const bool in_cluster = match_lab >= 0 && labels[i] == match_lab;
-            cv::circle(panel, p, in_cluster ? 3 : 2,
-                       in_cluster ? cv::Scalar(0, 255, 100) : cv::Scalar(140, 140, 140),
-                       -1, cv::LINE_AA);
-        }
-        if (match >= 0 && match < static_cast<int>(radar.points.size())) {
-            const auto& rp = radar.points[static_cast<std::size_t>(match)];
-            const cv::Point p = to_px(rp.range_m * std::cos(rp.azimuth_rad),
-                                      rp.range_m * std::sin(rp.azimuth_rad));
-            cv::circle(panel, p, 6, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
-        }
     }
 
     const cv::Point ego = to_px(0.f, 0.f);
