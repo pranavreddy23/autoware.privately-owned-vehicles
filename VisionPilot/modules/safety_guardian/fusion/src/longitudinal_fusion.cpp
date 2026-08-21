@@ -22,6 +22,13 @@ struct RadarCluster {
     int representative_i = -1;
 };
 
+// Neighbourhood sized to a road vehicle. The original 4 m range / 0.5 m lateral
+// box is barrier-shaped: it chains anything long and thin at constant lateral
+// offset (guardrails) while splitting a 2 m wide vehicle, whose own rear-face
+// returns land 2.0 apart in the metric and never group.
+constexpr float kClusterRangeM = 2.5f;   // along travel
+constexpr float kClusterLatM   = 1.8f;   // across travel — must exceed vehicle width
+
 float polar_vel_dist(const RadarPoint& a, const RadarPoint& b, float vel_scale)
 {
     const float dr = std::abs(a.range_m - b.range_m);
@@ -30,8 +37,8 @@ float polar_vel_dist(const RadarPoint& a, const RadarPoint& b, float vel_scale)
                                  std::cos(a.azimuth_rad - b.azimuth_rad));
     const float dlat = r_avg * std::abs(std::sin(daz));
     const float dv = std::abs(a.range_rate - b.range_rate);
-    const float xr = dr / 4.f;
-    const float yl = dlat / 0.5f;
+    const float xr = dr / kClusterRangeM;
+    const float yl = dlat / kClusterLatM;
     const float zv = dv / vel_scale;
     return std::sqrt(xr * xr + yl * yl + zv * zv);
 }
@@ -88,28 +95,37 @@ std::vector<RadarCluster> cluster_radar(const std::vector<RadarPoint>& pts, floa
 
     std::vector<RadarCluster> clusters;
     clusters.reserve(static_cast<std::size_t>(cluster_id) + pts.size());
+    // Summarise each cluster by its NEAR EDGE, not its centroid. Averaging a
+    // barrier that chains from 20 m to 100 m invents an object at 60 m sitting
+    // on the mean azimuth, which is where the phantom in-path targets come from.
+    // The near edge is also the physically right answer for a vehicle: what we
+    // want is its rear bumper, not the middle of its return spread.
+    constexpr float kEdgeDepth = 2.f;
     for (int id = 0; id < cluster_id; ++id) {
-        float range_sum = 0.f;
-        float rate_sum = 0.f;
-        float sin_sum = 0.f;
-        float cos_sum = 0.f;
-        int count = 0;
+        float r_min = std::numeric_limits<float>::max();
         int representative = -1;
         for (int i = 0; i < n; ++i) {
             if (labels[static_cast<std::size_t>(i)] != id) continue;
+            const float r = pts[static_cast<std::size_t>(i)].range_m;
+            if (r < r_min) { r_min = r; representative = i; }
+        }
+        if (representative < 0) continue;
+
+        float range_sum = 0.f, rate_sum = 0.f, sin_sum = 0.f, cos_sum = 0.f;
+        int count = 0;
+        for (int i = 0; i < n; ++i) {
+            if (labels[static_cast<std::size_t>(i)] != id) continue;
             const auto& p = pts[static_cast<std::size_t>(i)];
+            if (p.range_m - r_min > kEdgeDepth) continue;
             range_sum += p.range_m;
             rate_sum += p.range_rate;
             sin_sum += std::sin(p.azimuth_rad);
             cos_sum += std::cos(p.azimuth_rad);
-            if (representative < 0) representative = i;
             ++count;
         }
-        if (count > 0) {
-            const float inv_n = 1.f / static_cast<float>(count);
-            clusters.push_back({range_sum * inv_n, std::atan2(sin_sum, cos_sum),
-                                rate_sum * inv_n, representative});
-        }
+        const float inv_n = 1.f / static_cast<float>(count);
+        clusters.push_back({range_sum * inv_n, std::atan2(sin_sum, cos_sum),
+                            rate_sum * inv_n, representative});
     }
 
     // Match ZOD: a moving DBSCAN noise point remains a valid one-point cluster.
