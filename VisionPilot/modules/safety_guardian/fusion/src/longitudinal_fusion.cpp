@@ -191,8 +191,20 @@ int nearest_on_path(const std::vector<RadarCluster>& clusters, const PathPoly& p
 // radar cluster; a camera box gives us the same contour on the first frame.
 int cluster_in_window(const std::vector<RadarPoint>& pts,
                       float az_min, float az_max, float r_min, float r_max,
+                      float az_c, float lat_max_m,
                       float vel_scale, RadarCluster& out)
 {
+    // A bearing window keeps a constant width in angle, so its width in metres
+    // grows with range: the same box that spans 1.8 m at 40 m spans 6 m at 130 m,
+    // which is a lane and a half and lets the next lane over win. An object is
+    // the same width however far away it is, so bound the offset from the centre
+    // ray in metres as well.
+    const auto in_lat = [&](const RadarPoint& p) {
+        const float daz = std::atan2(std::sin(p.azimuth_rad - az_c),
+                                     std::cos(p.azimuth_rad - az_c));
+        return p.range_m * std::abs(std::sin(daz)) <= lat_max_m;
+    };
+
     // One object has one Doppler. Without this band the region-grow chains
     // through the velocity dimension in small steps and walks off a co-speed
     // vehicle onto the static world, averaging the two into a range-rate that
@@ -206,6 +218,7 @@ int cluster_in_window(const std::vector<RadarPoint>& pts,
         const auto& p = pts[static_cast<std::size_t>(i)];
         if (p.range_m < r_min || p.range_m > r_max) continue;
         if (p.azimuth_rad < az_min || p.azimuth_rad > az_max) continue;
+        if (!in_lat(p)) continue;
         member[static_cast<std::size_t>(i)] = 1;
         seed_rates.push_back(p.range_rate);
     }
@@ -233,6 +246,7 @@ int cluster_in_window(const std::vector<RadarPoint>& pts,
             if (member[static_cast<std::size_t>(j)]) continue;
             const auto& q = pts[static_cast<std::size_t>(j)];
             if (q.range_m <= 0.f) continue;
+            if (!in_lat(q)) continue;
             if (std::abs(q.range_rate - rate_ref) > kRateBandMs) continue;
             if (polar_vel_dist(pts[static_cast<std::size_t>(i)], q, vel_scale) <= 1.f)
                 member[static_cast<std::size_t>(j)] = 1;
@@ -386,16 +400,34 @@ CIPOFusionEstimate LongitudinalFusion::update(
         }
     }
 
-    // Range prior centring the model-based clustering window. The paper predicts
-    // the window from the tracked object, so prefer the filter's own estimate;
-    // fall back to AutoDrive, which stays sane at range where the bbox
-    // homography does not (it read 114 m for a target AutoDrive put at 66 m).
+    static constexpr float CIPO_PROB_MIN = 0.40f;  // below this → AD doesn't confirm CIPO
+
+    // The probability gate exists to answer "is there a CIPO at all". An L1/L2
+    // box already answers it, so when AutoSpeed sees one we take AutoDrive's
+    // distance whatever its flag probability says — the flag and the distance
+    // are separate heads, and a flag at 0.34 has been paired with a distance
+    // that was right. With no box, AutoDrive's own confidence is all we have.
+    const bool as_cipo_box =
+        autospeed.valid &&
+        std::any_of(autospeed.detections.begin(), autospeed.detections.end(),
+                    [](const models::Detection& d) {
+                        return d.class_id == 1 || d.class_id == 2;
+                    });
+    const bool ad_cipo_confirmed =
+        autodrive.valid && (as_cipo_box || autodrive.flag_prob >= CIPO_PROB_MIN);
+
+    // Range prior centring the model-based clustering window. AutoDrive first:
+    // it is the one distance measured independently of the filter, so it can
+    // pull a drifted track back. The filter's own posterior cannot — centring
+    // the window on it makes the radar confirm whatever the track already
+    // believes, and a track dragged out to 143 m by the bbox homography then
+    // searched 107-179 m and never saw the target at 90 m.
     float range_prior = 0.f;
-    if (initialised_ && !particles_.empty()) {
+    if (ad_cipo_confirmed) {
+        range_prior = cfg_.d_max_m * (1.f - autodrive.dist_normalized);
+    } else if (initialised_ && !particles_.empty()) {
         for (const auto& p : particles_) range_prior += p.distance_m;
         range_prior /= static_cast<float>(particles_.size());
-    } else if (autodrive.valid && autodrive.flag_prob >= 0.40f) {
-        range_prior = cfg_.d_max_m * (1.f - autodrive.dist_normalized);
     }
     const float* prior_ptr = (range_prior > 1.f) ? &range_prior : nullptr;
 
@@ -464,11 +496,8 @@ CIPOFusionEstimate LongitudinalFusion::update(
     const Meas& cipo_raw = cfg_.radar_enabled ? radar_meas : as_h;
 
     // ── Step 3: AutoDrive distance (gated by CIPO probability) ───────────────
-    static constexpr float D_MAX         = 150.f;
-    static constexpr float CIPO_PROB_MIN = 0.40f;  // below this → AD doesn't confirm CIPO
+    static constexpr float D_MAX = 150.f;
 
-    const bool ad_cipo_confirmed = autodrive.valid &&
-                                   autodrive.flag_prob >= CIPO_PROB_MIN;
     const bool autospeed_cipo_confirmed = cipo_raw.valid || as_h.valid;
 
     // If neither network confirms a CIPO target, report max distance and
@@ -692,12 +721,16 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
         const bool  prior_ok = std::isfinite(prior) && prior > 1.f &&
                                prior < cfg_.radar_max_range_m;
         const float band = std::max(10.f, 0.25f * prior);
+        // Half a lane. Beyond this the return belongs to the next lane, whatever
+        // the bearing window allows at that range.
+        constexpr float kLatMaxM = 1.75f;
         RadarCluster mc;
         if (cluster_in_window(radar,
                               std::min(az_a, az_b) - az_pad,
                               std::max(az_a, az_b) + az_pad,
                               prior_ok ? std::max(1.f, prior - band) : 0.f,
                               prior_ok ? prior + band : cfg_.radar_max_range_m,
+                              az, kLatMaxM,
                               1.0f, mc) >= 0)
             return fill_c(mc, box.class_id == 2, RadarHit::Fov, 1, true, az);
 
