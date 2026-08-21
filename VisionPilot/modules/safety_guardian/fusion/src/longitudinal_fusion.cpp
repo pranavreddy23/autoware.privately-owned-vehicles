@@ -665,6 +665,18 @@ LongitudinalFusion::select_cipo(const std::vector<models::Detection>& dets) cons
         sel.meas.distance_m = best_l1;
         sel.meas.valid      = true;
     }
+
+    // The homography inverts d = f·h / (v − v_horizon), so a fixed pixel error
+    // on the box bottom maps to a distance error growing with d²: the two
+    // pixels worth 0.3 m at 30 m are worth 8 m at 150 m. A flat noise figure
+    // therefore states long-range readings far more confidently than it has
+    // any right to, and a 155 m reading outvoted a 90 m one that was measured
+    // far better. Grow the noise the way the geometry does.
+    if (sel.meas.valid) {
+        const float s = sel.meas.distance_m / cfg_.homography_ref_range_m;
+        sel.meas.stddev_m = std::clamp(cfg_.cipo_noise_m * s * s,
+                                       0.25f * cfg_.cipo_noise_m, 200.f);
+    }
     return sel;
 }
 

@@ -89,6 +89,9 @@ public:
         float autodrive_noise_m     = 8.f;    // noise ceiling at minimum AD confidence
         float cipo_noise_m          = 3.f;    // CIPO bbox / radar range noise
         float cipo_vel_noise_ms     = 1.5f;   // radar range-rate noise
+        // Range at which cipo_noise_m describes the bbox homography. Its error
+        // grows with distance², so the noise is scaled by (d / this)².
+        float homography_ref_range_m = 30.f;
         // Reinitialise filter when a measurement jumps this far from the
         // particle cloud (genuine cut-in / cut-out only).
         float reset_gate_m          = 25.f;
