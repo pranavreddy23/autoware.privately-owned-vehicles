@@ -371,7 +371,6 @@ void LongitudinalFusion::reset()
 {
     particles_.clear();
     initialised_ = false;
-    radar_hist_.clear();
 }
 
 CIPOFusionEstimate LongitudinalFusion::update(
@@ -436,7 +435,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
     if (cfg_.radar_enabled && radar) {
         if (autospeed.valid) {
             const auto sel = select_cipo_radar(autospeed.detections, *radar, path,
-                                               dt_s, ego_speed_ms, prior_ptr);
+                                               ego_speed_ms, prior_ptr);
             match_members       = sel.members;
             radar_meas          = sel.meas;
             est.cut_in_detected = sel.cut_in;
@@ -473,20 +472,6 @@ CIPOFusionEstimate LongitudinalFusion::update(
                     est.radar.in_match[static_cast<std::size_t>(i)] = 1;
             est.cipo_raw_found   = true;
             est.cipo_raw_dist_m  = radar_meas.distance_m;
-            RadarHist h;
-            h.ok = true;
-            h.range_m = radar_meas.distance_m;
-            h.range_rate = radar_meas.velocity_ms;
-            if (est.radar.fov_valid)
-                h.az_rad = est.radar.fov_az_rad;
-            else if (est.radar.match_i >= 0 &&
-                     est.radar.match_i < static_cast<int>(radar->size()))
-                h.az_rad = (*radar)[static_cast<std::size_t>(est.radar.match_i)].azimuth_rad;
-            radar_hist_.push_back(h);
-            if (radar_hist_.size() > 10) radar_hist_.erase(radar_hist_.begin());
-        } else {
-            radar_hist_.push_back({});
-            if (radar_hist_.size() > 10) radar_hist_.erase(radar_hist_.begin());
         }
     } else if (as_h.valid) {
         est.cipo_raw_found  = true;
@@ -684,7 +669,6 @@ LongitudinalFusion::CIPOSelection
 LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets,
                                       const std::vector<RadarPoint>& radar,
                                       const PathPoly* path,
-                                      float dt_s,
                                       const float* ego_speed_ms,
                                       const float* range_prior_m) const
 {
@@ -747,29 +731,6 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
             return fill_c(mc, box.class_id == 2, RadarHit::Fov, 1, true, az);
 
         const auto clusters = cluster_radar(radar, cfg_.radar_max_range_m, 1.0f);
-
-        const float dt = (dt_s > 1e-6f) ? dt_s : cfg_.dt_s;
-        int best_k = 99;
-        RadarCluster from_prev;
-        bool have_prev = false;
-        for (int k = 1; k <= static_cast<int>(radar_hist_.size()) && k <= 10; ++k) {
-            const auto& rj = radar_hist_[radar_hist_.size() - static_cast<std::size_t>(k)];
-            if (!rj.ok) continue;
-            const float gap = dt * static_cast<float>(k);
-            if (gap <= 0.f || gap > 1.f) continue;
-            const float daz = std::atan2(std::sin(az - rj.az_rad), std::cos(az - rj.az_rad));
-            if (std::abs(daz) * (180.f / kPi) > 4.f) continue;
-            const float D_est = rj.range_m + rj.range_rate * gap;
-            if (D_est <= 0.f) continue;
-            if (k < best_k) {
-                best_k = k;
-                from_prev = {D_est, az, rj.range_rate, -1};
-                have_prev = true;
-            }
-        }
-        if (have_prev)
-            return fill_c(from_prev, box.class_id == 2, RadarHit::Fov, 1, true, az);
-
         if (path) {
             const int ip = nearest_on_path(clusters, *path, 0.5f);
             if (ip >= 0)

@@ -159,7 +159,6 @@ private:
     CIPOSelection select_cipo_radar(const std::vector<models::Detection>& dets,
                                     const std::vector<RadarPoint>& radar,
                                     const PathPoly* path,
-                                    float dt_s,
                                     const float* ego_speed_ms,
                                     const float* range_prior_m = nullptr) const;
     static float project_dist(const cv::Mat& H, float ux, float uy);
@@ -176,8 +175,6 @@ private:
     std::vector<Particle> particles_;
     bool   initialised_ = false;
     std::mt19937 rng_;
-    struct RadarHist { bool ok = false; float az_rad = 0.f, range_m = 0.f, range_rate = 0.f; };
-    std::vector<RadarHist> radar_hist_;
     // DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world). Zenseact Open Dataset
     cv::Mat H_ = (cv::Mat_<double>(3, 3) <<
                        0.00209514907, -0.000941721466, -9.24906396,
