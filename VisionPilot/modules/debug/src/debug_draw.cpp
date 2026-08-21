@@ -311,74 +311,28 @@ static cv::Point world_to_bev_px(float x_fwd, float y_lat,
         static_cast<int>(std::lround(cy - x_fwd * px_per_m)));
 }
 
-// Tolerances must stay identical to fusion::polar_vel_dist, otherwise the BEV
-// paints a different segmentation than the one association actually used.
-static float polar_vel_dist(const fusion::RadarPoint& a, const fusion::RadarPoint& b,
-                            float vel_scale)
-{
-    const float dr = std::abs(a.range_m - b.range_m);
-    const float r_avg = 0.5f * (a.range_m + b.range_m);
-    const float daz = std::atan2(std::sin(a.azimuth_rad - b.azimuth_rad),
-                                 std::cos(a.azimuth_rad - b.azimuth_rad));
-    const float dlat = r_avg * std::abs(std::sin(daz));
-    const float dv = std::abs(a.range_rate - b.range_rate);
-    const float xr = dr / 2.5f, yl = dlat / 1.8f, zv = dv / vel_scale;
-    return std::sqrt(xr * xr + yl * yl + zv * zv);
-}
-
-// A static return's range-rate is -v_ego, and on a highway most returns are
-// static world (ground, barriers, signs).  The median is therefore -v_ego and is
-// robust to the handful of moving targets.
+// A static return's range-rate is -v_ego·cos(azimuth), and on a highway most
+// returns are static world (ground, barriers, signs).  The median of the
+// de-projected rate is therefore -v_ego, robust to the few moving targets.
 static float ego_speed_from_radar(const std::vector<fusion::RadarPoint>& pts)
 {
     std::vector<float> rr;
     rr.reserve(pts.size());
-    for (const auto& p : pts)
-        if (p.range_m > 2.f) rr.push_back(p.range_rate);
+    for (const auto& p : pts) {
+        const float ca = std::cos(p.azimuth_rad);
+        if (p.range_m > 2.f && ca > 0.2f) rr.push_back(p.range_rate / ca);
+    }
     if (rr.size() < 8) return 0.f;
     std::nth_element(rr.begin(), rr.begin() + static_cast<long>(rr.size() / 2), rr.end());
     return -rr[rr.size() / 2];
 }
 
-static std::vector<int> cluster_radar(const std::vector<fusion::RadarPoint>& pts,
-                                      float vel_scale)
-{
-    const int n = static_cast<int>(pts.size());
-    std::vector<int> lab(n, -2);
-    int cid = 0;
-    auto region = [&](int i) {
-        std::vector<int> nbs;
-        for (int j = 0; j < n; ++j)
-            if (polar_vel_dist(pts[i], pts[j], vel_scale) <= 1.f) nbs.push_back(j);
-        return nbs;
-    };
-    for (int i = 0; i < n; ++i) {
-        if (lab[i] != -2) continue;
-        const auto nbs = region(i);
-        if (static_cast<int>(nbs.size()) < 2) { lab[i] = -1; continue; }
-        lab[i] = cid;
-        std::vector<int> seeds = nbs;
-        for (std::size_t s = 0; s < seeds.size(); ++s) {
-            const int j = seeds[s];
-            if (lab[j] == -1) lab[j] = cid;
-            if (lab[j] != -2) continue;
-            lab[j] = cid;
-            const auto nbs2 = region(j);
-            if (static_cast<int>(nbs2.size()) >= 2)
-                seeds.insert(seeds.end(), nbs2.begin(), nbs2.end());
-        }
-        ++cid;
-    }
-    for (int i = 0; i < n; ++i) {
-        if (lab[i] < 0 && std::abs(pts[i].range_rate) > 0.5f)
-            lab[i] = cid++;
-    }
-    return lab;
-}
-
 // Radar BEV. Forward and lateral use *different* scales: 0-120 m of range has to
 // share a 260 px panel, so a 1 m association gate is ~2 px tall.  Stretching the
-// lateral axis ~8x is the only way the 0.5/1.0 m gates are visible at all.
+// lateral axis is the only way the gates are visible at all.
+//
+// Cluster membership is not recomputed here — it arrives in RadarAssocDebug so
+// the panel can only ever show the association fusion actually made.
 static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
                                  const OverlayLayout& L)
 {
@@ -464,42 +418,39 @@ static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
     if (view.cipo.ad_meas_valid) tick(view.cipo.ad_dist_m, cv::Scalar(0, 220, 0), "AD");
     if (view.cipo.as_h_valid)    tick(view.cipo.as_h_dist_m, cv::Scalar(160, 220, 160), "H");
 
-    // Returns, split by ego-compensated Doppler: static world vs real movers.
-    int n_static = 0, n_moving = 0, n_clustered = 0;
+    // Returns, split by ego-compensated Doppler. A static return's rate is
+    // -v_ego·cos(azimuth), so the cosine matters: without it every wide-angle
+    // barrier return gets mislabelled as a mover.
+    int n_static = 0, n_moving = 0, n_match = 0;
     const float ego_est = ego_speed_from_radar(radar.points);
-    if (!radar.points.empty()) {
-        const float vel_scale = (view.cipo.radar_scenario == 2) ? 1.5f : 1.0f;
-        const auto labels = cluster_radar(radar.points, vel_scale);
-        const int match = radar.match_i;
-        const int match_lab = (match >= 0 && match < static_cast<int>(labels.size()))
-            ? labels[static_cast<std::size_t>(match)] : -1;
+    for (std::size_t i = 0; i < radar.points.size(); ++i) {
+        const auto& rp = radar.points[i];
+        const cv::Point p = to_px(rp.range_m * std::cos(rp.azimuth_rad),
+                                  rp.range_m * std::sin(rp.azimuth_rad));
+        const bool is_static =
+            std::abs(rp.range_rate + ego_est * std::cos(rp.azimuth_rad)) < 0.5f;
+        const bool matched = i < radar.in_match.size() && radar.in_match[i] != 0;
+        if (is_static) ++n_static; else ++n_moving;
+        if (matched) ++n_match;
+        if (!in_panel(p)) continue;
+        cv::Scalar c = is_static ? cv::Scalar(105, 105, 105)   // static world
+                                 : cv::Scalar(0, 170, 255);    // real mover
+        if (matched) c = cv::Scalar(0, 255, 100);
+        cv::circle(panel, p, matched ? 3 : 2, c, -1, cv::LINE_AA);
+    }
 
-        for (std::size_t i = 0; i < radar.points.size(); ++i) {
-            const auto& rp = radar.points[i];
-            const cv::Point p = to_px(rp.range_m * std::cos(rp.azimuth_rad),
-                                      rp.range_m * std::sin(rp.azimuth_rad));
-            const bool is_static = std::abs(rp.range_rate + ego_est) < 0.5f;
-            const bool clustered = labels[i] >= 0;
-            const bool matched    = match_lab >= 0 && labels[i] == match_lab;
-            if (is_static) ++n_static; else ++n_moving;
-            if (clustered) ++n_clustered;
-            if (!in_panel(p)) continue;
-            cv::Scalar c = is_static ? cv::Scalar(105, 105, 105)   // static world
-                                     : cv::Scalar(0, 170, 255);    // real mover
-            if (matched) c = cv::Scalar(0, 255, 100);
-            cv::circle(panel, p, matched ? 3 : (clustered ? 2 : 1), c, -1, cv::LINE_AA);
-        }
-        if (match >= 0 && match < static_cast<int>(radar.points.size())) {
-            const auto& rp = radar.points[static_cast<std::size_t>(match)];
-            const cv::Point p = to_px(rp.range_m * std::cos(rp.azimuth_rad),
-                                      rp.range_m * std::sin(rp.azimuth_rad));
-            if (in_panel(p)) {
-                cv::circle(panel, p, 7, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
-                char buf[64];
-                std::snprintf(buf, sizeof(buf), "%.1fm %+.1f", rp.range_m, rp.range_rate);
-                cv::putText(panel, buf, cv::Point(p.x + 9, p.y - 6),
-                            kFont, 0.30, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
-            }
+    // Ring and label report the cluster, not one member of it, so the panel and
+    // the HUD can never show two different answers.
+    if (n_match > 0 && radar.match_range_m > 0.f) {
+        const cv::Point p = to_px(radar.match_range_m * std::cos(radar.fov_az_rad),
+                                  radar.match_range_m * std::sin(radar.fov_az_rad));
+        if (in_panel(p)) {
+            cv::circle(panel, p, 7, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+            char buf[64];
+            std::snprintf(buf, sizeof(buf), "%.1fm %+.1f", radar.match_range_m,
+                          radar.match_rate_ms);
+            cv::putText(panel, buf, cv::Point(p.x + 9, p.y - 6),
+                        kFont, 0.30, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
         }
     }
 
@@ -507,8 +458,8 @@ static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
     cv::circle(panel, ego, 3, cv::Scalar(255, 255, 255), -1, cv::LINE_AA);
 
     char foot[96];
-    std::snprintf(foot, sizeof(foot), "ego~%.1f  pts %zu  cl %d  stat %d  mov %d",
-                  ego_est, radar.points.size(), n_clustered, n_static, n_moving);
+    std::snprintf(foot, sizeof(foot), "ego~%.1f  pts %zu  match %d  stat %d  mov %d",
+                  ego_est, radar.points.size(), n_match, n_static, n_moving);
     cv::putText(panel, foot, cv::Point(4, ph - 4), kFont, 0.30,
                 cv::Scalar(150, 150, 150), 1, cv::LINE_AA);
 }
