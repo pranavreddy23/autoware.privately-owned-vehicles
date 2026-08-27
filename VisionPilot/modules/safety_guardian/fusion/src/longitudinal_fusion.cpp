@@ -647,48 +647,30 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
     }
 
     constexpr float kBoxLatM = 1.75f;
-    const auto in_contour = [&](const RadarCluster& c) {
-        if (!have_box) return false;
-        if (c.azimuth_rad < az_min || c.azimuth_rad > az_max) return false;
-        const float daz = std::atan2(std::sin(c.azimuth_rad - az),
-                                     std::cos(c.azimuth_rad - az));
-        return c.range_m * std::abs(std::sin(daz)) <= kBoxLatM;
-    };
     const auto near_cv = [&](const RadarCluster& c) {
         const bool ad_ok = range_prior_m && cv_proximal(c.range_m, *range_prior_m);
         const bool as_ok = cv_proximal(c.range_m, d_h);
         return ad_ok || as_ok;
     };
 
-    // In-path association needs the fused path. No path → box contour only.
+    // Cluster everything, keep in-path movers plus CV-confirmed statics,
+    // then the closest of that list is the CIPO. The L1/L2 box is not a
+    // search window; it only supplies the AutoSpeed range for statics.
     if (path && path->valid) {
         const float lat_zone = cfg_.radar_path_buffer_m;
-        std::vector<int> moving_path, moving_box, static_cv;
+        std::vector<int> candidates;
         for (int i = 0; i < static_cast<int>(clusters.size()); ++i) {
             const auto& c = clusters[static_cast<std::size_t>(i)];
             if (!cluster_on_path(c, *path, lat_zone)) continue;
-            if (cluster_is_moving(c, ego, have_ego)) {
-                moving_path.push_back(i);
-                if (in_contour(c)) moving_box.push_back(i);
-            } else if (c.members.size() >= 2 && near_cv(c)) {
-                if (!have_box || in_contour(c))
-                    static_cv.push_back(i);
-            }
+            if (cluster_is_moving(c, ego, have_ego))
+                candidates.push_back(i);
+            else if (c.members.size() >= 2 && near_cv(c))
+                candidates.push_back(i);
         }
 
-        const int ib = closest_of(clusters, moving_box);
-        if (ib >= 0)
-            return fill_c(clusters[static_cast<std::size_t>(ib)], cut_in,
-                          RadarHit::Fov, have_box ? 1 : 3, have_box, az);
-
-        const int im = closest_of(clusters, moving_path);
-        if (im >= 0)
-            return fill_c(clusters[static_cast<std::size_t>(im)], cut_in,
-                          RadarHit::Path, have_box ? 1 : 3, have_box, az);
-
-        const int is = closest_of(clusters, static_cv);
-        if (is >= 0)
-            return fill_c(clusters[static_cast<std::size_t>(is)], cut_in,
+        const int ic = closest_of(clusters, candidates);
+        if (ic >= 0)
+            return fill_c(clusters[static_cast<std::size_t>(ic)], cut_in,
                           RadarHit::Path, have_box ? 1 : 3, have_box, az);
 
         CIPOSelection miss;
