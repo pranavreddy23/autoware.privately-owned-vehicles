@@ -658,10 +658,14 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
     // search window; it only supplies the AutoSpeed range for statics.
     if (path && path->valid) {
         const float lat_zone = cfg_.radar_path_buffer_m;
+        PathPoly search = *path;
+        // Waypoint fits often end at ~25 m; still evaluate the poly out to
+        // radar range so a cluster at 80–150 m can be in-path.
+        search.x_max_m = std::max(search.x_max_m, cfg_.radar_max_range_m);
         std::vector<int> candidates;
         for (int i = 0; i < static_cast<int>(clusters.size()); ++i) {
             const auto& c = clusters[static_cast<std::size_t>(i)];
-            if (!cluster_on_path(c, *path, lat_zone)) continue;
+            if (!cluster_on_path(c, search, lat_zone)) continue;
             if (cluster_is_moving(c, ego, have_ego))
                 candidates.push_back(i);
             else if (c.members.size() >= 2 && near_cv(c))
