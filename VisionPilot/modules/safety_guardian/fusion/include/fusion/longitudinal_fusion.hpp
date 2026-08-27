@@ -100,9 +100,9 @@ public:
         bool  radar_enabled        = false;
         float radar_hfov_deg       = 50.f;   // AutoSpeed crop HFOV (not ZOD's ~120° full cam)
         float radar_lat_buffer_m   = 0.5f;
-        // Half a lane either side of the fused path. Clusters outside this
-        // zone are not in-path CIPO candidates.
-        float radar_path_buffer_m  = 1.8f;
+        // In-path zone around the fused path. Wider than a lane so a cut-in
+        // and a slightly-off path still count; clusters beyond this are ignored.
+        float radar_path_buffer_m  = 3.0f;
         float radar_max_range_m    = 150.f;
         // T_sensor→ego 4×4. Ego = ISO-8855 (X fwd, Y left, Z up). Same as ZOD.
         // Default cam: OpenCV optical (X right, Y down, Z fwd) → ego. Default radar: identity.
