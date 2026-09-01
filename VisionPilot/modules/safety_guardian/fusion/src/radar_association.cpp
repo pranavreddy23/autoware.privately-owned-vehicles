@@ -275,7 +275,7 @@ bool cluster_on_path(const RadarCluster& c, const PathPoly& path, float path_buf
 bool cv_proximal(float cluster_r, float cv_r)
 {
     if (!(cv_r > 1.f) || !std::isfinite(cv_r)) return false;
-    return std::abs(cluster_r - cv_r) <= std::max(8.f, 0.15f * cv_r);
+    return std::abs(cluster_r - cv_r) <= std::max(8.f, 0.08f * cv_r);
 }
 
 int closest_of(const std::vector<RadarCluster>& clusters, const std::vector<int>& ids)
@@ -422,9 +422,8 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
         return ad_ok || as_ok;
     };
 
-    // Cluster everything, keep in-path movers plus CV-confirmed statics,
-    // then the closest of that list is the CIPO. The L1/L2 box is not a
-    // search window; it only supplies the AutoSpeed range for statics.
+    // In-path movers are always candidates (cut-in closer than AD/AS must
+    // still win). Statics need camera range agree — that is the only CV gate.
     if (path && path->valid) {
         const float lat_zone = cfg_.radar_path_buffer_m;
         PathPoly search = *path;
