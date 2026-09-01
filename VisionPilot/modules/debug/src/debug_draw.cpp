@@ -457,18 +457,18 @@ static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
     if (view.cipo.ad_meas_valid) tick(view.cipo.ad_dist_m, cv::Scalar(0, 220, 0), "AD");
     if (view.cipo.as_h_valid)    tick(view.cipo.as_h_dist_m, cv::Scalar(160, 220, 160), "H");
 
-    // Returns, split by ego-compensated Doppler. A static return's rate is
-    // -v_ego·cos(azimuth), so the cosine matters: without it every wide-angle
-    // barrier return gets mislabelled as a mover.
+    // Returns, split by ego-compensated Doppler. Prefer published ego; if
+    // missing, fall back to the cloud median for colour only.
     int n_static = 0, n_moving = 0, n_match = 0, n_zone = 0;
-    const float ego_est = ego_speed_from_radar(radar.points);
+    const float ego_pub = view.ego_speed_ms;
+    const float ego_est = (ego_pub > 0.5f) ? ego_pub : ego_speed_from_radar(radar.points);
     for (std::size_t i = 0; i < radar.points.size(); ++i) {
         const auto& rp = radar.points[i];
         const float x = rp.range_m * std::cos(rp.azimuth_rad);
         const float y = rp.range_m * std::sin(rp.azimuth_rad);
         const cv::Point p = to_px(x, y);
         const bool is_static =
-            std::abs(rp.range_rate + ego_est * std::cos(rp.azimuth_rad)) < 0.5f;
+            std::abs(rp.range_rate + ego_est * std::cos(rp.azimuth_rad)) < 1.0f;
         const bool matched = i < radar.in_match.size() && radar.in_match[i] != 0;
         bool in_zone = false;
         if (have_path && x >= 0.5f && x <= kFwdMax) {
@@ -504,9 +504,14 @@ static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
     cv::circle(panel, ego, 3, cv::Scalar(255, 255, 255), -1, cv::LINE_AA);
 
     char foot[112];
-    std::snprintf(foot, sizeof(foot),
-                  "ego~%.1f  pts %zu  zone %d  match %d  stat %d  mov %d",
-                  ego_est, radar.points.size(), n_zone, n_match, n_static, n_moving);
+    if (ego_pub > 0.5f)
+        std::snprintf(foot, sizeof(foot),
+                      "ego=%.1f  pts %zu  zone %d  match %d  stat %d  mov %d",
+                      ego_pub, radar.points.size(), n_zone, n_match, n_static, n_moving);
+    else
+        std::snprintf(foot, sizeof(foot),
+                      "ego=--  pts %zu  zone %d  match %d  stat %d  mov %d",
+                      radar.points.size(), n_zone, n_match, n_static, n_moving);
     cv::putText(panel, foot, cv::Point(4, ph - 4), kFont, 0.30,
                 cv::Scalar(150, 150, 150), 1, cv::LINE_AA);
 }
@@ -722,6 +727,12 @@ static void draw_hud_panel(cv::Mat& img, const DebugView& v, const OverlayLayout
     int y = py + 16;
     text(c1x, y, "LONG MEASUREMENTS", kClrHeader); y += lineH;
 
+    if (v.ego_speed_ms > 0.5f)
+        text(c1x, y, "Ego    " + fd(v.ego_speed_ms, 2) + " m/s", kClrFusedLong);
+    else
+        text(c1x, y, "Ego    (none)", kClrNormal);
+    y += lineH;
+
     if (v.auto_drive.valid) {
         const float d_m = v.cipo.ad_meas_valid ? v.cipo.ad_dist_m
                         : D_MAX * (1.f - v.auto_drive.dist_normalized);
@@ -837,10 +848,11 @@ bool visualize(cv::Mat& frame,
                const models::InferenceFrameResult& result,
                const std::string& src_label,
                const std::string& wheel_dir,
-               const cv::Mat& H_world_to_px)
+               const cv::Mat& H_world_to_px,
+               float ego_speed_ms)
 {
     if (frame.empty()) return false;
-    auto dv = debug_view_from(result, src_label, wheel_dir);
+    auto dv = debug_view_from(result, src_label, wheel_dir, ego_speed_ms);
     annotate_frame(frame, dv, H_world_to_px);
     cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
     cv::resizeWindow("VisionPilot", frame.cols, frame.rows);
