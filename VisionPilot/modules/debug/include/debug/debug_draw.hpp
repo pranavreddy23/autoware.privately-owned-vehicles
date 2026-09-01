@@ -37,6 +37,8 @@ struct DebugView {
     fusion::CIPOFusionEstimate    cipo;
     fusion::LateralFusionEstimate   lateral;
 
+    float       ego_speed_ms = 0.f;  // published /vehicle/speed (m/s)
+
     VehicleParams vehicle;
     std::string wheel_dir;
 };
@@ -44,13 +46,15 @@ struct DebugView {
 inline DebugView debug_view_from(
     const models::InferenceFrameResult& r,
     const std::string& src_label,
-    const std::string& wheel_dir)
+    const std::string& wheel_dir,
+    float ego_speed_ms = 0.f)
 {
     return {
         r.frame_id, r.wall_ms, r.pre_ms, r.ad_ms, r.as_ms, r.asp_ms,
         src_label,
         r.auto_drive, r.auto_steer, r.auto_speed,
         r.cipo, r.lateral,
+        ego_speed_ms,
         {}, wheel_dir,
     };
 }
@@ -75,6 +79,7 @@ bool visualize(cv::Mat& frame,
                const models::InferenceFrameResult& result,
                const std::string& src_label,
                const std::string& wheel_dir,
-               const cv::Mat& H_world_to_px = {});
+               const cv::Mat& H_world_to_px = {},
+               float ego_speed_ms = 0.f);
 
 }  // namespace visionpilot::debug
