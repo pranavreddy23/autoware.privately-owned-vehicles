@@ -69,9 +69,11 @@ struct CIPOFusionEstimate {
 //
 //  Per-frame CIPO longitudinal estimation:
 //    1. Project AutoSpeed Level 1 / Level 2 bbox bottom-centres through H.
-//    2. Particle filter [distance_m, velocity_ms] fuses AutoDrive + CIPO raw.
-//       Log-weight accumulation (MRPT style), velocity from weighted particle mean.
-//    3. Innovation gate resets the filter on genuine cut-in / cut-out events.
+//    2. Associate an in-path radar cluster when radar is enabled.
+//    3. Particle filter [distance_m, velocity_ms]:
+//         • radar match  → track radar only (camera does not reweight)
+//         • radar miss   → camera only if AD flag and AS L1/L2 score both > 0.5
+//         • source switch radar↔camera → reset and re-init
 //
 class LongitudinalFusion {
 public:
@@ -173,9 +175,13 @@ private:
     void  resample();
     static float gaussian_loglik(float z, float mean, float sigma);
 
+    enum class TrackSrc { None, Radar, Camera };
+
     Config cfg_;
     std::vector<Particle> particles_;
     bool   initialised_ = false;
+    bool   prev_cut_in_ = false;
+    TrackSrc track_src_ = TrackSrc::None;
     std::mt19937 rng_;
     // DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world). Zenseact Open Dataset
     cv::Mat H_ = (cv::Mat_<double>(3, 3) <<
