@@ -163,6 +163,7 @@ int main(int argc, char** argv)
         cv::Mat display_frame = resized;
 
         const double ego_v = vehicle_interface->read();
+        VP_INFO("ego_speed=%.2f m/s", ego_v);
         if (const auto r = pipeline.process(warped, resized,
                                             static_cast<float>(ego_v), true))
         {
@@ -207,7 +208,9 @@ int main(int argc, char** argv)
                 {
                     // annotate_frame() draws inplace
                     viz = cfg.rrd_on ? resized.clone() : resized;
-                    vd::visualize(viz, *r, source_label(cfg.source), cfg.wheel_dir, pipeline.H_world2resized());
+                    vd::visualize(viz, *r, source_label(cfg.source), cfg.wheel_dir,
+                                  pipeline.H_world2resized(),
+                                  static_cast<float>(ego_v));
                     display_frame = viz;
                 }
                 else
