@@ -30,7 +30,7 @@ struct RadarCluster {
 // enough to glue a lead car to the van in the next metre of the same beam.
 constexpr float kClusterRangeM = 2.0f;
 constexpr float kClusterLatM   = 1.5f;
-constexpr float kMovingAbsMs   = 0.5f;
+constexpr float kMovingAbsMs   = 1.0f;
 
 float polar_vel_dist(const RadarPoint& a, const RadarPoint& b, float vel_scale)
 {
