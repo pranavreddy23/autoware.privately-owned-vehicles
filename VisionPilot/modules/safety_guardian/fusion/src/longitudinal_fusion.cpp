@@ -63,8 +63,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
                 best_as_score = std::max(best_as_score, d.score);
     }
 
-    static constexpr float CIPO_PROB_MIN = 0.40f;  // AD prior for radar static confirm
-    static constexpr float kCamProbMin   = 0.50f;  // camera fallback needs both > 50%
+    static constexpr float CIPO_PROB_MIN = 0.40f;  // AD prior + AD-only camera fallback
     static constexpr float D_MAX         = 150.f;
 
     // Soft AD confirm still feeds the radar static range prior. Particle mean
@@ -119,7 +118,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
 
     // HUD always shows available camera distances; the filter may ignore them.
     Meas ad_meas;
-    if (autodrive.valid && (ad_for_assoc || autodrive.flag_prob > kCamProbMin)) {
+    if (autodrive.valid && (as_cipo_box || autodrive.flag_prob >= CIPO_PROB_MIN)) {
         ad_meas.distance_m = D_MAX * (1.f - autodrive.dist_normalized);
         const float p      = std::clamp(autodrive.flag_prob, 0.f, 1.f);
         ad_meas.stddev_m   = cfg_.autodrive_noise_min_m +
@@ -131,12 +130,12 @@ CIPOFusionEstimate LongitudinalFusion::update(
         }
     }
 
-    const bool radar_ok  = cfg_.radar_enabled && radar_meas.valid;
-    const bool ad_hi     = autodrive.valid && autodrive.flag_prob > kCamProbMin && ad_meas.valid;
-    const bool as_hi     = as_h.valid && best_as_score > kCamProbMin;
-    // Radar owns the track when it matches. Camera only when radar is absent
-    // and both AD flag and an L1/L2 box score clear 50%.
-    const bool camera_ok = !radar_ok && ad_hi && as_hi;
+    const bool radar_ok = cfg_.radar_enabled && radar_meas.valid;
+    // Radar miss → camera: prefer AS L1/L2 (+ AD if present); else AD if p≥40%.
+    const bool as_l12   = as_h.valid;
+    const bool ad_only  = !as_l12 && ad_meas.valid &&
+                          autodrive.valid && autodrive.flag_prob >= CIPO_PROB_MIN;
+    const bool camera_ok = !radar_ok && (as_l12 || ad_only);
     const TrackSrc src = radar_ok ? TrackSrc::Radar
                        : camera_ok ? TrackSrc::Camera
                                    : TrackSrc::None;
@@ -178,14 +177,16 @@ CIPOFusionEstimate LongitudinalFusion::update(
         est.cipo_raw_dist_m = as_h.distance_m;
     }
 
-    // Active filter inputs: radar alone, or AD+AS+H together. Never mix.
+    // Active filter inputs: radar alone, or camera (AS L1/L2 ± AD, else AD).
     Meas ad_f, as_f, radar_f;
     if (cfg_.radar_enabled) {
         if (src == TrackSrc::Radar) {
             radar_f = radar_meas;
+        } else if (as_l12) {
+            as_f = as_h;
+            if (ad_meas.valid) ad_f = ad_meas;
         } else {
             ad_f = ad_meas;
-            as_f = as_h;
         }
         if (track_src_ != TrackSrc::None && track_src_ != src) {
             VP_INFO("[Fusion] Source switch %s→%s — reset filter",
