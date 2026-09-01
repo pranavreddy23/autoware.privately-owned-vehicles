@@ -72,7 +72,7 @@ struct CIPOFusionEstimate {
 //    2. Associate an in-path radar cluster when radar is enabled.
 //    3. Particle filter [distance_m, velocity_ms]:
 //         • radar match  → track radar only (camera does not reweight)
-//         • radar miss   → camera only if AD flag and AS L1/L2 score both > 0.5
+//         • radar miss   → AS L1/L2 (+ AD if present); else AD if flag ≥ 0.40
 //         • source switch radar↔camera → reset and re-init
 //
 class LongitudinalFusion {
